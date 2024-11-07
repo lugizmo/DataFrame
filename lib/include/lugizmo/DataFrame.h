@@ -1,0 +1,408 @@
+#ifndef LUGIZMO_DF_DATAFRAME_H
+#define LUGIZMO_DF_DATAFRAME_H
+
+#include <cassert>
+#include <cstddef>
+#include <format>
+#include <functional>
+#include <iostream>
+#include <mdspan>
+#include <memory>
+#include <memory_resource>
+#include <optional>
+#include <ranges>
+#include <span>
+#include <string>
+#include <type_traits>
+#include <utility>
+#include <ostream>
+
+#include "memory/Memory.h"
+
+#include "dataframe/Index.h"
+#include "dataframe/Layout.h"
+
+namespace lugizmo {
+
+    template <typename T, typename FldIndex, typename RecIndex, typename LayoutPolicy = std::layout_right>
+    class DataFrame
+    {
+        // layout_left:   TODO col-major/fortran-style
+        // layout_right:  row-major/c-style
+        // layout_stride: TODO
+        static_assert(std::is_same_v<LayoutPolicy,std::layout_right>, "Currently only layout_right is supported");
+        using Layout = std::conditional_t<std::is_same_v<LayoutPolicy, std::layout_right>, DFRowMajor<T>, void>;
+
+        using Data = T*;                                                            // stored view into data
+        using MemR = std::shared_ptr<std::pmr::memory_resource>;                    // backing memory resource type
+
+        using FldI = DFHashIndex<FldIndex>;                                         // index for field values
+        using RecI = DFHashIndex<RecIndex>;                                         // index for field values
+
+        using Flds = typename FldI::KeyView;                                        // stored view into field indices
+        using Recs = typename RecI::KeyView;                                        // stored view into record indices
+
+        using RecsData = std::mdspan<T, std::dextents<size_t, 2>, LayoutPolicy>;    // stored view into data;
+
+        MemR   backingRes;      // memory resource to use
+        size_t capacity;        // capacity of data
+        Data   data;            // pointer to allocated memory
+
+        Flds flds;              // view into fields keys
+        Recs recs;              // view into records keys
+        RecsData recsData;      // view into whole stored data
+
+        FldI fldIndex;          // index for fields
+        RecI recIndex;          // index for records
+
+    public:
+
+        explicit DataFrame() noexcept :
+            backingRes(BackingResDefault()),
+            capacity(0),
+            data(nullptr),
+            flds(),
+            recs(),
+            recsData(data, 0, 0),
+            fldIndex(backingRes.get(), 0),
+            recIndex(backingRes.get(), 0)
+        {
+        }
+
+        explicit DataFrame(size_t const reservedValues, MemR res = BackingResDefault()) noexcept :
+            backingRes(std::move(res)),
+            capacity(reservedValues),
+            data(static_cast<T*>(backingRes->allocate(reservedValues * sizeof(T), alignof(T)))),
+            flds(),
+            recs(),
+            recsData(data, 0, 0),
+            fldIndex(backingRes.get(), 0),
+            recIndex(backingRes.get(), 0)
+        {
+        }
+
+        DataFrame(DataFrame &&) noexcept = delete;          // TODO figure out how to do it!?
+        DataFrame(DataFrame const&) noexcept = delete;      // TODO figure out how to do it!?
+
+        auto operator=(DataFrame const&) noexcept = delete; // TODO figure out how to do it!?
+        auto operator=(DataFrame &&) noexcept = delete;     // TODO figure out how to do it!?
+
+        /// Destructor of this class
+        ~DataFrame() noexcept;
+
+        /**
+         * @brief Add a new field to the dataframe.
+         * TODO replace or ignore?
+         *
+         * @param index         field name.
+         * @param defaultValue  value to put in new field values if records present.
+         * @return              success indicator.
+         */
+        auto AddField(FldIndex index, T const& defaultValue = T()) -> bool;
+
+        // TODO think about making it replace if already in
+        [[deprecated("Not tested")]]
+        auto AddRecord(RecIndex index, T const& defaultValue = T()) -> bool;
+
+        // TODO think about making it replace if already in
+        auto AddRecordPopulated(RecIndex index, std::span<T const> records) -> bool;
+
+        auto DropField(FldIndex const& index) -> bool;
+
+        auto DropRecord(RecIndex const& index) -> bool;
+
+        [[nodiscard]]
+        auto GetValue(FldIndex const& field, RecIndex const& record) const -> std::optional<std::reference_wrapper<T const>>
+        {
+            auto const fldPos = fldIndex.Position(field);
+            auto const recPos = recIndex.Position(record);
+
+            if(fldPos && recPos)
+            {
+                // TODO does this work with column major?
+                return recsData[*recPos, *fldPos];
+                //return data[flds.size() * *recordIndex + *fieldIndex];
+            }
+
+            return std::nullopt;
+        }
+
+        [[nodiscard]]
+        auto GetValue(FldIndex const& field, RecIndex const& record) -> std::optional<std::reference_wrapper<T>>
+        {
+            auto const fldPos = fldIndex.Position(field);
+            auto const recPos = recIndex.Position(record);
+
+            if(fldPos && recPos)
+            {
+                // TODO does this work with column major?
+                return recsData[*recPos, *fldPos];
+                //return data[flds.size() * *recordIndex + *fieldIndex];
+            }
+
+            return std::nullopt;
+        }
+
+        [[nodiscard]]
+        auto operator[](FldIndex const& field, RecIndex const& record) -> T&
+        {
+            auto const fldPos = fldIndex.Position(field);
+            auto const recPos = recIndex.Position(record);
+            return recsData[*recPos, *fldPos];
+        }
+
+        auto SetValue(FldIndex const& field, RecIndex const& record, T const& value) -> bool
+        {
+            if(auto get = GetValue(field, record); get.has_value())
+            {
+                T& g = *get;
+                g = value;
+                return true;
+            }
+
+            return false;
+        }
+
+        [[nodiscard]]
+        auto GetField(FldIndex const& index)
+        {
+            auto const pos = fldIndex.Position(index);
+            auto fieldView = [=, this]
+            {
+                auto const posInt   = pos.value();
+                auto const rowCount = recsData.extents().extent(0);
+
+                return std::views::iota(size_t{0}, rowCount) | std::views::transform([=, this](size_t row) -> T&
+                {
+                    return recsData[row, posInt];
+                });
+            };
+
+            if(not pos.has_value()) return std::optional<decltype(fieldView())>();
+
+            return std::optional(fieldView());
+        }
+
+        [[nodiscard]]
+        auto GetRecord(RecIndex const& index) -> std::optional<std::span<T>>
+        {
+            auto pos = recIndex.Position(index);
+            if(not pos.has_value()) return std::nullopt;
+
+            return std::span<T>{&recsData[*pos, 0], flds.size()};
+        }
+
+        [[nodiscard]]
+        auto GetRecord(RecIndex const& index) const -> std::optional<std::span<T const>>
+        {
+            auto pos = recIndex.Position(index);
+            if(not pos.has_value()) return std::nullopt;
+
+            return std::span<T>{&recsData[*pos, 0], flds.size()};
+        }
+
+        /**
+         *  @brief Prints content of the dataframe to std-out.
+         *  TODO make more usable for big dataframes + add some optional print options.
+         */
+        void Print() const;
+
+        /**
+         *  @brief Prints content of the dataframe to given stream.
+         *  TODO make more usable for big dataframes + add some optional print options.
+         *
+         *  @param stream Character stream to print the values to.
+         */
+        void PrintTo(std::ostream& stream) const;
+
+        /**
+         *  @brief Prints content of the dataframe to given stream in a csv format.
+         *  TODO make more usable for big dataframes + add some optional print options.
+         *  TODO add more csv options like quoting, decimal "point" etc.
+         *
+         *  @param stream Character stream to print the values to.
+         *  @param sep    Seperator to use in dataframe.
+         */
+        void PrintCSV(std::ostream& stream, char sep = ',') const;
+
+        /// @return The size of all elements stored in the dataframe.
+        [[nodiscard]] auto Size() const noexcept -> size_t { return recsData.size(); }
+
+        /// @return A view into the current fields (indices) stored in the dataframe.
+        [[nodiscard]] auto Fields() const noexcept -> Flds { return flds; }
+
+        /// @return A view into the current records (indices) stored in the dataframe.
+        [[nodiscard]] auto Records() const noexcept -> Recs { return recs; }
+
+        /// @return True when no values (no records) are stored in the dataframe.
+        [[nodiscard]] auto Empty() const noexcept -> bool { return recs.empty(); }
+
+        static_assert(std::is_trivially_copyable_v<Flds>, "Fields() returns this.");
+    };
+
+    template <typename T, typename F, typename R, typename L>
+    DataFrame<T, F, R, L>::~DataFrame() noexcept
+    {
+        if(data != nullptr && capacity) backingRes->deallocate(data, capacity, alignof(T));
+    }
+
+    template <typename T, typename F, typename R, typename L>
+    auto DataFrame<T, F, R, L>::AddField(F index, T const& defaultValue) -> bool
+    {
+        // add field to index
+        auto const added = fldIndex.Add(std::move(index));
+
+        if(not added) return false;
+        auto spanCpy = fldIndex.Keys(); // TODO why is this needed?
+        flds = spanCpy;
+
+        // if added to index add new columns to data
+        Layout::AddColumn(data, capacity, *backingRes.get(), recsData, 1, defaultValue);
+
+        return true;
+    }
+
+    template <typename T, typename F, typename R, typename L>
+    auto DataFrame<T, F, R, L>::AddRecord(R index, T const& defaultValue) -> bool
+    {
+        // add row to index
+        auto const added = recIndex.Add(std::move(index));
+
+        if(not added) return false;
+        auto spanCpy = recIndex.Keys(); // TODO why is this needed?
+        recs = spanCpy;
+
+        // add row to storage
+        Layout::AddRowWithDefault(data, capacity, *backingRes.get(), recsData, defaultValue);
+
+        return true;
+    }
+
+    template <typename T, typename F, typename R, typename L>
+    auto DataFrame<T, F, R, L>::AddRecordPopulated(R index, std::span<T const> records) -> bool
+    {
+        // this function only excepts full records
+        if(records.size() != flds.size()) return false;
+
+        // add row to index
+        auto const added = recIndex.Add(std::move(index));
+
+        if(not added) return false;
+        auto spanCpy = recIndex.Keys(); // TODO why is this needed?
+        recs = spanCpy;
+
+        // add row to storage
+        Layout::AddRowWithValues(data, capacity, *backingRes.get(), recsData, records);
+
+        return true;
+    }
+
+    template <typename T, typename F, typename R, typename L>
+    auto DataFrame<T, F, R, L>::DropField(F const& index) -> bool
+    {
+        // drop record from index
+        auto const dropped = fldIndex.Drop(index);
+        if(not dropped.has_value()) return false;
+
+        // drop row from storage
+        Layout::DropColumn(data, capacity, *backingRes.get(), recsData, *dropped);
+
+        auto spanCpy = fldIndex.Keys(); // TODO why is this needed?
+        flds = fldIndex.Keys();
+        return true;
+    }
+
+    template <typename T, typename F, typename R, typename L>
+    auto DataFrame<T, F, R, L>::DropRecord(R const& index) -> bool
+    {
+        // drop record from index
+        auto const dropped = recIndex.Drop(index);
+        if(not dropped.has_value()) return false;
+
+        // drop row from storage
+        Layout::DropRow(data, capacity, *backingRes.get(), recsData, *dropped);
+
+        auto spanCpy = recIndex.Keys(); // TODO why is this needed?
+        recs = spanCpy;
+        return true;
+    }
+
+    template <typename T, typename F, typename R, typename L>
+    void DataFrame<T, F, R, L>::Print() const
+    {
+        PrintTo(std::cout);
+    }
+
+    template <typename T, typename F, typename R, typename L>
+    void DataFrame<T, F, R, L>::PrintTo(std::ostream& stream) const
+    {
+        auto const& extents = recsData.extents();
+        auto const colCount = extents.extent(1);
+        auto const rowCount = extents.extent(0);
+
+        // get the maximum amount of fields & records stored in the dataframe
+        auto const opMaxFields  = fldIndex.MaxPosition();
+        auto const opMaxRecords = recIndex.MaxPosition();
+        if(not opMaxFields or not opMaxRecords) stream << "Empty";
+
+        auto const maxFields  = opMaxFields.value();
+        auto const maxRecords = opMaxFields.value();
+
+        // print columns/fields and record index column
+        stream << std::format("{:<{}}", "Rec. Index", 15);
+        for(auto pos = 0; pos <= maxFields; pos++)
+        {
+            auto fld = fldIndex.Key(pos);
+            assert(fld.has_value());
+
+            stream << std::format("{:<{}}", *fld, 15);
+        }
+
+        stream << '\n';
+
+        // print records to stream
+        for(auto i = 0; i <= maxRecords; ++i)
+        {
+            auto const recIndexStr = recIndex.Key(i);
+            assert(recIndexStr.has_value());
+
+            stream << std::format("{:<{}}", *recIndexStr, 15);
+            for(size_t j = 0; j < colCount; ++j)
+            {
+                stream << std::format("{:<{}} ", recsData[i, j], 15);
+            }
+            stream << "\n";
+        }
+    }
+
+    template <typename T, typename F, typename R, typename L>
+    void DataFrame<T, F, R, L>::PrintCSV(std::ostream& stream, char const sep) const
+    {
+        auto const& extents = recsData.extents();
+        auto const colCount = extents.extent(1);
+        auto const rowCount = extents.extent(0);
+
+        stream << "Row Index" << sep;
+        auto fldCount = 0;
+        for(auto const& fld : flds)
+        {
+            stream << fld;
+            if(fldCount++; fldCount != flds.size()) stream << sep;
+            else                              stream << '\n';
+        }
+
+        for(size_t i = 0; i < rowCount; ++i)
+        {
+            fldCount = 0;
+            stream << recs[i] << sep;
+            for(size_t j = 0; j < colCount; ++j)
+            {
+                stream << recsData[i, j];
+                if(fldCount++; fldCount != colCount) stream << sep;
+                else if(i != fldCount - 1)           stream << '\n';
+            }
+        }
+    }
+}
+
+#endif // LUGIZMO_DF_DATAFRAME_H

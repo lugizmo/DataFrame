@@ -1,0 +1,12 @@
+Language: Cpp
+Standard: Latest
+DisableFormat: false
+
+ColumnLimit: 140
+IndentWidth: 4
+PPIndentWidth: -1
+UseTab: Never
+TabWidth: 4
+DeriveLineEnding: true
+DerivePointerAlignment: false
+UseCRLF: false
