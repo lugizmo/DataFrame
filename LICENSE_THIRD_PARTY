@@ -1,0 +1,10 @@
+Third-Party Licenses
+
+This project makes use of the following third-party libraries:
+
+1. project_options
+   Licensed under MIT License.
+   See vendor/project_options_LICENSE.txt for the full text.
+2. GoogleTest (GTest)
+   Licensed under the BSD 3-Clause License.
+   See vendor/gtest_LICENSE for the full text.
