@@ -10,12 +10,18 @@ set(LUGIZMO_DF_PROJECT_NAME DataFrame)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_C_STANDARD 99)
 
-# ====== DEPENDENCIES ======================================================================
+# ====== OPTIONS ===========================================================================================================================
+
+option(OPT_BUILD_TESTS "Build tests." ON)
+option(OPT_BUILD_BENCH "Build benchmarks." ON)
+
+# ====== DEPENDENCIES ======================================================================================================================
 
 include(vendor/fetch_project_options.cmake)
-include(vendor/fetch_gtest.cmake)               # TODO add if tests
+include(vendor/fetch_gtest.cmake)
+include(vendor/fetch_benchmark.cmake)
 
-# ====== SOURCE ============================================================================
+# ====== SOURCE ============================================================================================================================
 project(${LUGIZMO_DF_PROJECT_NAME}
         VERSION 0.0.1
         DESCRIPTION "DataFrame type to store tabular data."
