@@ -1,3 +1,9 @@
+# Filename: CMakeLists.txt
+# Copyright 2024 Lukas Guz
+# Licensed under the Apache License, Version 2.0.
+# See the LICENSE file in the project root or at
+# http://www.apache.org/licenses/LICENSE-2.0 for full license information.
+
 cmake_minimum_required(VERSION 3.29)
 set(LUGIZMO_DF_PROJECT_NAME DataFrame)
 
