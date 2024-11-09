@@ -19,6 +19,7 @@
 #include <ranges>
 #include <span>
 #include <numeric>
+#include <fstream>
 
 #include "lugizmo/DataFrame.h"
 
@@ -321,6 +322,24 @@ TEST(dataframe_test, dev)
     }
     end = high_resolution_clock::now();
     std::cout << "Setting " << ROW_COUNT * COL_COUNT << " values took: " << duration_cast<ms>(end - start).count() << "ms" << std::endl;
+
+    start = high_resolution_clock::now();
+    for(auto col = 0; col < COL_COUNT; ++col)
+    {
+        auto colView = df.GetField(col);
+        std::ranges::for_each(*colView, [col](auto& v){ v = col;});
+    }
+    end = high_resolution_clock::now();
+    std::cout << "Setting columns with view of: " << COL_COUNT << " columns with " << ROW_COUNT << " rows took: " << duration_cast<ms>(end - start).count() << "ms" << std::endl;
+
+    start = high_resolution_clock::now();
+    for(auto row = 0; row < ROW_COUNT; ++row)
+    {
+        auto rowView = df.GetRecord(row);
+        std::ranges::for_each(*rowView, [row](auto& v){ v = row;});
+    }
+    end = high_resolution_clock::now();
+    std::cout << "Setting rows with view of: " << ROW_COUNT << " rows with " << COL_COUNT << " cols took: " << duration_cast<ms>(end - start).count() << "ms" << std::endl;
 
     start = high_resolution_clock::now();
     for(auto row = 0; row < ROW_COUNT; ++row)

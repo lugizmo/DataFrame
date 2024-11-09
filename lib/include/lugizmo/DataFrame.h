@@ -170,41 +170,33 @@ namespace lugizmo {
             return false;
         }
 
+        /**
+         * @return      View into a field (handling layout) if field found in dataframe.
+         * @param index field index to try getting data for.
+         */
         [[nodiscard]]
-        auto GetField(FldIndex const& index) -> std::optional<DFView<T>>
-        {
-            auto const pos = fldIndex.Position(index);
-            if (!pos.has_value()) { return std::nullopt; }
+        auto GetField(FldIndex const& index) noexcept -> std::optional<DFView<T>>;
 
-            return DFView<T>::FieldView(recsData, pos.value());
-        }
-
+        /**
+         * @return      View into a field (handling layout) if field found in (const) dataframe.
+         * @param index field index to try getting data for.
+         */
         [[nodiscard]]
-        auto GetField(FldIndex const& index) const -> std::optional<DFView<T const>>
-        {
-            auto const pos = fldIndex.Position(index);
-            if (!pos.has_value()) { return std::nullopt; }
+        auto GetField(FldIndex const& index) const noexcept -> std::optional<DFView<T const>>;
 
-            return DFView<T const>::template FieldView<LayoutPolicy>(recsData, pos.value());
-        }
-
+        /**
+         * @return      View into a record (handling layout) if record found in dataframe.
+         * @param index record index to try getting data for.
+         */
         [[nodiscard]]
-        auto GetRecord(RecIndex const& index) -> std::optional<DFView<T>>
-        {
-            auto pos = recIndex.Position(index);
-            if(not pos.has_value()) return std::nullopt;
+        auto GetRecord(RecIndex const& index) noexcept -> std::optional<DFView<T>>;
 
-            return DFView<T>::template RecordView<LayoutPolicy>(recsData, pos.value());
-        }
-
+        /**
+         * @return      View into a record (handling layout) if record found in (const) dataframe.
+         * @param index record index to try getting data for.
+         */
         [[nodiscard]]
-        auto GetRecord(RecIndex const& index) const -> std::optional<DFView<T const>>
-        {
-            auto pos = recIndex.Position(index);
-            if(not pos.has_value()) return std::nullopt;
-
-            return DFView<T const>::template RecordView<LayoutPolicy>(recsData, pos.value());
-        }
+        auto GetRecord(RecIndex const& index) const noexcept -> std::optional<DFView<T const>>;
 
         /**
          *  @brief Prints content of the dataframe to std-out.
@@ -330,6 +322,42 @@ namespace lugizmo {
         auto spanCpy = recIndex.Keys(); // TODO why is this needed?
         recs = spanCpy;
         return true;
+    }
+
+    template <typename T, typename F, typename R, typename L>
+    auto DataFrame<T, F, R, L>::GetField(F const& index) noexcept -> std::optional<DFView<T>>
+    {
+        auto const pos = fldIndex.Position(index);
+        if (!pos.has_value()) { return std::nullopt; }
+
+        return DFView<T>::FieldView(recsData, pos.value());
+    }
+
+    template <typename T, typename F, typename R, typename L>
+    auto DataFrame<T, F, R, L>::GetField(F const& index) const noexcept -> std::optional<DFView<T const>>
+    {
+        auto const pos = fldIndex.Position(index);
+        if (!pos.has_value()) { return std::nullopt; }
+
+        return DFView<T const>::FieldView(recsData, pos.value());
+    }
+
+    template <typename T, typename F, typename R, typename L>
+    auto DataFrame<T, F, R, L>::GetRecord(R const& index) noexcept -> std::optional<DFView<T>>
+    {
+        auto pos = recIndex.Position(index);
+        if(not pos.has_value()) return std::nullopt;
+
+        return DFView<T>::RecordView(recsData, pos.value());
+    }
+
+    template <typename T, typename F, typename R, typename L>
+    auto DataFrame<T, F, R, L>::GetRecord(R const& index) const noexcept -> std::optional<DFView<T const>>
+    {
+        auto pos = recIndex.Position(index);
+        if(not pos.has_value()) return std::nullopt;
+
+        return DFView<T const>::RecordView(recsData, pos.value());
     }
 
     template <typename T, typename F, typename R, typename L>
