@@ -33,10 +33,10 @@ target_link_libraries(DataFrame
 
 target_include_interface_directories(DataFrame "${CMAKE_CURRENT_SOURCE_DIR}/include/")
 
+add_subdirectory(bench)
 
-
-
-
-
-add_executable(DataFrameTest test/main.cpp test/DataframeTest.cpp)
-target_link_libraries(DataFrameTest PUBLIC DataFrame gtest)
+# TODO move to separate CMakeLists.txt
+if(OPT_BUILD_TESTS)
+    add_executable(DataFrameTest test/main.cpp test/DataframeTest.cpp test/Playground.cpp)
+    target_link_libraries(DataFrameTest PUBLIC DataFrame gtest)
+endif(OPT_BUILD_TESTS)
