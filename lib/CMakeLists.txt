@@ -11,6 +11,7 @@ set(LUGIZMO_DF_INCLUDES
 
         include/lugizmo/dataframe/Layout.h
         include/lugizmo/dataframe/Index.h
+        include/lugizmo/dataframe/View.h
 
         include/lugizmo/DataFrame.h
 )
@@ -37,6 +38,6 @@ add_subdirectory(bench)
 
 # TODO move to separate CMakeLists.txt
 if(OPT_BUILD_TESTS)
-    add_executable(DataFrameTest test/main.cpp test/DataframeTest.cpp test/Playground.cpp)
+    add_executable(DataFrameTest test/main.cpp test/DataframeTest.cpp)
     target_link_libraries(DataFrameTest PUBLIC DataFrame gtest)
 endif(OPT_BUILD_TESTS)

@@ -327,7 +327,7 @@ TEST(dataframe_test, dev)
     {
         auto const rec = df.GetRecord(row);
         ASSERT_TRUE(rec);
-        ASSERT_TRUE(rec->size() == COL_COUNT);
+        ASSERT_TRUE(rec->Size() == COL_COUNT);
     }
     end = high_resolution_clock::now();
     std::cout << "Getting " << ROW_COUNT << " records took: " << duration_cast<ms>(end - start).count() << "ms" << std::endl;

@@ -27,6 +27,7 @@
 
 #include "dataframe/Index.h"
 #include "dataframe/Layout.h"
+#include "dataframe/View.h"
 
 namespace lugizmo {
 
@@ -170,41 +171,39 @@ namespace lugizmo {
         }
 
         [[nodiscard]]
-        auto GetField(FldIndex const& index)
+        auto GetField(FldIndex const& index) -> std::optional<DFView<T>>
         {
             auto const pos = fldIndex.Position(index);
-            auto fieldView = [=, this]
-            {
-                auto const posInt   = pos.value();
-                auto const rowCount = recsData.extents().extent(0);
+            if (!pos.has_value()) { return std::nullopt; }
 
-                return std::views::iota(size_t{0}, rowCount) | std::views::transform([=, this](size_t row) -> T&
-                {
-                    return recsData[row, posInt];
-                });
-            };
-
-            if(not pos.has_value()) return std::optional<decltype(fieldView())>();
-
-            return std::optional(fieldView());
+            return DFView<T>::FieldView(recsData, pos.value());
         }
 
         [[nodiscard]]
-        auto GetRecord(RecIndex const& index) -> std::optional<std::span<T>>
+        auto GetField(FldIndex const& index) const -> std::optional<DFView<T const>>
+        {
+            auto const pos = fldIndex.Position(index);
+            if (!pos.has_value()) { return std::nullopt; }
+
+            return DFView<T const>::template FieldView<LayoutPolicy>(recsData, pos.value());
+        }
+
+        [[nodiscard]]
+        auto GetRecord(RecIndex const& index) -> std::optional<DFView<T>>
         {
             auto pos = recIndex.Position(index);
             if(not pos.has_value()) return std::nullopt;
 
-            return std::span<T>{&recsData[*pos, 0], flds.size()};
+            return DFView<T>::template RecordView<LayoutPolicy>(recsData, pos.value());
         }
 
         [[nodiscard]]
-        auto GetRecord(RecIndex const& index) const -> std::optional<std::span<T const>>
+        auto GetRecord(RecIndex const& index) const -> std::optional<DFView<T const>>
         {
             auto pos = recIndex.Position(index);
             if(not pos.has_value()) return std::nullopt;
 
-            return std::span<T>{&recsData[*pos, 0], flds.size()};
+            return DFView<T const>::template RecordView<LayoutPolicy>(recsData, pos.value());
         }
 
         /**
