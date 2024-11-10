@@ -381,7 +381,7 @@ namespace lugizmo {
     }
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::GetFieldIndexed(F const& index) noexcept -> std::optional<DFViewIndexed<T, FldIndex const>>
+    auto DataFrame<T, F, R, L>::GetFieldIndexed(F const& index) noexcept -> std::optional<DFViewIndexed<T, F const>>
     {
         auto const pos = fldIndex.Position(index);
         if (!pos.has_value()) { return std::nullopt; }
@@ -390,7 +390,7 @@ namespace lugizmo {
     }
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::GetFieldIndexed(F const& index) const noexcept -> std::optional<DFViewIndexed<T const, FldIndex const>>
+    auto DataFrame<T, F, R, L>::GetFieldIndexed(F const& index) const noexcept -> std::optional<DFViewIndexed<T const, F const>>
     {
         auto const pos = fldIndex.Position(index);
         if (!pos.has_value()) { return std::nullopt; }
@@ -417,7 +417,7 @@ namespace lugizmo {
     }
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::GetRecordIndexed(R const& index) noexcept -> std::optional<DFViewIndexed<T, RecIndex const>>
+    auto DataFrame<T, F, R, L>::GetRecordIndexed(R const& index) noexcept -> std::optional<DFViewIndexed<T, R const>>
     {
         auto pos = recIndex.Position(index);
         if(not pos.has_value()) return std::nullopt;
@@ -426,7 +426,7 @@ namespace lugizmo {
     }
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::GetRecordIndexed(R const& index) const noexcept -> std::optional<DFViewIndexed<T const, RecIndex const>>
+    auto DataFrame<T, F, R, L>::GetRecordIndexed(R const& index) const noexcept -> std::optional<DFViewIndexed<T const, R const>>
     {
         auto pos = recIndex.Position(index);
         if(not pos.has_value()) return std::nullopt;
