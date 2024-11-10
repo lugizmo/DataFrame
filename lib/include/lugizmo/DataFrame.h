@@ -28,6 +28,7 @@
 #include "dataframe/Index.h"
 #include "dataframe/Layout.h"
 #include "dataframe/View.h"
+#include "dataframe/ViewIndexed.h"
 
 namespace lugizmo {
 
@@ -105,6 +106,7 @@ namespace lugizmo {
          * @param defaultValue  value to put in new field values if records present.
          * @return              success indicator.
          */
+        // TODO think about making it replace if already in
         auto AddField(FldIndex index, T const& defaultValue = T()) -> bool;
 
         // TODO think about making it replace if already in
@@ -185,6 +187,24 @@ namespace lugizmo {
         auto GetField(FldIndex const& index) const noexcept -> std::optional<DFView<T const>>;
 
         /**
+         * @return      View into a field (handling layout) if field found in dataframe.
+         *              Row index is available while iterating.
+         * TODO as mentioned in the README this interface is currently not 100% as expected. Changes my come.
+         * @param index field index to try getting data for.
+         */
+        [[nodiscard]]
+        auto GetFieldIndexed(FldIndex const& index) noexcept -> std::optional<DFViewIndexed<T, FldIndex const>>;
+
+        /**
+         * @return      View into a field (handling layout) if field found in (const) dataframe.
+         *              Row index is available while iterating.
+         * TODO as mentioned in the README this interface is currently not 100% as expected. Changes my come.
+         * @param index field index to try getting data for.
+         */
+        [[nodiscard]]
+        auto GetFieldIndexed(FldIndex const& index) const noexcept -> std::optional<DFViewIndexed<T const, FldIndex const>>;
+
+        /**
          * @return      View into a record (handling layout) if record found in dataframe.
          * @param index record index to try getting data for.
          */
@@ -197,6 +217,24 @@ namespace lugizmo {
          */
         [[nodiscard]]
         auto GetRecord(RecIndex const& index) const noexcept -> std::optional<DFView<T const>>;
+
+        /**
+         * @return      View into a record (handling layout) if record found in dataframe.
+         *              Field index is available while iterating.
+         * TODO as mentioned in the README this interface is currently not 100% as expected. Changes my come.
+         * @param index record index to try getting data for.
+         */
+        [[nodiscard]]
+        auto GetRecordIndexed(RecIndex const& index) noexcept -> std::optional<DFViewIndexed<T, RecIndex const>>;
+
+        /**
+         * @return      View into a record (handling layout) if record found in (const) dataframe.
+         *               Field index is available while iterating.
+         * TODO as mentioned in the README this interface is currently not 100% as expected. Changes my come.
+         * @param index record index to try getting data for.
+         */
+        [[nodiscard]]
+        auto GetRecordIndexed(RecIndex const& index) const noexcept -> std::optional<DFViewIndexed<T const, RecIndex const>>;
 
         /**
          *  @brief Prints content of the dataframe to std-out.
@@ -343,6 +381,24 @@ namespace lugizmo {
     }
 
     template <typename T, typename F, typename R, typename L>
+    auto DataFrame<T, F, R, L>::GetFieldIndexed(F const& index) noexcept -> std::optional<DFViewIndexed<T, FldIndex const>>
+    {
+        auto const pos = fldIndex.Position(index);
+        if (!pos.has_value()) { return std::nullopt; }
+
+        return DFViewIndexed<T, R const>::FieldView(recsData, pos.value(), recIndex.Keys());
+    }
+
+    template <typename T, typename F, typename R, typename L>
+    auto DataFrame<T, F, R, L>::GetFieldIndexed(F const& index) const noexcept -> std::optional<DFViewIndexed<T const, FldIndex const>>
+    {
+        auto const pos = fldIndex.Position(index);
+        if (!pos.has_value()) { return std::nullopt; }
+
+        return DFViewIndexed<T, R const>::FieldView(recsData, pos.value(), recIndex.Keys());
+    }
+
+    template <typename T, typename F, typename R, typename L>
     auto DataFrame<T, F, R, L>::GetRecord(R const& index) noexcept -> std::optional<DFView<T>>
     {
         auto pos = recIndex.Position(index);
@@ -358,6 +414,24 @@ namespace lugizmo {
         if(not pos.has_value()) return std::nullopt;
 
         return DFView<T const>::RecordView(recsData, pos.value());
+    }
+
+    template <typename T, typename F, typename R, typename L>
+    auto DataFrame<T, F, R, L>::GetRecordIndexed(R const& index) noexcept -> std::optional<DFViewIndexed<T, RecIndex const>>
+    {
+        auto pos = recIndex.Position(index);
+        if(not pos.has_value()) return std::nullopt;
+
+        return DFViewIndexed<T, F const>::RecordView(recsData, pos.value(), fldIndex.Keys());
+    }
+
+    template <typename T, typename F, typename R, typename L>
+    auto DataFrame<T, F, R, L>::GetRecordIndexed(R const& index) const noexcept -> std::optional<DFViewIndexed<T const, RecIndex const>>
+    {
+        auto pos = recIndex.Position(index);
+        if(not pos.has_value()) return std::nullopt;
+
+        return DFViewIndexed<T, F const>::RecordView(recsData, pos.value(), fldIndex.Keys());
     }
 
     template <typename T, typename F, typename R, typename L>

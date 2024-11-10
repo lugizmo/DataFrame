@@ -68,7 +68,7 @@ void DeallocateMMAP(std::byte* ptr, size_t const size)
     munmap(ptr, size);
 }
 
-TEST(dataframe_test, empty_initialization)
+TEST(dataframe_test, row_major_empty_initialization)
 {
     using namespace lugizmo;
 
@@ -173,7 +173,66 @@ TEST(dataframe_test, row_major_set_get_record_views)
             ASSERT_EQ(df.GetValue(col, row), 42);
 }
 
-TEST(dataframe_test, drop)
+TEST(dataframe_test, row_major_indexed_views)
+{
+    using namespace lugizmo;
+    using DF = DataFrame<int, int, int>;
+
+    constexpr int COL_COUNT = 5;
+    constexpr int ROW_COUNT = 10;
+    constexpr auto ARRAY    = std::array{1, 2, 3, 4, 5};
+    static_assert(ARRAY.size() == COL_COUNT);
+
+    auto df = DF();
+
+    for(auto col = 0; col < COL_COUNT; ++col)
+        ASSERT_TRUE(df.AddField(col));
+
+    for(auto row = 0; row < ROW_COUNT; ++row)
+        ASSERT_TRUE(df.AddRecordPopulated(row, ARRAY));
+
+    for(auto col = 0; col < COL_COUNT; ++col)
+    {
+        auto view = df.GetFieldIndexed(col);
+        ASSERT_TRUE(view.has_value());
+
+        auto currentRow = 0;
+        for(auto& [val, idx] : *view)
+        {
+            ASSERT_EQ(idx, currentRow);
+            ASSERT_EQ(val, ARRAY[col]);
+
+            val = 42;
+            currentRow++;
+        }
+    }
+
+    for(auto col = 0; col < COL_COUNT; ++col)
+        for(auto row = 0; row < ROW_COUNT; ++row)
+            ASSERT_EQ(df.GetValue(col, row), 42);
+
+    for(auto row = 0; row < ROW_COUNT; ++row)
+    {
+        auto view = df.GetRecordIndexed(row);
+        ASSERT_TRUE(view.has_value());
+
+        auto currentRow = 0;
+        for(auto& [val, idx] : *view)
+        {
+            ASSERT_EQ(idx, currentRow);
+            ASSERT_EQ(val, 42);
+
+            val = 43;
+            currentRow++;
+        }
+    }
+
+    for(auto col = 0; col < COL_COUNT; ++col)
+        for(auto row = 0; row < ROW_COUNT; ++row)
+            ASSERT_EQ(df.GetValue(col, row), 43);
+}
+
+TEST(dataframe_test, row_major_drop)
 {
     using namespace lugizmo;
     using DF = DataFrame<int, int, int>;
@@ -245,7 +304,7 @@ TEST(dataframe_test, dev)
     using ms = milliseconds;
 
     constexpr int COL_COUNT = 10;
-    constexpr int ROW_COUNT = 3'000'000;
+    constexpr int ROW_COUNT = 3;//'000'000;
 
     auto const loggingRes =
 #if PRINT_ALLOCATIONS

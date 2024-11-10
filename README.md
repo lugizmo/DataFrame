@@ -22,7 +22,7 @@ This library uses **C++23** constructs (like mdspan). At moment of writing this 
 
 - thread safe mutation/access
 
-### TODO
+### TODO General
 
 - rework dependency management to allow local versions
 - add lldb tooling
@@ -33,4 +33,11 @@ This library uses **C++23** constructs (like mdspan). At moment of writing this 
 - code documentation
 - usage examples
 - watch out what gcc is doing and add support if possible
+- add more todo's
+
+### TODO Code
+
+- indexed iterator does not have the same usage like iterating over an map.
+  - ``auto const& [val, idx]: dfView`` would still allow to mutate val if dfView is not const.
+  - when doing the same e.g. std::unordered_map val would be constant.
 - add more todo's

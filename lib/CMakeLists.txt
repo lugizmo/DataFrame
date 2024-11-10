@@ -12,6 +12,7 @@ set(LUGIZMO_DF_INCLUDES
         include/lugizmo/dataframe/Layout.h
         include/lugizmo/dataframe/Index.h
         include/lugizmo/dataframe/View.h
+        include/lugizmo/dataframe/ViewIndexed.h
 
         include/lugizmo/DataFrame.h
 )

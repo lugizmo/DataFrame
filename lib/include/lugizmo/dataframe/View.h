@@ -21,6 +21,9 @@ namespace lugizmo {
     template <typename T>
     class DFView
     {
+        template<typename Ti, typename Ii>
+        friend class DFViewIndexed;
+
         using Extents  = std::dextents<size_t, 1>;
         using Strides  = std::layout_stride::mapping<Extents>;
         using MDSpan   = std::mdspan<T, Extents, std::layout_stride>;
@@ -89,6 +92,9 @@ namespace lugizmo {
 
             auto operator*() const noexcept -> reference { return *ptr; }
             auto operator->() const noexcept -> pointer  { return ptr; }
+
+            auto operator*() noexcept -> reference { return *ptr; }
+            auto operator->() noexcept -> pointer  { return ptr; }
 
             auto operator++() -> Iterator&
             {
