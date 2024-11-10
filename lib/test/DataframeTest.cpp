@@ -124,12 +124,12 @@ TEST(dataframe_test, row_major_set_get_field_views)
     for(auto col = 0; col < COL_COUNT; ++col)
     {
         auto view = df.GetField(col);
-        ASSERT_TRUE(view.has_value());
+        ASSERT_FALSE(view.Empty());
 
-        for(auto& val : *view)
+        for(auto& val : view)
             ASSERT_EQ(val, ARRAY[col]);
 
-        for(auto& val : *view)
+        for(auto& val : view)
             val = 42;
     }
 
@@ -159,12 +159,12 @@ TEST(dataframe_test, row_major_set_get_record_views)
     for(auto row = 0; row < ROW_COUNT; ++row)
     {
         auto view = df.GetRecord(row);
-        ASSERT_TRUE(view.has_value());
+        ASSERT_FALSE(view.Empty());
 
         for(auto col = 0; col < COL_COUNT; ++col)
-            ASSERT_EQ((*view)[col], ARRAY[col]);
+            ASSERT_EQ(view[col], ARRAY[col]);
 
-        for(auto& val : *view)
+        for(auto& val : view)
             val = 42;
     }
 
@@ -232,6 +232,82 @@ TEST(dataframe_test, row_major_indexed_views)
             ASSERT_EQ(df.GetValue(col, row), 43);
 }
 
+TEST(dataframe_test, row_major_for_each)
+{
+    using namespace lugizmo;
+    using DF = DataFrame<int, int, int>;
+
+    constexpr int COL_COUNT = 5;
+    constexpr int ROW_COUNT = 10;
+
+    constexpr auto ARRAY = std::array{1, 2, 3, 4, 5};
+    constexpr auto ONES  = std::array{1, 1, 1, 1, 1};
+    static_assert(ARRAY.size() == COL_COUNT);
+    static_assert(ONES.size() == ARRAY.size());
+
+    // std::algorithm
+    {
+        auto df = DF();
+        for(auto col = 0; col < COL_COUNT; ++col) ASSERT_TRUE(df.AddField(col));
+        for(auto row = 0; row < ROW_COUNT; ++row) ASSERT_TRUE(df.AddRecordPopulated(row, ARRAY));
+
+        auto field = df.GetField(0);
+        ASSERT_FALSE(field.Empty());
+
+        std::ranges::for_each(field, [](auto& val) { val += 1; });
+        ASSERT_TRUE(std::ranges::all_of(field, [](auto& val) { return val == 2; }));
+
+        auto record = df.GetRecord(0);
+        ASSERT_FALSE(record.Empty());
+
+        std::ranges::for_each(record, [](auto& val) { val += 1; });
+
+        auto count = 0;
+        ASSERT_TRUE(std::ranges::all_of(record, [&](auto& val) {
+            if(count == 0) {
+                count++;
+                return val == 3;
+            }
+
+            auto const arr = ARRAY[count];
+            count++;
+            return val == (arr + 1);
+        }));
+    }
+
+    // DataFrame::ForEach*
+    {
+        auto df = DF();
+        for(auto col = 0; col < COL_COUNT; ++col) ASSERT_TRUE(df.AddField(col));
+        for(auto row = 0; row < ROW_COUNT; ++row) ASSERT_TRUE(df.AddRecordPopulated(row, ARRAY));
+
+        // field non-const
+        auto view = df.ForEachOnField(1, [](auto& val) { val += 2; });
+        ASSERT_TRUE(view.Size() != 0);
+
+        std::ranges::for_each(view, [](int& val) { val += 2; });
+        ASSERT_TRUE(std::ranges::all_of(view, [](auto& val) { return val == 6; }));
+
+        // TODO record non-const
+    }
+
+    {
+        auto df = DF();
+        for(auto col = 0; col < COL_COUNT; ++col) ASSERT_TRUE(df.AddField(col));
+        for(auto row = 0; row < ROW_COUNT; ++row) ASSERT_TRUE(df.AddRecordPopulated(row, ONES));
+
+        auto const& cdf = df;
+
+        // field const
+        auto view1 = cdf.ForEachOnField(2, [](auto const& val) { ASSERT_EQ(val, 1); });
+        ASSERT_TRUE(view1.Size() != 0);
+
+        // record const
+        auto view2 = cdf.ForEachOnRecord(2, [](auto const& val) { ASSERT_EQ(val, 1); });
+        ASSERT_TRUE(view2.Size() != 0);
+    }
+}
+
 TEST(dataframe_test, row_major_drop)
 {
     using namespace lugizmo;
@@ -262,8 +338,8 @@ TEST(dataframe_test, row_major_drop)
         ASSERT_TRUE(fld % 2 != 0);
 
         auto const get = df.GetField(fld);
-        ASSERT_TRUE(get.has_value());
-        ASSERT_TRUE(std::ranges::all_of(*get, [value](auto const v) { return v == value; }));
+        ASSERT_FALSE(get.Empty());
+        ASSERT_TRUE(std::ranges::all_of(get, [value](auto const v) { return v == value; }));
 
         value += 2;
     }
@@ -279,10 +355,10 @@ TEST(dataframe_test, row_major_drop)
         ASSERT_TRUE(rec % 2 != 0);
 
         auto const get = df.GetRecord(rec);
-        ASSERT_TRUE(get.has_value());
+        ASSERT_FALSE(get.Empty());
 
         auto recValue = 0;
-        ASSERT_TRUE(std::ranges::all_of(*get, [&recValue](auto const v) { recValue += 2; return v == recValue; }));
+        ASSERT_TRUE(std::ranges::all_of(get, [&recValue](auto const v) { recValue += 2; return v == recValue; }));
     }
 
     // After row/col drop the uneven are first:  1, 3, 5, 7, 9,  0, 2, 4, 6, 8
@@ -304,7 +380,7 @@ TEST(dataframe_test, dev)
     using ms = milliseconds;
 
     constexpr int COL_COUNT = 10;
-    constexpr int ROW_COUNT = 3;//'000'000;
+    constexpr int ROW_COUNT = 3'000'000;
 
     auto const loggingRes =
 #if PRINT_ALLOCATIONS
@@ -386,7 +462,8 @@ TEST(dataframe_test, dev)
     for(auto col = 0; col < COL_COUNT; ++col)
     {
         auto colView = df.GetField(col);
-        std::ranges::for_each(*colView, [col](auto& v){ v = col;});
+        ASSERT_FALSE(colView.Empty());
+        std::ranges::for_each(colView, [col](auto& v){ v = col;});
     }
     end = high_resolution_clock::now();
     std::cout << "Setting columns with view of: " << COL_COUNT << " columns with " << ROW_COUNT << " rows took: " << duration_cast<ms>(end - start).count() << "ms" << std::endl;
@@ -395,7 +472,8 @@ TEST(dataframe_test, dev)
     for(auto row = 0; row < ROW_COUNT; ++row)
     {
         auto rowView = df.GetRecord(row);
-        std::ranges::for_each(*rowView, [row](auto& v){ v = row;});
+        ASSERT_FALSE(rowView.Empty());
+        std::ranges::for_each(rowView, [row](auto& v){ v = row;});
     }
     end = high_resolution_clock::now();
     std::cout << "Setting rows with view of: " << ROW_COUNT << " rows with " << COL_COUNT << " cols took: " << duration_cast<ms>(end - start).count() << "ms" << std::endl;
@@ -404,8 +482,7 @@ TEST(dataframe_test, dev)
     for(auto row = 0; row < ROW_COUNT; ++row)
     {
         auto const rec = df.GetRecord(row);
-        ASSERT_TRUE(rec);
-        ASSERT_TRUE(rec->Size() == COL_COUNT);
+        ASSERT_TRUE(rec.Size() == COL_COUNT);
     }
     end = high_resolution_clock::now();
     std::cout << "Getting " << ROW_COUNT << " records took: " << duration_cast<ms>(end - start).count() << "ms" << std::endl;
@@ -415,10 +492,10 @@ TEST(dataframe_test, dev)
     {
         //auto const fld = df.GetField(std::format("col{}", col));
         auto const fld = df.GetField(col);
-        ASSERT_TRUE(fld);
+        ASSERT_FALSE(fld.Empty());
 
         auto count = 0;
-        for(auto const& fldValue: *fld)
+        for(auto const& fldValue: fld)
         {
             //std::cout << fldValue << ' ';
             count++;

@@ -195,6 +195,9 @@ namespace lugizmo {
             bool operator>=(IteratorIdx const& other) const noexcept { return ptr >= other.ptr; }
         };
 
+        // empty view
+        DFViewIndexed() noexcept : view(), index() {}
+
         template <typename Layout>
         [[nodiscard]]
         static auto RecordView(MDSpanDF<Layout> original, size_t const recIndex, Indices const fldIndices) noexcept -> DFViewIndexed

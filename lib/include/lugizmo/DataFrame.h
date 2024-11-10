@@ -50,7 +50,8 @@ namespace lugizmo {
         using Flds = typename FldI::KeyView;                                        // stored view into field indices
         using Recs = typename RecI::KeyView;                                        // stored view into record indices
 
-        using RecsData = std::mdspan<T, std::dextents<size_t, 2>, LayoutPolicy>;    // stored view into data;
+        template<typename MDT>
+        using RecsData = std::mdspan<MDT, std::dextents<size_t, 2>, LayoutPolicy>;  // stored view into data;
 
         MemR   backingRes;      // memory resource to use
         size_t capacity;        // capacity of data
@@ -58,7 +59,7 @@ namespace lugizmo {
 
         Flds flds;              // view into fields keys
         Recs recs;              // view into records keys
-        RecsData recsData;      // view into whole stored data
+        RecsData<T> recsData;   // view into whole stored data
 
         FldI fldIndex;          // index for fields
         RecI recIndex;          // index for records
@@ -116,10 +117,6 @@ namespace lugizmo {
         // TODO think about making it replace if already in
         auto AddRecordPopulated(RecIndex index, std::span<T const> records) -> bool;
 
-        auto DropField(FldIndex const& index) -> bool;
-
-        auto DropRecord(RecIndex const& index) -> bool;
-
         [[nodiscard]]
         auto GetValue(FldIndex const& field, RecIndex const& record) const -> std::optional<std::reference_wrapper<T const>>
         {
@@ -172,19 +169,27 @@ namespace lugizmo {
             return false;
         }
 
+        // ======== DROP ===================================================================================================================
+
+        auto DropField(FldIndex const& index) -> bool;
+
+        auto DropRecord(RecIndex const& index) -> bool;
+
+        // ======== VIEWS ==================================================================================================================
+
         /**
          * @return      View into a field (handling layout) if field found in dataframe.
          * @param index field index to try getting data for.
          */
         [[nodiscard]]
-        auto GetField(FldIndex const& index) noexcept -> std::optional<DFView<T>>;
+        auto GetField(FldIndex const& index) noexcept -> DFView<T>;
 
         /**
          * @return      View into a field (handling layout) if field found in (const) dataframe.
          * @param index field index to try getting data for.
          */
         [[nodiscard]]
-        auto GetField(FldIndex const& index) const noexcept -> std::optional<DFView<T const>>;
+        auto GetField(FldIndex const& index) const noexcept -> DFView<T const>;
 
         /**
          * @return      View into a field (handling layout) if field found in dataframe.
@@ -209,14 +214,14 @@ namespace lugizmo {
          * @param index record index to try getting data for.
          */
         [[nodiscard]]
-        auto GetRecord(RecIndex const& index) noexcept -> std::optional<DFView<T>>;
+        auto GetRecord(RecIndex const& index) noexcept -> DFView<T>;
 
         /**
          * @return      View into a record (handling layout) if record found in (const) dataframe.
          * @param index record index to try getting data for.
          */
         [[nodiscard]]
-        auto GetRecord(RecIndex const& index) const noexcept -> std::optional<DFView<T const>>;
+        auto GetRecord(RecIndex const& index) const noexcept -> DFView<T const>;
 
         /**
          * @return      View into a record (handling layout) if record found in dataframe.
@@ -229,12 +234,60 @@ namespace lugizmo {
 
         /**
          * @return      View into a record (handling layout) if record found in (const) dataframe.
-         *               Field index is available while iterating.
+         *              Field index is available while iterating.
          * TODO as mentioned in the README this interface is currently not 100% as expected. Changes my come.
          * @param index record index to try getting data for.
          */
         [[nodiscard]]
         auto GetRecordIndexed(RecIndex const& index) const noexcept -> std::optional<DFViewIndexed<T const, RecIndex const>>;
+
+        // ======== FUNCTIONAL =============================================================================================================
+
+        /**
+         * @brief       Apply a function on each value in a field.
+         * @tparam Func Type of the function to apply on each value in a field.
+         *
+         * @param index Field index to look for. If not found function returns empty view.
+         * @param func  Function to apply on each value in a field.
+         * @return For chaining the view the function was applied on.
+         */
+        template <typename Func>
+        auto ForEachOnField(FldIndex const& index, Func&& func) -> DFView<T>;
+
+        /**
+         * @brief       Apply a function on each value in a field on constant DataFrame.
+         * @tparam Func Type of the function to apply on each value in a field.
+         *
+         * @param index Field index to look for. If not found function returns empty view.
+         * @param func  Function to apply on each value in a field.
+         * @return For chaining the view the function was applied on.
+         */
+        template <typename Func>
+        auto ForEachOnField(FldIndex const& index, Func&& func) const -> DFView<T const>;
+
+        /**
+         * @brief       Apply a function on each value in a record.
+         * @tparam Func Type of the function to apply on each value in a record.
+         *
+         * @param index Record index to look for. If not found function returns empty view.
+         * @param func  Function to apply on each value in a record.
+         * @return For chaining the view the function was applied on.
+         */
+        template<typename Func>
+        auto ForEachOnRecord(RecIndex const& index, Func&& func) -> DFView<T>;
+
+        /**
+         * @brief       Apply a function on each value in a record on constant DataFrame.
+         * @tparam Func Type of the function to apply on each value in a record.
+         *
+         * @param index Record index to look for. If not found function returns empty view.
+         * @param func  Function to apply on each value in a record.
+         * @return For chaining the view the function was applied on.
+         */
+        template<typename Func>
+        auto ForEachOnRecord(RecIndex const& index, Func&& func) const -> DFView<T const>;
+
+        // ======== PRINT ==================================================================================================================
 
         /**
          *  @brief Prints content of the dataframe to std-out.
@@ -332,6 +385,8 @@ namespace lugizmo {
         return true;
     }
 
+    // ======== DROP =======================================================================================================================
+
     template <typename T, typename F, typename R, typename L>
     auto DataFrame<T, F, R, L>::DropField(F const& index) -> bool
     {
@@ -362,22 +417,24 @@ namespace lugizmo {
         return true;
     }
 
+    // ======== VIEWS ======================================================================================================================
+
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::GetField(F const& index) noexcept -> std::optional<DFView<T>>
+    auto DataFrame<T, F, R, L>::GetField(F const& index) noexcept -> DFView<T>
     {
         auto const pos = fldIndex.Position(index);
-        if (!pos.has_value()) { return std::nullopt; }
+        if (!pos.has_value()) { return DFView<T>(); }
 
         return DFView<T>::FieldView(recsData, pos.value());
     }
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::GetField(F const& index) const noexcept -> std::optional<DFView<T const>>
+    auto DataFrame<T, F, R, L>::GetField(F const& index) const noexcept -> DFView<T const>
     {
         auto const pos = fldIndex.Position(index);
-        if (!pos.has_value()) { return std::nullopt; }
+        if (!pos.has_value()) { return DFView<T const>(); }
 
-        return DFView<T const>::FieldView(recsData, pos.value());
+        return DFView<T const>::FieldView(static_cast<RecsData<T const>>(recsData), pos.value());
     }
 
     template <typename T, typename F, typename R, typename L>
@@ -395,25 +452,25 @@ namespace lugizmo {
         auto const pos = fldIndex.Position(index);
         if (!pos.has_value()) { return std::nullopt; }
 
-        return DFViewIndexed<T, R const>::FieldView(recsData, pos.value(), recIndex.Keys());
+        return DFViewIndexed<T, R const>::FieldView(static_cast<RecsData<T const>>(recsData), pos.value(), recIndex.Keys());
     }
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::GetRecord(R const& index) noexcept -> std::optional<DFView<T>>
+    auto DataFrame<T, F, R, L>::GetRecord(R const& index) noexcept -> DFView<T>
     {
         auto pos = recIndex.Position(index);
-        if(not pos.has_value()) return std::nullopt;
+        if(not pos.has_value()) return DFView<T>();
 
         return DFView<T>::RecordView(recsData, pos.value());
     }
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::GetRecord(R const& index) const noexcept -> std::optional<DFView<T const>>
+    auto DataFrame<T, F, R, L>::GetRecord(R const& index) const noexcept -> DFView<T const>
     {
         auto pos = recIndex.Position(index);
-        if(not pos.has_value()) return std::nullopt;
+        if(not pos.has_value()) return DFView<T const>();
 
-        return DFView<T const>::RecordView(recsData, pos.value());
+        return DFView<T const>::RecordView(static_cast<RecsData<T const>>(recsData), pos.value());
     }
 
     template <typename T, typename F, typename R, typename L>
@@ -431,8 +488,52 @@ namespace lugizmo {
         auto pos = recIndex.Position(index);
         if(not pos.has_value()) return std::nullopt;
 
-        return DFViewIndexed<T, F const>::RecordView(recsData, pos.value(), fldIndex.Keys());
+        return DFViewIndexed<T, F const>::RecordView(static_cast<RecsData<T const>>(recsData), pos.value(), fldIndex.Keys());
     }
+
+    // ======== FUNCTIONAL =================================================================================================================
+
+    template <typename T, typename F, typename R, typename L>
+    template <typename Func>
+    auto DataFrame<T, F, R, L>::ForEachOnField(F const& index, Func&& func) -> DFView<T>
+    {
+        auto view = GetField(index);
+        std::ranges::for_each(view, std::forward<Func>(func));
+
+        return view;
+    }
+
+    template <typename T, typename F, typename R, typename L>
+    template <typename Func>
+    auto DataFrame<T, F, R, L>::ForEachOnField(F const& index, Func&& func) const -> DFView<T const>
+    {
+        auto const view = GetField(index);
+        std::ranges::for_each(view, std::forward<Func>(func));
+
+        return view;
+    }
+
+    template <typename T, typename F, typename R, typename L>
+    template <typename Func>
+    auto DataFrame<T, F, R, L>::ForEachOnRecord(R const& index, Func&& func) -> DFView<T>
+    {
+        auto view = GetRecord(index);
+        std::ranges::for_each(view, std::forward<Func>(func));
+
+        return view;
+    }
+
+    template <typename T, typename F, typename R, typename L>
+    template <typename Func>
+    auto DataFrame<T, F, R, L>::ForEachOnRecord(R const& index, Func&& func) const -> DFView<T const>
+    {
+        auto view = GetRecord(index);
+        std::ranges::for_each(view, std::forward<Func>(func));
+
+        return view;
+    }
+
+    // ======== PRINT ======================================================================================================================
 
     template <typename T, typename F, typename R, typename L>
     void DataFrame<T, F, R, L>::Print() const

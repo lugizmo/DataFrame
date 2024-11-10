@@ -18,6 +18,15 @@ This library uses **C++23** constructs (like mdspan). At moment of writing this 
 - Records (Rows) and Fields (Columns) can be accessed via an key
 - Exception free
 
+Views:
+- views should be compatible with ranges
+- generally more ranges support
+
+Functional:
+- transform functions -> creating new DF
+- apply functions on fields/records
+- transform and apply on field-ranges & column-ranges
+
 ### DataFrame currently not planned features
 
 - thread safe mutation/access

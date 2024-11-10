@@ -168,14 +168,21 @@ namespace lugizmo {
             bool operator>=(Iterator const& other) const noexcept { return ptr >= other.ptr; }
         };
 
-        template <typename Layout>
+        // empty view
+        DFView() noexcept
+        {
+            auto mapping = Strides(Extents(0), std::array{size_t{0}});
+            view = MDSpan(nullptr, std::move(mapping));
+        }
+
+        template<typename Layout>
         [[nodiscard]]
         static auto RecordView(MDSpanDF<Layout> original, size_t const recIndex) noexcept -> DFView
         {
             return DFView(original, recIndex, false);
         }
 
-        template <typename Layout>
+        template<typename Layout>
         [[nodiscard]]
         static auto FieldView(MDSpanDF<Layout> original, size_t const fldIndex) noexcept -> DFView
         {
@@ -183,6 +190,7 @@ namespace lugizmo {
         }
 
         [[nodiscard]] auto Size() const noexcept -> size_t { return view.extent(0); }
+        [[nodiscard]] auto Empty() const noexcept -> bool  { return Size() == 0; }
 
         [[nodiscard]] auto operator[](size_t i) noexcept -> T& { return view[i]; }
         [[nodiscard]] auto operator[](size_t i) const noexcept -> const T& { return view[i]; }
@@ -211,6 +219,18 @@ namespace lugizmo {
         [[nodiscard]] auto end() const& noexcept -> Iterator
         {
             return Iterator(view.data_handle() + view.extent(0) * view.mapping().stride(0), view.mapping().stride(0));
+        }
+
+        template <typename RangeAdaptor>
+        friend auto operator|(DFView& view, RangeAdaptor&& adaptor)
+        {
+            return std::forward<RangeAdaptor>(adaptor)(std::ranges::subrange(view.begin(), view.end()));
+        }
+
+        template <typename RangeAdaptor>
+        friend auto operator|(const DFView& view, RangeAdaptor&& adaptor)
+        {
+            return std::forward<RangeAdaptor>(adaptor)(std::ranges::subrange(view.begin(), view.end()));
         }
     };
 
