@@ -46,7 +46,18 @@ Functional:
 
 ### TODO Code
 
-- indexed iterator does not have the same usage like iterating over an map.
-  - ``auto const& [val, idx]: dfView`` would still allow to mutate val if dfView is not const.
-  - when doing the same e.g. std::unordered_map val would be constant.
+- todo thing about using lugizmo::df to drop the DF names everywhere
+  - DFView -> lugizmo::df::View -> df::View
+  - DFHashIndex -> lugizmo::df::IndexHash -> df::IndexHash
+- Index types should have an hint on which search algorithm to use
+  - default binary
+  - interpolation search
+  - exponential search
+  - jump-search
+- rethink the naming of DFView and DFViewIndexed
+  - views are non owning lazy ranges without creating any copys
+  - ranges are abstraction of anything having a begin() and end() and can be immediate or lazy
+- ~~indexed iterator does not have the same usage like iterating over an map.~~
+- add reversed (index) iterator  
+- make views not eagerly so that they fit better with ranges.
 - add more todo's
