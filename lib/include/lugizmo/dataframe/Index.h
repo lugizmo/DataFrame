@@ -19,71 +19,45 @@
 
 namespace lugizmo {
 
-    template <typename Derived, typename KeyType>
-    struct DFBaseIndex
+    /**
+     *  @brief   Type to denote that a field index gets passed.
+     *  @details Useful on function overloading when records and fields
+     *           use the same index types.
+     *  @tparam F type of the field (index).
+     */
+    template <typename F>
+    struct SelectField
     {
-        [[nodiscard]]
-        auto Keys() const -> std::span<KeyType const>
-        {
-            return static_cast<Derived*>(this)->Keys();
-        }
+        F const& val;
+        constexpr explicit SelectField(F const& v) noexcept: val(v) {}
 
-        [[nodiscard]]
-        auto Key(size_t const position) const -> std::optional<KeyType>
-        {
-            return static_cast<Derived*>(this)->Key(position);
-        }
+        SelectField(SelectField const&) noexcept = delete;
+        SelectField(SelectField &&) noexcept     = default;
+        ~SelectField() noexcept                  = default;
 
-        auto Add(KeyType&& key) noexcept -> bool
-        {
-            return static_cast<Derived*>(this)->Add(key);
-        }
-
-        [[nodiscard]]
-        auto Position(KeyType const& key) const noexcept -> std::optional<size_t>
-        {
-            return static_cast<Derived const*>(this)->Position(key);
-        }
-
-        [[nodiscard]]
-        auto Positions() const -> std::span<size_t const>
-        {
-            return static_cast<Derived*>(this)->Positions();
-        }
-
-        [[nodiscard]]
-        auto MaxPosition() const -> std::optional<size_t>
-        {
-            return static_cast<Derived*>(this)->MaxPosition();
-        }
-
-        [[nodiscard]]
-        auto Drop(KeyType const& key) noexcept -> bool
-        {
-            return static_cast<Derived*>(this)->Drop(key);
-        }
-
-        [[nodiscard]]
-        auto Size() const noexcept -> size_t
-        {
-            return static_cast<Derived const*>(this)->Size();
-        }
-
-        [[nodiscard]]
-        auto Empty() const noexcept -> bool
-        {
-            return static_cast<Derived const*>(this)->Empty();
-        }
+        auto operator=(SelectField const&) noexcept -> SelectField = delete;
+        auto operator=(SelectField &&) noexcept -> SelectField&    = default;
     };
 
-    template<template<typename, typename> class Base, typename Derived, typename KeyType>
-    struct IsDFIndex
+    /**
+     *  @brief   Type to denote that a record index gets passed.
+     *  @details Useful on function overloading when records and fields
+     *           use the same index types.
+     *  @tparam R type of the record (index).
+     */
+    template <typename R>
+    struct SelectRecord
     {
-        static constexpr bool value = std::is_base_of_v<Base<Derived, KeyType>, Derived>;
-    };
+        R const& val;
+        constexpr explicit SelectRecord(R const& v) noexcept: val(v) {}
 
-    template<typename Derived>
-    concept DFIndex = IsDFIndex<DFBaseIndex, Derived, typename Derived::KeyType>::value;
+        SelectRecord(SelectRecord const&) noexcept = delete;
+        SelectRecord(SelectRecord &&) noexcept     = default;
+        ~SelectRecord() noexcept                   = default;
+
+        auto operator=(SelectRecord const&) noexcept -> SelectRecord = delete;
+        auto operator=(SelectRecord &&) noexcept -> SelectRecord&    = default;
+    };
 
     // ====== DF INDICES ===================================================================================================================
 
@@ -188,70 +162,6 @@ namespace lugizmo {
     };
 
     static_assert(DFIndex<DFHashIndex<int>>);
-
-//    /**
-//     *  Ranged index between to integer values.
-//     */
-//    struct DFRangeIndex final : DFBaseIndex<DFRangeIndex, size_t>
-//    {
-//        using KeyType = size_t;
-//
-//        size_t begin;   ///< First value to get data for. See end for limit.
-//        size_t end;     ///< One behind the last element to get data for. If begin == end no data. (TODO add assert for max size_t)
-//
-//        explicit DFRangeIndex(size_t const inBegin, size_t const inEnd) :
-//            begin(inBegin <= inEnd ? inBegin : 0),
-//            end(inBegin <= inEnd ? inEnd : 0)
-//        {
-//            assert(inBegin <= inEnd && "End before begin!");
-//        }
-//
-//        static auto operator[](size_t const inBegin, size_t const inEnd) -> DFRangeIndex {
-//            return DFRangeIndex(inBegin, inEnd);
-//        }
-//
-//        [[nodiscard]]
-//        auto Begin() const noexcept -> KeyType
-//        {
-//            return begin;
-//        }
-//
-//        [[nodiscard]]
-//        auto End() const noexcept -> KeyType
-//        {
-//            return end;
-//        }
-//
-//        // You cannot add to a range.
-//        // TODO add function to adjust the range, including dropping when range gets smaller.
-//        // auto Add(T const& key) noexcept -> std::optional<size_t>
-//
-//        [[nodiscard]]
-//        auto Position(KeyType const& key) const -> std::optional<KeyType>
-//        {
-//            return key < end ? std::make_optional(key) : std::nullopt;
-//        }
-//
-//        //[[nodiscard]]
-//        //auto Drop(T const& key) noexcept -> bool {}
-//
-//        //
-//        // void Compact() {}
-//
-//        [[nodiscard]]
-//        auto Size() const noexcept -> KeyType
-//        {
-//            return end - begin;
-//        }
-//
-//        [[nodiscard]]
-//        auto Empty() const -> bool
-//        {
-//            return begin == end;
-//        }
-//    };
-//
-//    static_assert(DFIndex<DFRangeIndex>);
 }
 
 #endif // LUGIZMO_DF_INDEX_H

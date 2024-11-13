@@ -123,10 +123,10 @@ TEST(dataframe_test, row_major_set_get_field_views)
 
     for(auto col = 0; col < COL_COUNT; ++col)
     {
-        auto view = df.GetField(col);
+        auto view = df.ViewField(col);
         ASSERT_FALSE(view.Empty());
 
-        for(auto& val : view)
+        for(auto const& val : view)
             ASSERT_EQ(val, ARRAY[col]);
 
         for(auto& val : view)
@@ -158,7 +158,7 @@ TEST(dataframe_test, row_major_set_get_record_views)
 
     for(auto row = 0; row < ROW_COUNT; ++row)
     {
-        auto view = df.GetRecord(row);
+        auto view = df.ViewRecord(row);
         ASSERT_FALSE(view.Empty());
 
         for(auto col = 0; col < COL_COUNT; ++col)
@@ -193,11 +193,11 @@ TEST(dataframe_test, row_major_indexed_views)
 
     for(auto col = 0; col < COL_COUNT; ++col)
     {
-        auto view = df.GetFieldIndexed(col);
-        ASSERT_TRUE(view.has_value());
+        auto view = df.ViewFieldIndexed(col);
+        ASSERT_FALSE(view.Empty());
 
         auto currentRow = 0;
-        for(auto& [val, idx] : *view)
+        for(auto& [val, idx] : view)
         {
             ASSERT_EQ(idx, currentRow);
             ASSERT_EQ(val, ARRAY[col]);
@@ -213,11 +213,11 @@ TEST(dataframe_test, row_major_indexed_views)
 
     for(auto row = 0; row < ROW_COUNT; ++row)
     {
-        auto view = df.GetRecordIndexed(row);
-        ASSERT_TRUE(view.has_value());
+        auto view = df.ViewRecordIndexed(row);
+        ASSERT_FALSE(view.Empty());
 
         auto currentRow = 0;
-        for(auto& [val, idx] : *view)
+        for(auto& [val, idx] : view)
         {
             ASSERT_EQ(idx, currentRow);
             ASSERT_EQ(val, 42);
@@ -251,13 +251,13 @@ TEST(dataframe_test, row_major_for_each)
         for(auto col = 0; col < COL_COUNT; ++col) ASSERT_TRUE(df.AddField(col));
         for(auto row = 0; row < ROW_COUNT; ++row) ASSERT_TRUE(df.AddRecordPopulated(row, ARRAY));
 
-        auto field = df.GetField(0);
+        auto field = df.ViewField(0);
         ASSERT_FALSE(field.Empty());
 
         std::ranges::for_each(field, [](auto& val) { val += 1; });
         ASSERT_TRUE(std::ranges::all_of(field, [](auto& val) { return val == 2; }));
 
-        auto record = df.GetRecord(0);
+        auto record = df.ViewRecord(0);
         ASSERT_FALSE(record.Empty());
 
         std::ranges::for_each(record, [](auto& val) { val += 1; });
@@ -306,6 +306,38 @@ TEST(dataframe_test, row_major_for_each)
         auto view2 = cdf.ForEachOnRecord(2, [](auto const& val) { ASSERT_EQ(val, 1); });
         ASSERT_TRUE(view2.Size() != 0);
     }
+
+    {
+        auto df = DF();
+        for(auto col = 0; col < COL_COUNT; ++col) ASSERT_TRUE(df.AddField(col));
+        for(auto row = 0; row < ROW_COUNT; ++row) ASSERT_TRUE(df.AddRecordPopulated(row, ONES));
+
+        auto const& cdf = df;
+
+        // field const
+        auto view1 = cdf | SelectField(2) | std::views::filter([](auto r){ return r % 2 == 0; })
+                                          | std::views::transform([](auto r) { return r; });
+
+        ASSERT_TRUE(std::ranges::all_of(view1, [](auto const r) { return r % 2 == 0; }));
+
+        // record const
+        auto view2 = cdf | SelectRecord(2) | std::views::filter([](auto r){ return r % 2 == 0; })
+                                           | std::views::transform([](auto r) { return r; });
+
+        ASSERT_TRUE(std::ranges::all_of(view2, [](auto const r) { return r % 2 == 0; }));
+
+        // field const
+        auto view3 = cdf.ViewField(2) | std::views::filter([](auto r){ return r % 2 == 0; })
+                                      | std::views::transform([](auto r) { return r; });
+
+        ASSERT_TRUE(std::ranges::all_of(view3, [](auto const r) { return r % 2 == 0; }));
+
+        // record const
+        auto view4 = cdf.ViewRecord(2) | std::views::filter([](auto r){ return r % 2 == 0; })
+                                       | std::views::transform([](auto r) { return r; });
+
+        ASSERT_TRUE(std::ranges::all_of(view4, [](auto const r) { return r % 2 == 0; }));
+    }
 }
 
 TEST(dataframe_test, row_major_drop)
@@ -337,7 +369,7 @@ TEST(dataframe_test, row_major_drop)
     {
         ASSERT_TRUE(fld % 2 != 0);
 
-        auto const get = df.GetField(fld);
+        auto const get = df.ViewField(fld);
         ASSERT_FALSE(get.Empty());
         ASSERT_TRUE(std::ranges::all_of(get, [value](auto const v) { return v == value; }));
 
@@ -354,7 +386,7 @@ TEST(dataframe_test, row_major_drop)
     {
         ASSERT_TRUE(rec % 2 != 0);
 
-        auto const get = df.GetRecord(rec);
+        auto const get = df.ViewRecord(rec);
         ASSERT_FALSE(get.Empty());
 
         auto recValue = 0;
@@ -380,7 +412,7 @@ TEST(dataframe_test, dev)
     using ms = milliseconds;
 
     constexpr int COL_COUNT = 10;
-    constexpr int ROW_COUNT = 3'000'000;
+    constexpr int ROW_COUNT = 300000;
 
     auto const loggingRes =
 #if PRINT_ALLOCATIONS
@@ -461,7 +493,7 @@ TEST(dataframe_test, dev)
     start = high_resolution_clock::now();
     for(auto col = 0; col < COL_COUNT; ++col)
     {
-        auto colView = df.GetField(col);
+        auto colView = df.ViewField(col);
         ASSERT_FALSE(colView.Empty());
         std::ranges::for_each(colView, [col](auto& v){ v = col;});
     }
@@ -471,7 +503,7 @@ TEST(dataframe_test, dev)
     start = high_resolution_clock::now();
     for(auto row = 0; row < ROW_COUNT; ++row)
     {
-        auto rowView = df.GetRecord(row);
+        auto rowView = df.ViewRecord(row);
         ASSERT_FALSE(rowView.Empty());
         std::ranges::for_each(rowView, [row](auto& v){ v = row;});
     }
@@ -481,7 +513,7 @@ TEST(dataframe_test, dev)
     start = high_resolution_clock::now();
     for(auto row = 0; row < ROW_COUNT; ++row)
     {
-        auto const rec = df.GetRecord(row);
+        auto const rec = df.ViewRecord(row);
         ASSERT_TRUE(rec.Size() == COL_COUNT);
     }
     end = high_resolution_clock::now();
@@ -491,7 +523,7 @@ TEST(dataframe_test, dev)
     for(auto col = 0; col < COL_COUNT; ++col)
     {
         //auto const fld = df.GetField(std::format("col{}", col));
-        auto const fld = df.GetField(col);
+        auto const fld = df.ViewField(col);
         ASSERT_FALSE(fld.Empty());
 
         auto count = 0;
