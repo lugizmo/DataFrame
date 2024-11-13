@@ -21,6 +21,7 @@ This library uses **C++23** constructs (like mdspan). At moment of writing this 
 Views:
 - views should be compatible with ranges
 - generally more ranges support
+- add (indexed) views of (indexed) views (traversing set-of/all fields/records)
 
 Functional:
 - transform functions -> creating new DF

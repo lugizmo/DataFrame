@@ -15,6 +15,8 @@
 
 #include "lugizmo/container/DataFrameMap.h"
 
+#include "IndexBase.h"
+
 namespace lugizmo {
 
     template <typename Derived, typename KeyType>
