@@ -16,6 +16,8 @@ namespace lugizmo {
 
     /**
      * TODO doc
+     * TODO make view not eagerly create view so that it can be used
+     *      lazy with ranges.
      * @tparam T
      */
     template <typename T>
@@ -72,23 +74,24 @@ namespace lugizmo {
 
     public:
 
-        class Iterator
+        template<bool Const>
+        class IteratorBase
         {
             T* ptr;
             size_t stride;
 
         public:
             using iterator_category = std::random_access_iterator_tag;
-            using difference_type = std::ptrdiff_t;
-            using value_type = T;
-            using pointer = T*;
-            using reference = T&;
+            using difference_type   = std::ptrdiff_t;
+            using value_type        = T;
+            using pointer           = std::conditional_t<Const, T const*, T*>;
+            using reference         = std::conditional_t<Const, T const&, T&>;
 
-            Iterator() noexcept : ptr(nullptr), stride(0) {}
-            Iterator(T* data, size_t const stride) noexcept : ptr(data), stride(stride) {}
+            IteratorBase() noexcept : ptr(nullptr), stride(0) {}
+            IteratorBase(T* data, size_t const stride) noexcept : ptr(data), stride(stride) {}
 
-            Iterator(Iterator const&) = default;
-            Iterator& operator=(Iterator const&) = default;
+            IteratorBase(IteratorBase const&) = default;
+            IteratorBase& operator=(IteratorBase const&) = default;
 
             auto operator*() const noexcept -> reference { return *ptr; }
             auto operator->() const noexcept -> pointer  { return ptr; }
@@ -96,54 +99,54 @@ namespace lugizmo {
             auto operator*() noexcept -> reference { return *ptr; }
             auto operator->() noexcept -> pointer  { return ptr; }
 
-            auto operator++() -> Iterator&
+            auto operator++() -> IteratorBase&
             {
                 ptr += stride;
                 return *this;
             }
 
-            auto operator++(int) -> Iterator
+            auto operator++(int) -> IteratorBase
             {
-                Iterator tmp = *this;
+                IteratorBase tmp = *this;
                 ++(*this);
                 return tmp;
             }
 
-            auto operator--() -> Iterator&
+            auto operator--() -> IteratorBase&
             {
                 ptr -= stride;
                 return *this;
             }
 
-            auto operator--(int) -> Iterator
+            auto operator--(int) -> IteratorBase
             {
-                Iterator tmp = *this;
+                IteratorBase tmp = *this;
                 --(*this);
                 return tmp;
             }
 
-            auto operator+(difference_type const n) const -> Iterator
+            auto operator+(difference_type const n) const -> IteratorBase
             {
                 return Iterator(ptr + n * stride, stride);
             }
 
-            auto operator+=(difference_type const n) -> Iterator&
+            auto operator+=(difference_type const n) -> IteratorBase&
             {
                 ptr += n * stride;
                 return *this;
             }
 
-            auto operator-(difference_type const n) const -> Iterator
+            auto operator-(difference_type const n) const -> IteratorBase
             {
                 return Iterator(ptr - n * stride, stride);
             }
 
-            auto operator-(Iterator const& other) const -> difference_type
+            auto operator-(IteratorBase const& other) const -> difference_type
             {
                 return (ptr - other.ptr) / stride;
             }
 
-            auto operator-=(difference_type const n) -> Iterator&
+            auto operator-=(difference_type const n) -> IteratorBase&
             {
                 ptr -= n * stride;
                 return *this;
@@ -154,19 +157,22 @@ namespace lugizmo {
                 return *(ptr + n * stride);
             }
 
-            friend auto operator+(difference_type n, const Iterator& it) -> Iterator
+            friend auto operator+(difference_type n, const IteratorBase& it) -> IteratorBase
             {
                 return it + n;
             }
 
-            bool operator==(Iterator const& other) const noexcept { return ptr == other.ptr; }
-            bool operator!=(Iterator const& other) const noexcept { return ptr != other.ptr; }
+            bool operator==(IteratorBase const& other) const noexcept { return ptr == other.ptr; }
+            bool operator!=(IteratorBase const& other) const noexcept { return ptr != other.ptr; }
 
-            bool operator<(Iterator const& other)  const noexcept { return ptr < other.ptr; }
-            bool operator<=(Iterator const& other) const noexcept { return ptr <= other.ptr; }
-            bool operator>(Iterator const& other)  const noexcept { return ptr > other.ptr; }
-            bool operator>=(Iterator const& other) const noexcept { return ptr >= other.ptr; }
+            bool operator<(IteratorBase const& other)  const noexcept { return ptr < other.ptr; }
+            bool operator<=(IteratorBase const& other) const noexcept { return ptr <= other.ptr; }
+            bool operator>(IteratorBase const& other)  const noexcept { return ptr > other.ptr; }
+            bool operator>=(IteratorBase const& other) const noexcept { return ptr >= other.ptr; }
         };
+
+        using Iterator      = IteratorBase<false>;
+        using ConstIterator = IteratorBase<true>;
 
         // empty view
         DFView() noexcept
@@ -192,42 +198,57 @@ namespace lugizmo {
         [[nodiscard]] auto Size() const noexcept -> size_t { return view.extent(0); }
         [[nodiscard]] auto Empty() const noexcept -> bool  { return Size() == 0; }
 
-        [[nodiscard]] auto operator[](size_t i) noexcept -> T& { return view[i]; }
-        [[nodiscard]] auto operator[](size_t i) const noexcept -> const T& { return view[i]; }
+        [[nodiscard]] auto operator[](size_t const i) noexcept -> T& { return view[i]; }
+        [[nodiscard]] auto operator[](size_t const i) const noexcept -> const T& { return view[i]; }
 
-        [[nodiscard]] auto operator()(size_t i) noexcept -> std::optional<T*> { return i < Size() ? &view[i] : std::nullopt; }
-        [[nodiscard]] auto operator()(size_t i) const noexcept -> std::optional<T const*> { return  i <Size() ? &view[i] : std::nullopt; }
+        [[nodiscard]] auto operator()(size_t const i) noexcept -> std::optional<T*> { return i < Size() ? &view[i] : std::nullopt; }
+        [[nodiscard]] auto operator()(size_t const i) const noexcept -> std::optional<T const*> { return  i <Size() ? &view[i] : std::nullopt; }
 
         [[nodiscard]]
-        auto begin() & noexcept -> Iterator
+        auto begin() noexcept -> Iterator
         {
             return Iterator(view.data_handle(), view.mapping().stride(0));
         }
 
         [[nodiscard]]
-        auto end() & noexcept -> Iterator
+        auto end() noexcept -> Iterator
         {
             return Iterator(view.data_handle() + view.extent(0) * view.mapping().stride(0), view.mapping().stride(0));
         }
 
         [[nodiscard]]
-        auto begin() const& noexcept -> Iterator
+        auto begin() const noexcept -> ConstIterator
         {
-            return Iterator(view.data_handle(), view.mapping().stride(0));
+            return ConstIterator(view.data_handle(), view.mapping().stride(0));
         }
 
-        [[nodiscard]] auto end() const& noexcept -> Iterator
+        [[nodiscard]]
+        auto end() const noexcept -> ConstIterator
         {
-            return Iterator(view.data_handle() + view.extent(0) * view.mapping().stride(0), view.mapping().stride(0));
+            return ConstIterator(view.data_handle() + view.extent(0) * view.mapping().stride(0), view.mapping().stride(0));
+        }
+
+        [[nodiscard]]
+        auto cbegin() const noexcept -> ConstIterator
+        {
+            return ConstIterator(view.data_handle(), view.mapping().stride(0));
+        }
+
+        [[nodiscard]]
+        auto cend() const noexcept -> ConstIterator
+        {
+            return ConstIterator(view.data_handle(), view.mapping().stride(0));
         }
 
         template <typename RangeAdaptor>
+        [[nodiscard]]
         friend auto operator|(DFView& view, RangeAdaptor&& adaptor)
         {
             return std::forward<RangeAdaptor>(adaptor)(std::ranges::subrange(view.begin(), view.end()));
         }
 
         template <typename RangeAdaptor>
+        [[nodiscard]]
         friend auto operator|(const DFView& view, RangeAdaptor&& adaptor)
         {
             return std::forward<RangeAdaptor>(adaptor)(std::ranges::subrange(view.begin(), view.end()));
@@ -235,6 +256,7 @@ namespace lugizmo {
     };
 
     static_assert(std::random_access_iterator<DFView<int>::Iterator>, "Validation for iterator requirement failed.");
+    static_assert(std::random_access_iterator<DFView<int>::ConstIterator>, "Validation for iterator requirement failed.");
     static_assert(std::ranges::range<DFView<int>>, "Validation for range requirement failed.");
 }
 
