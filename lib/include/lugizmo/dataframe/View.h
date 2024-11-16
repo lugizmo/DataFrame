@@ -23,12 +23,14 @@ namespace lugizmo {
     template <typename T>
     class DFView
     {
+        static constexpr bool IsConstView = std::is_const_v<T>;
+
         template<typename Ti, typename Ii>
         friend class DFViewIndexed;
 
-        using Extents  = std::dextents<size_t, 1>;
-        using Strides  = std::layout_stride::mapping<Extents>;
-        using MDSpan   = std::mdspan<T, Extents, std::layout_stride>;
+        using Extents = std::dextents<size_t, 1>;
+        using Strides = std::layout_stride::mapping<Extents>;
+        using MDSpan  = std::mdspan<T, Extents, std::layout_stride>;
 
         template<typename Layout>
         using MDSpanDF = std::mdspan<T, std::dextents<size_t, 2>, Layout>;
@@ -74,24 +76,40 @@ namespace lugizmo {
 
     public:
 
-        template<bool Const>
-        class IteratorBase
+        class Iterator
         {
-            T* ptr;
+            T*     ptr;
             size_t stride;
 
         public:
             using iterator_category = std::random_access_iterator_tag;
             using difference_type   = std::ptrdiff_t;
             using value_type        = T;
-            using pointer           = std::conditional_t<Const, T const*, T*>;
-            using reference         = std::conditional_t<Const, T const&, T&>;
+            using pointer           = std::conditional_t<IsConstView, T const*, T*>;
+            using reference         = std::conditional_t<IsConstView, T const&, T&>;
 
-            IteratorBase() noexcept : ptr(nullptr), stride(0) {}
-            IteratorBase(T* data, size_t const stride) noexcept : ptr(data), stride(stride) {}
+            Iterator() noexcept : ptr(nullptr), stride(0) {}
+            Iterator(T* data, size_t const stride) noexcept : ptr(data), stride(stride) {}
 
-            IteratorBase(IteratorBase const&) = default;
-            IteratorBase& operator=(IteratorBase const&) = default;
+            Iterator(Iterator const& other) noexcept
+            {
+                if (this != &other)
+                {
+                    ptr = other.ptr;
+                    stride = other.stride;
+                }
+            }
+
+            auto operator=(Iterator const& other) -> Iterator&
+            {
+                if (this != &other)
+                {
+                    ptr = other.ptr;
+                    stride = other.stride;
+                }
+
+                return *this;
+            }
 
             auto operator*() const noexcept -> reference { return *ptr; }
             auto operator->() const noexcept -> pointer  { return ptr; }
@@ -99,54 +117,54 @@ namespace lugizmo {
             auto operator*() noexcept -> reference { return *ptr; }
             auto operator->() noexcept -> pointer  { return ptr; }
 
-            auto operator++() -> IteratorBase&
+            auto operator++() -> Iterator&
             {
                 ptr += stride;
                 return *this;
             }
 
-            auto operator++(int) -> IteratorBase
+            auto operator++(int) -> Iterator
             {
-                IteratorBase tmp = *this;
+                Iterator tmp = *this;
                 ++(*this);
                 return tmp;
             }
 
-            auto operator--() -> IteratorBase&
+            auto operator--() -> Iterator&
             {
                 ptr -= stride;
                 return *this;
             }
 
-            auto operator--(int) -> IteratorBase
+            auto operator--(int) -> Iterator
             {
-                IteratorBase tmp = *this;
+                Iterator tmp = *this;
                 --(*this);
                 return tmp;
             }
 
-            auto operator+(difference_type const n) const -> IteratorBase
+            auto operator+(difference_type const n) const -> Iterator
             {
                 return Iterator(ptr + n * stride, stride);
             }
 
-            auto operator+=(difference_type const n) -> IteratorBase&
+            auto operator+=(difference_type const n) -> Iterator&
             {
                 ptr += n * stride;
                 return *this;
             }
 
-            auto operator-(difference_type const n) const -> IteratorBase
+            auto operator-(difference_type const n) const -> Iterator
             {
                 return Iterator(ptr - n * stride, stride);
             }
 
-            auto operator-(IteratorBase const& other) const -> difference_type
+            auto operator-(Iterator const& other) const -> difference_type
             {
                 return (ptr - other.ptr) / stride;
             }
 
-            auto operator-=(difference_type const n) -> IteratorBase&
+            auto operator-=(difference_type const n) -> Iterator&
             {
                 ptr -= n * stride;
                 return *this;
@@ -157,22 +175,21 @@ namespace lugizmo {
                 return *(ptr + n * stride);
             }
 
-            friend auto operator+(difference_type n, const IteratorBase& it) -> IteratorBase
+            friend auto operator+(difference_type n, const Iterator& it) -> Iterator
             {
                 return it + n;
             }
 
-            bool operator==(IteratorBase const& other) const noexcept { return ptr == other.ptr; }
-            bool operator!=(IteratorBase const& other) const noexcept { return ptr != other.ptr; }
+            bool operator==(Iterator const& other) const noexcept { return ptr == other.ptr; }
+            bool operator!=(Iterator const& other) const noexcept { return ptr != other.ptr; }
 
-            bool operator<(IteratorBase const& other)  const noexcept { return ptr < other.ptr; }
-            bool operator<=(IteratorBase const& other) const noexcept { return ptr <= other.ptr; }
-            bool operator>(IteratorBase const& other)  const noexcept { return ptr > other.ptr; }
-            bool operator>=(IteratorBase const& other) const noexcept { return ptr >= other.ptr; }
+            bool operator<(Iterator const& other)  const noexcept { return ptr < other.ptr; }
+            bool operator<=(Iterator const& other) const noexcept { return ptr <= other.ptr; }
+            bool operator>(Iterator const& other)  const noexcept { return ptr > other.ptr; }
+            bool operator>=(Iterator const& other) const noexcept { return ptr >= other.ptr; }
         };
 
-        using Iterator      = IteratorBase<false>;
-        using ConstIterator = IteratorBase<true>;
+        static_assert(std::random_access_iterator<Iterator>, "Validation for iterator requirement failed.");
 
         // empty view
         DFView() noexcept
@@ -217,27 +234,27 @@ namespace lugizmo {
         }
 
         [[nodiscard]]
-        auto begin() const noexcept -> ConstIterator
+        auto begin() const noexcept -> Iterator
         {
-            return ConstIterator(view.data_handle(), view.mapping().stride(0));
+            return Iterator(view.data_handle(), view.mapping().stride(0));
         }
 
         [[nodiscard]]
-        auto end() const noexcept -> ConstIterator
+        auto end() const noexcept -> Iterator
         {
-            return ConstIterator(view.data_handle() + view.extent(0) * view.mapping().stride(0), view.mapping().stride(0));
+            return Iterator(view.data_handle() + view.extent(0) * view.mapping().stride(0), view.mapping().stride(0));
         }
 
         [[nodiscard]]
-        auto cbegin() const noexcept -> ConstIterator
+        auto cbegin() const noexcept -> Iterator
         {
-            return ConstIterator(view.data_handle(), view.mapping().stride(0));
+            return Iterator(view.data_handle(), view.mapping().stride(0));
         }
 
         [[nodiscard]]
-        auto cend() const noexcept -> ConstIterator
+        auto cend() const noexcept -> Iterator
         {
-            return ConstIterator(view.data_handle(), view.mapping().stride(0));
+            return Iterator(view.data_handle(), view.mapping().stride(0));
         }
 
         template <typename RangeAdaptor>
@@ -249,15 +266,14 @@ namespace lugizmo {
 
         template <typename RangeAdaptor>
         [[nodiscard]]
-        friend auto operator|(const DFView& view, RangeAdaptor&& adaptor)
+        friend auto operator|(DFView const& view, RangeAdaptor&& adaptor)
         {
-            return std::forward<RangeAdaptor>(adaptor)(std::ranges::subrange(view.begin(), view.end()));
+            return std::forward<RangeAdaptor>(adaptor)(std::ranges::subrange(view.cbegin(), view.cend()));
         }
     };
 
-    static_assert(std::random_access_iterator<DFView<int>::Iterator>, "Validation for iterator requirement failed.");
-    static_assert(std::random_access_iterator<DFView<int>::ConstIterator>, "Validation for iterator requirement failed.");
     static_assert(std::ranges::range<DFView<int>>, "Validation for range requirement failed.");
+    static_assert(std::ranges::range<DFView<int const>>, "Validation for range requirement failed.");
 }
 
 #endif // LUGIZMO_DF_VIEW_H

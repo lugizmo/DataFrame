@@ -212,7 +212,7 @@ namespace lugizmo {
          * @param index field index to try getting data for.
          */
         [[nodiscard]]
-        auto ViewFieldIndexed(FldIndex const& index) noexcept -> DFViewIndexed<T, FldIndex const>;
+        auto ViewFieldIndexed(FldIndex const& index) noexcept -> DFViewIndexed<T, RecIndex const>;
 
         /**
          * @return      View into a field (handling layout) if field found in (const) dataframe.
@@ -221,7 +221,7 @@ namespace lugizmo {
          * @param index field index to try getting data for.
          */
         [[nodiscard]]
-        auto ViewFieldIndexed(FldIndex const& index) const noexcept -> DFViewIndexed<T const, FldIndex const>;
+        auto ViewFieldIndexed(FldIndex const& index) const noexcept -> DFViewIndexed<T const, RecIndex const>;
 
         /**
          * @return      View into a record (handling layout) if record found in dataframe.
@@ -244,7 +244,7 @@ namespace lugizmo {
          * @param index record index to try getting data for.
          */
         [[nodiscard]]
-        auto ViewRecordIndexed(RecIndex const& index) noexcept -> DFViewIndexed<T, RecIndex const>;
+        auto ViewRecordIndexed(RecIndex const& index) noexcept -> DFViewIndexed<T, FldIndex const>;
 
         /**
          * @return      View into a record (handling layout) if record found in (const) dataframe.
@@ -253,23 +253,31 @@ namespace lugizmo {
          * @param index record index to try getting data for.
          */
         [[nodiscard]]
-        auto ViewRecordIndexed(RecIndex const& index) const noexcept -> DFViewIndexed<T const, RecIndex const>;
+        auto ViewRecordIndexed(RecIndex const& index) const noexcept -> DFViewIndexed<T const, FldIndex const>;
 
         /// @brief Alternative syntax for GetField()
-        /// TODO do I think that is a nice syntax? How do I get the indexed version of this?
         auto operator|(SelectField<FldIndex> const& index) noexcept -> DFView<T> { return ViewField(index.val); }
 
         /// @brief Alternative syntax for GetField() const
-        /// TODO do I think that is a nice syntax? How do I get the indexed version of this?
         auto operator|(SelectField<FldIndex> const& index) const noexcept -> DFView<T const> { return ViewField(index.val); }
 
         /// @brief Alternative syntax for GetRecord()
-        /// TODO do I think that is a nice syntax? How do I get the indexed version of this?
         auto operator|(SelectRecord<RecIndex> const& index) noexcept -> DFView<T> { return ViewRecord(index.val); }
 
         /// @brief Alternative syntax for GetRecord() const
-        /// TODO do I think that is a nice syntax? How do I get the indexed version of this?
         auto operator|(SelectRecord<RecIndex> const& index) const noexcept -> DFView<T const> { return ViewRecord(index.val); }
+
+        /// @brief Alternative syntax for GetFieldIndexed()
+        auto operator|(SelectFieldIndexed<FldIndex> const& index) noexcept -> DFViewIndexed<T, RecIndex const> { return ViewFieldIndexed(index.val); }
+
+         /// @brief Alternative syntax for GetFieldIndexed() const
+        auto operator|(SelectFieldIndexed<FldIndex> const& index) const noexcept -> DFViewIndexed<T const, RecIndex const> { return ViewFieldIndexed(index.val); }
+
+         /// @brief Alternative syntax for GetRecordIndexed()
+        auto operator|(SelectRecordIndexed<RecIndex> const& index) noexcept -> DFViewIndexed<T, RecIndex const> { return ViewRecordIndexed(index.val); }
+
+         /// @brief Alternative syntax for GetRecordIndexed() const
+        auto operator|(SelectRecordIndexed<RecIndex> const& index) const noexcept -> DFViewIndexed<T const, RecIndex const> { return ViewRecordIndexed(index.val); }
 
         // ======== FUNCTIONAL =============================================================================================================
 
@@ -450,21 +458,21 @@ namespace lugizmo {
     }
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::ViewFieldIndexed(F const& index) noexcept -> DFViewIndexed<T, F const>
+    auto DataFrame<T, F, R, L>::ViewFieldIndexed(F const& index) noexcept -> DFViewIndexed<T, R const>
     {
         auto const pos = fldIndex.Position(index);
-        if (!pos.has_value()) { return DFViewIndexed<T, F const>(); }
+        if (!pos.has_value()) { return DFViewIndexed<T, R const>(); }
 
         return DFViewIndexed<T, R const>::FieldView(recsData, pos.value(), recIndex.Keys());
     }
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::ViewFieldIndexed(F const& index) const noexcept -> DFViewIndexed<T const, F const>
+    auto DataFrame<T, F, R, L>::ViewFieldIndexed(F const& index) const noexcept -> DFViewIndexed<T const, R const>
     {
         auto const pos = fldIndex.Position(index);
-        if (!pos.has_value()) { return DFViewIndexed<T const, F const>(); }
+        if (!pos.has_value()) { return DFViewIndexed<T const, R const>(); }
 
-        return DFViewIndexed<T, R const>::FieldView(static_cast<RecsData<T const>>(recsData), pos.value(), recIndex.Keys());
+        return DFViewIndexed<T const, R const>::template FieldView(static_cast<RecsData<T const>>(recsData), pos.value(), recIndex.Keys());
     }
 
     template <typename T, typename F, typename R, typename L>
@@ -486,21 +494,21 @@ namespace lugizmo {
     }
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::ViewRecordIndexed(R const& index) noexcept -> DFViewIndexed<T, R const>
+    auto DataFrame<T, F, R, L>::ViewRecordIndexed(R const& index) noexcept -> DFViewIndexed<T, F const>
     {
         auto pos = recIndex.Position(index);
-        if(not pos.has_value()) return DFViewIndexed<T, R const>();
+        if(not pos.has_value()) return DFViewIndexed<T, F const>();
 
-        return DFViewIndexed<T, F const>::RecordView(recsData, pos.value(), fldIndex.Keys());
+        return DFViewIndexed<T, F const>::template RecordView(recsData, pos.value(), fldIndex.Keys());
     }
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::ViewRecordIndexed(R const& index) const noexcept -> DFViewIndexed<T const, R const>
+    auto DataFrame<T, F, R, L>::ViewRecordIndexed(R const& index) const noexcept -> DFViewIndexed<T const, F const>
     {
         auto pos = recIndex.Position(index);
-        if(not pos.has_value()) return DFViewIndexed<T const, R const>();
+        if(not pos.has_value()) return DFViewIndexed<T const, F const>();
 
-        return DFViewIndexed<T, F const>::RecordView(static_cast<RecsData<T const>>(recsData), pos.value(), fldIndex.Keys());
+        return DFViewIndexed<T const, F const>::template RecordView(static_cast<RecsData<T const>>(recsData), pos.value(), fldIndex.Keys());
     }
 
     // ======== FUNCTIONAL =================================================================================================================

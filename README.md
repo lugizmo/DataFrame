@@ -47,6 +47,7 @@ Functional:
 
 ### TODO Code
 
+- more constexpr
 - todo thing about using lugizmo::df to drop the DF names everywhere
   - DFView -> lugizmo::df::View -> df::View
   - DFHashIndex -> lugizmo::df::IndexHash -> df::IndexHash

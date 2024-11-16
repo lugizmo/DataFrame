@@ -338,6 +338,68 @@ TEST(dataframe_test, row_major_for_each)
 
         ASSERT_TRUE(std::ranges::all_of(view4, [](auto const r) { return r % 2 == 0; }));
     }
+
+    {
+        auto df = DF();
+        for(auto col = 0; col < COL_COUNT; ++col) ASSERT_TRUE(df.AddField(col));
+        for(auto row = 0; row < ROW_COUNT; ++row) ASSERT_TRUE(df.AddRecordPopulated(row, ONES));
+
+        // field const
+        auto view1 = df | SelectFieldIndexed(2) | std::views::filter([](auto rec) { return rec.val % 2 == 0; })
+                                                | std::views::transform([](auto rec) { return rec.val; });
+
+        ASSERT_TRUE(std::ranges::all_of(view1, [](auto const r) { return r % 2 == 0; }));
+
+        // record const
+        auto view2 = df | SelectRecordIndexed(2) | std::views::filter([](auto field){ return field.val % 2 == 0; })
+                                                 | std::views::transform([](auto field) { return field.val; });
+
+        ASSERT_TRUE(std::ranges::all_of(view2, [](auto const r) { return r % 2 == 0; }));
+
+        // field const
+        auto view3 = df.ViewFieldIndexed(2) | std::views::filter([](auto rec){ return rec.val % 2 == 0; })
+                                            | std::views::transform([](auto rec) { return rec.val; });
+
+        ASSERT_TRUE(std::ranges::all_of(view3, [](auto const r) { return r % 2 == 0; }));
+
+        // record const
+        auto view4 = df.ViewRecordIndexed(2) | std::views::filter([](auto field){ return field.val % 2 == 0; })
+                                             | std::views::transform([](auto field) { return field.val; });
+
+        ASSERT_TRUE(std::ranges::all_of(view4, [](auto const r) { return r % 2 == 0; }));
+    }
+
+    {
+        auto df = DF();
+        for(auto col = 0; col < COL_COUNT; ++col) ASSERT_TRUE(df.AddField(col));
+        for(auto row = 0; row < ROW_COUNT; ++row) ASSERT_TRUE(df.AddRecordPopulated(row, ONES));
+
+        auto const& cdf = df;
+
+        // field const
+        auto view1 = cdf | SelectFieldIndexed(2) | std::views::filter([](auto const rec) { return rec.val % 2 == 0; })
+                                                 | std::views::transform([](auto const rec) { return rec.val; });
+
+        ASSERT_TRUE(std::ranges::all_of(view1, [](auto const r) { return r % 2 == 0; }));
+
+        // record const
+        auto view2 = cdf | SelectRecordIndexed(2) | std::views::filter([](auto const field){ return field.val % 2 == 0; })
+                                                  | std::views::transform([](auto const field) { return field.val; });
+
+        ASSERT_TRUE(std::ranges::all_of(view2, [](auto const r) { return r % 2 == 0; }));
+
+        // field const
+        auto view3 = cdf.ViewFieldIndexed(2) | std::views::filter([](auto const rec){ return rec.val % 2 == 0; })
+                                             | std::views::transform([](auto const rec) { return rec.val; });
+
+        ASSERT_TRUE(std::ranges::all_of(view3, [](auto const r) { return r % 2 == 0; }));
+
+        // record const
+        auto view4 = cdf.ViewRecordIndexed(2) | std::views::filter([](auto const field){ return field.val % 2 == 0; })
+                                              | std::views::transform([](auto const field) { return field.val; });
+
+        ASSERT_TRUE(std::ranges::all_of(view4, [](auto const r) { return r % 2 == 0; }));
+    }
 }
 
 TEST(dataframe_test, row_major_drop)
@@ -411,8 +473,8 @@ TEST(dataframe_test, dev)
     using namespace std::chrono;
     using ms = milliseconds;
 
-    constexpr int COL_COUNT = 10;
-    constexpr int ROW_COUNT = 300000;
+    constexpr int COL_COUNT = 120;
+    constexpr int ROW_COUNT = 800;
 
     auto const loggingRes =
 #if PRINT_ALLOCATIONS
@@ -459,6 +521,9 @@ TEST(dataframe_test, dev)
             //auto const get = df.GetValue(std::format("col{}", col), row);
             auto const get = df.GetValue(col, row);
             ASSERT_TRUE(get.has_value());
+
+            auto const con = get >= 0;
+            ASSERT_TRUE(con);
         }
     }
     end = high_resolution_clock::now();
@@ -471,7 +536,8 @@ TEST(dataframe_test, dev)
         {
             //auto const get = df[std::format("col{}", col), row];
             auto const get = df[col, row];
-            ASSERT_TRUE(get >= 0);
+            auto const con = get >= 0;
+            ASSERT_TRUE(con);
         }
     }
     end = high_resolution_clock::now();

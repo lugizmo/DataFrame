@@ -31,12 +31,36 @@ namespace lugizmo {
         F const& val;
         constexpr explicit SelectField(F const& v) noexcept: val(v) {}
 
-        SelectField(SelectField const&) noexcept = delete;
-        SelectField(SelectField &&) noexcept     = default;
-        ~SelectField() noexcept                  = default;
+        constexpr SelectField(SelectField const&) noexcept = delete;
+        constexpr SelectField(SelectField &&) noexcept     = default;
+        constexpr ~SelectField() noexcept                  = default;
 
-        auto operator=(SelectField const&) noexcept -> SelectField = delete;
-        auto operator=(SelectField &&) noexcept -> SelectField&    = default;
+        constexpr auto operator=(SelectField const&) noexcept -> SelectField = delete;
+        constexpr auto operator=(SelectField &&) noexcept -> SelectField&    = default;
+    };
+
+    /**
+     *  @brief   Type to denote that a field index gets passed.
+     *           This should make the operator/function return an indexed version
+     *           were the values are pared with the record index.
+     *  @details Useful on function overloading when records and fields
+     *           use the same index types.
+     *
+     *  @see SelectField if only field values should be returned.
+     *  @tparam F type of the field (index).
+     */
+    template <typename F>
+    struct SelectFieldIndexed
+    {
+        F const& val;
+        constexpr explicit SelectFieldIndexed(F const& v) noexcept: val(v) {}
+
+        constexpr SelectFieldIndexed(SelectFieldIndexed const&) noexcept = delete;
+        constexpr SelectFieldIndexed(SelectFieldIndexed &&) noexcept     = default;
+        constexpr ~SelectFieldIndexed() noexcept                         = default;
+
+        constexpr auto operator=(SelectFieldIndexed const&) noexcept -> SelectFieldIndexed = delete;
+        constexpr auto operator=(SelectFieldIndexed &&) noexcept -> SelectFieldIndexed&    = default;
     };
 
     /**
@@ -51,12 +75,36 @@ namespace lugizmo {
         R const& val;
         constexpr explicit SelectRecord(R const& v) noexcept: val(v) {}
 
-        SelectRecord(SelectRecord const&) noexcept = delete;
-        SelectRecord(SelectRecord &&) noexcept     = default;
-        ~SelectRecord() noexcept                   = default;
+        constexpr SelectRecord(SelectRecord const&) noexcept = delete;
+        constexpr SelectRecord(SelectRecord &&) noexcept     = default;
+        constexpr ~SelectRecord() noexcept                   = default;
 
-        auto operator=(SelectRecord const&) noexcept -> SelectRecord = delete;
-        auto operator=(SelectRecord &&) noexcept -> SelectRecord&    = default;
+        constexpr auto operator=(SelectRecord const&) noexcept -> SelectRecord = delete;
+        constexpr auto operator=(SelectRecord &&) noexcept -> SelectRecord&    = default;
+    };
+
+    /**
+     *  @brief   Type to denote that a record index gets passed.
+     *           This should make the operator/function return an indexed version
+     *           were the values are pared with the field index.
+     *  @details Useful on function overloading when records and fields
+     *           use the same index types.
+     *
+     *  @see SelectRecord if only record values should be returned.
+     *  @tparam F type of the record (index).
+     */
+    template <typename F>
+    struct SelectRecordIndexed
+    {
+        F const& val;
+        constexpr explicit SelectRecordIndexed(F const& v) noexcept: val(v) {}
+
+        constexpr SelectRecordIndexed(SelectRecordIndexed const&) noexcept = delete;
+        constexpr SelectRecordIndexed(SelectRecordIndexed &&) noexcept     = default;
+        constexpr ~SelectRecordIndexed() noexcept                          = default;
+
+        constexpr auto operator=(SelectRecordIndexed const&) noexcept -> SelectRecordIndexed = delete;
+        constexpr auto operator=(SelectRecordIndexed &&) noexcept -> SelectRecordIndexed&    = default;
     };
 
     // ====== DF INDICES ===================================================================================================================
