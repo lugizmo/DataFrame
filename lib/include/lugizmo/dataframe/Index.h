@@ -115,6 +115,10 @@ namespace lugizmo {
         using KeyType = T;
         using KeyView = std::span<KeyType const>;
 
+        explicit DFHashIndex() noexcept : values()
+        {
+        }
+
         explicit DFHashIndex(std::pmr::memory_resource* memResource, size_t const capacity = 0) :
             values(memResource)
         {
@@ -152,6 +156,22 @@ namespace lugizmo {
             values.Insert(std::forward<T>(key), index);
 
             return index;
+        }
+
+        auto AddMultiple(std::span<KeyType const> keys) noexcept -> bool
+        {
+            auto const startIndex = nextIndex;
+            auto positions = std::pmr::vector<size_t>(keys.size(), values.Allocator());
+
+            auto vectorPos = 0;
+            for(size_t i = startIndex; i < keys.size(); i = ++nextIndex)
+            {
+                positions[vectorPos] = i;
+                ++vectorPos;
+            }
+
+            values.Insert(keys, positions);
+            return true;
         }
 
         auto Drop(T const& key) noexcept -> std::optional<size_t>
@@ -206,7 +226,7 @@ namespace lugizmo {
     private:
 
         DataFrameMap<T, size_t> values;      // keys and the associated position
-        size_t nextIndex = 0;
+        size_t nextIndex = 0;                // next index to use (when taken +1)
     };
 
     static_assert(DFIndex<DFHashIndex<int>>);

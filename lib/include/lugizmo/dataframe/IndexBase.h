@@ -7,6 +7,10 @@
 #ifndef LUGIZMO_DF_INDEX_BASE_H
 #define LUGIZMO_DF_INDEX_BASE_H
 
+#include <type_traits>
+#include <span>
+#include <optional>
+
 namespace lugizmo {
 
     /**
@@ -41,6 +45,14 @@ namespace lugizmo {
         auto Add(KeyType&& key) noexcept -> bool
         {
             return static_cast<Derived*>(this)->Add(key);
+        }
+
+        /**
+         * TODO doc + idea
+         */
+        auto AddMultiple(std::span<KeyType const> keys) noexcept -> bool
+        {
+            return static_cast<Derived*>(this)->AddMultiple(keys);
         }
 
         /**

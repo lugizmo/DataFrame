@@ -41,7 +41,7 @@ namespace lugizmo {
         constexpr auto operator=(NullableAssignableReferenceWrapper const& other) noexcept -> NullableAssignableReferenceWrapper& = default;
         constexpr auto operator=(NullableAssignableReferenceWrapper && other) noexcept -> NullableAssignableReferenceWrapper&     = default;
 
-        constexpr NullableAssignableReferenceWrapper& operator=(const T& value) noexcept
+        constexpr auto operator=(const T& value) noexcept -> NullableAssignableReferenceWrapper&
         {
             assert(ptr != nullptr);
 
@@ -49,7 +49,7 @@ namespace lugizmo {
             return *this;
         }
 
-        constexpr NullableAssignableReferenceWrapper& operator=(T&& value) noexcept
+        constexpr auto operator=(T&& value) noexcept -> NullableAssignableReferenceWrapper&
         {
             assert(ptr != nullptr);
 

@@ -15,6 +15,7 @@
 #include <mdspan>
 #include <memory>
 #include <memory_resource>
+#include <initializer_list>
 #include <optional>
 #include <ranges>
 #include <span>
@@ -24,6 +25,8 @@
 #include <ostream>
 
 #include "memory/Memory.h"
+
+#include "container/Concepts.h"
 
 #include "dataframe/Index.h"
 #include "dataframe/Layout.h"
@@ -46,6 +49,8 @@ namespace lugizmo {
     {
         // data types
         static_assert(std::is_same_v<LayoutPolicy, std::layout_right>, "Currently only layout_right is supported");
+        static_assert(std::is_default_constructible_v<T>, "Currently only default constructable values are supported");
+
         using Layout = std::conditional_t<std::is_same_v<LayoutPolicy, std::layout_right>, DFRowMajor<T>, void>;
 
         using Data = T*;                                                            // stored view into data
@@ -72,34 +77,126 @@ namespace lugizmo {
 
     public:
 
-        explicit DataFrame() noexcept :
-            backingRes(BackingResDefault()),
-            capacity(0),
-            data(nullptr),
-            recsData(data, 0, 0),
-            fldIndex(backingRes.get(), 0),
-            recIndex(backingRes.get(), 0)
-        {
-        }
+        // ======== CONSTRUCTION ===========================================================================================================
 
-        explicit DataFrame(size_t const reservedValues, MemR res = BackingResDefault()) noexcept :
-            backingRes(std::move(res)),
-            capacity(reservedValues),
-            data(static_cast<T*>(backingRes->allocate(reservedValues * sizeof(T), alignof(T)))),
-            recsData(data, 0, 0),
-            fldIndex(backingRes.get(), 0),
-            recIndex(backingRes.get(), 0)
-        {
-        }
+        /**
+         *  @brief   Default constructor that creates an empty
+         *           Dataframe that does not allocate any data
+         *           (except for the essentials).
+         *  @details Uses the default memory resource of the system.
+         */
+        explicit DataFrame() noexcept;
 
-        DataFrame(DataFrame &&) noexcept = delete;          // TODO figure out how to do it!?
+        /**
+         * @brief Empty Dataframe optionally reserving memory and using a backing
+         *        memory resource.
+         *
+         * @param reservedValues Number of values to reserve. Number should be neither
+         *                       record nor column count but the multiple of both.
+         * @param res            Backing memory resource to use (defaults to system-default).
+         */
+        explicit DataFrame(size_t reservedValues, MemR res = BackingResDefault()) noexcept;
+
+        /**
+         * @brief Empty Dataframe with field definitions optionally reserving memory
+         *        and using a backing memory resource.
+         *
+         * @param fields          Span of fields to initialize the vector with.
+         * @param reservedValues  Optional capacity to allocate memory for.
+         * @param res             Optional backing memory resource to use.
+         *
+         * @return Dataframe initialized with given fields.
+         */
+        static auto FromFields(std::span<FldIndex const> fields, size_t reservedValues = 0, MemR res = BackingResDefault()) noexcept -> DataFrame;
+
+        /**
+         * @brief Empty Dataframe with field definitions optionally reserving memory
+         *        and using a backing memory resource.
+         *
+         * @param fields          Span of fields to initialize the vector with.
+         * @param reservedValues  Optional capacity to allocate memory for.
+         * @param res             Optional backing memory resource to use.
+         *
+         * @return Dataframe initialized with given fields.
+         */
+        static auto FromFields(std::initializer_list<FldIndex> fields, size_t reservedValues = 0, MemR res = BackingResDefault()) noexcept -> DataFrame;
+
+        // TODO add option to move fields (check if really worth it)
+        //static auto FromFields(Iterable auto&& fields,
+        //                       size_t const capacity = 0,
+        //                       MemR res = BackingResDefault()) noexcept -> DataFrame;
+
+        /**
+         *  @brief Add new fields and records; all records are
+         *         initialized with the same span of values.
+         *
+         *  @param fldIndices fields to add to the dataframe.
+         *  @param recIndices records to add to the dataframe.
+         *  @param recValues  values to add to the dataframe (or Empty then default initialized)
+         *  @param capacity   Optional capacity to allocate memory for. (Values are stored on that as well)
+         *  @param res        Optional backing memory resource to use.
+         *
+         *  @return Dataframe with initialized fields and records (values).
+         */
+        static auto FromFieldsAndRecord(std::span<FldIndex const> fldIndices,
+                                        std::span<RecIndex const> recIndices,
+                                        std::span<T const>        recValues = {},
+                                        size_t capacity = 0,
+                                        MemR   res      = BackingResDefault()) noexcept -> DataFrame;
+
+        /**
+         *  @brief Add new fields and records; all records are
+         *         initialized with the values given.
+         *
+         *  @param fldIndices fields to add to the dataframe.
+         *  @param recIndices records to add to the dataframe.
+         *  @param recValues  values to add to the dataframe (or Empty then default initialized)
+         *  @param capacity   Optional capacity to allocate memory for. (Values are stored on that as well)
+         *  @param res        Optional backing memory resource to use.
+         *
+         *  @return Dataframe with initialized fields and records (values).
+         */
+        static auto FromFieldsAndRecords(std::span<FldIndex const>      fldIndices,
+                                         std::span<RecIndex const>      recIndices,
+                                         IterableOfIterable auto const& recValues,
+                                         size_t capacity = 0,
+                                         MemR res        = BackingResDefault()) noexcept -> DataFrame;
+
+        /**
+         *  @brief Add new fields and records; all records are
+         *         initialized with the values given.
+         *
+         *  @param fldIndices fields to add to the dataframe.
+         *  @param recIndices records to add to the dataframe.
+         *  @param recValues  values to add to the dataframe (or Empty then default initialized)
+         *  @param capacity   Optional capacity to allocate memory for. (Values are stored on that as well)
+         *  @param res        Optional backing memory resource to use.
+         *
+         *  @return Dataframe with initialized fields and records (values).
+         */
+        static auto FromFieldsAndRecords(std::initializer_list<FldIndex const>           fldIndices,
+                                         std::initializer_list<RecIndex const>           recIndices,
+                                         std::initializer_list<std::initializer_list<T>> recValues = {},
+                                         size_t capacity = 0,
+                                         MemR   res      = BackingResDefault()) noexcept -> DataFrame;
+
+        // TODO dataframe needs a way to decide if "iota" is appropriate to add as record indices
+        //      but this makes only sense when adding of new records later allows for that.
+        //static auto FromFieldsAndRecords(std::pair<FldIndex const, std::initializer_list<T const>> fieldToValues,
+        //                                 size_t capacity = 0,
+        //                                 MemR   res      = BackingResDefault()) noexcept -> DataFrame;
+
+        // ======== COPY, MOVE & DELETE ====================================================================================================
+
         DataFrame(DataFrame const&) noexcept = delete;      // TODO figure out how to do it!?
-
         auto operator=(DataFrame const&) noexcept = delete; // TODO figure out how to do it!?
-        auto operator=(DataFrame &&) noexcept = delete;     // TODO figure out how to do it!?
 
-        /// Destructor of this class
+        DataFrame(DataFrame &&other) noexcept;
+        auto operator=(DataFrame&& other) noexcept -> DataFrame&;
+
         ~DataFrame() noexcept;
+
+        // ======== MANIPULATION ===========================================================================================================
 
         /**
          * @brief Add a new field to the dataframe.
@@ -112,8 +209,19 @@ namespace lugizmo {
         // TODO think about making it replace if already in
         auto AddField(FldIndex index, T const& defaultValue = T()) -> bool;
 
+        auto AddFields(std::span<FldIndex const> const indices, T const& defaultValue = T()) -> bool
+        {
+            // add fields to index
+            auto const added = fldIndex.AddMultiple(indices);
+            if(not added) return false; // TODO see TODO at last return of this function
+
+            Layout::AddColumn(data, capacity, *backingRes.get(), recsData, indices.size(), defaultValue);
+
+            // TODO this return is bad, better to switch returning an iterator to fields added? Then user can check on != end
+            return true;
+        }
+
         // TODO think about making it replace if already in
-        [[deprecated("Not tested")]]
         auto AddRecord(RecIndex index, T const& defaultValue = T()) -> bool;
 
         // TODO think about making it replace if already in
@@ -360,17 +468,216 @@ namespace lugizmo {
         /// @return A view into the current records (indices) stored in the dataframe.
         [[nodiscard]] auto Records() const noexcept -> Recs { return recIndex.Keys(); }
 
+        /// @attention It's a view so can be invalidated when adding/removing fields/records.
+        /// @return    A span over the values as natural 2D view
+        [[nodiscard]] [[deprecated("No Test")]] auto Values() const noexcept -> RecsData<T> { return recsData; }
+
+        /// @attention It's a view so can be invalidated when adding/removing fields/records.
+        /// @return    A view into the current records (indices) stored in the dataframe.
+        [[nodiscard]] auto ValuesSpan() const noexcept -> std::span<T> { return std::span(data, recsData.size()); }
+
         /// @return True when no values (no records) are stored in the dataframe.
         [[nodiscard]] auto Empty() const noexcept -> bool { return recIndex.Empty(); }
 
         static_assert(std::is_trivially_copyable_v<Flds>, "Fields() returns this.");
     };
 
+    // ======== CONSTRUCTION ===============================================================================================================
+
+    template <typename T, typename F, typename R, typename L>
+    DataFrame<T, F, R, L>::DataFrame() noexcept :
+        backingRes(BackingResDefault()),
+        capacity(0),
+        data(nullptr),
+        recsData(data, 0, 0),
+        fldIndex(backingRes.get(), 0),
+        recIndex(backingRes.get(), 0)
+    {
+    }
+
+    template <typename T, typename F, typename R, typename L>
+    DataFrame<T, F, R, L>::DataFrame(size_t const reservedValues, MemR res) noexcept :
+        backingRes(std::move(res)),
+        capacity(reservedValues),
+        data(static_cast<T*>(backingRes->allocate(reservedValues * sizeof(T), alignof(T)))),
+        recsData(data, 0, 0),
+        fldIndex(backingRes.get(), 0),
+        recIndex(backingRes.get(), 0)
+    {
+    }
+
+    template <typename T, typename F, typename R, typename L>
+    auto DataFrame<T, F, R, L>::FromFields(std::span<F const> const fields, size_t const reservedValues, MemR res) noexcept -> DataFrame
+    {
+        // TODO change this to Use function X with default value
+        static_assert(std::is_default_constructible_v<T>, "Currently only default_constructible is supported");
+
+        auto reserve = std::max(fields.size(), reservedValues);
+        auto df = DataFrame(reserve, std::move(res));
+        df.AddFields(fields); // default value not needed if default constructable
+
+        return df;
+    }
+
+    template <typename T, typename F, typename R, typename L>
+    auto DataFrame<T, F, R, L>::FromFields(std::initializer_list<F> fields, size_t const reservedValues, MemR res) noexcept -> DataFrame
+    {
+        // TODO change this to Use function X with default value
+        static_assert(std::is_default_constructible_v<T>, "Currently only default_constructible is supported");
+
+        auto reserve = std::max(fields.size(), reservedValues);
+        auto df = DataFrame(reserve, std::move(res));
+        df.AddFields(fields); // default value not needed if default constructable
+
+        return df;
+    }
+
+    template <typename T, typename F, typename R, typename L>
+    auto DataFrame<T, F, R, L>::FromFieldsAndRecord(std::span<F const> const fldIndices,
+                                                    std::span<R const> const recIndices,
+                                                    std::span<T const> const recValues,
+                                                    size_t const capacity,
+                                                    MemR res) noexcept -> DataFrame
+    {
+        // TODO this should not be required because records are passed
+        static_assert(std::is_default_constructible_v<T>, "Currently only default_constructible is supported");
+
+        assert(fldIndices.size() == recIndices.size());
+        assert(recIndices.size() == recValues.size() || recValues.Empty());
+
+        auto reserve = std::max(fldIndices.size() * recIndices.size(), capacity);
+        auto df = DataFrame(reserve, std::move(res));
+        df.AddFields(fldIndices); // default value not needed if default constructable
+
+        if(not recValues.empty())
+        {
+            // TODO add function to add multiple records with same values
+            for(auto rec : recIndices) df.AddRecordPopulated(rec, recValues);
+        }
+        else
+        {
+            for(auto rec : recIndices) df.AddRecord(rec);
+        }
+
+        return df;
+    }
+
+    template <typename T, typename F, typename R, typename L>
+    auto DataFrame<T, F, R, L>::FromFieldsAndRecords(std::span<F const> const       fldIndices,
+                                                     std::span<R const> const       recIndices,
+                                                     IterableOfIterable auto const& recValues,
+                                                     size_t const capacity,
+                                                     MemR res) noexcept -> DataFrame
+    {
+        // TODO add check if IterableOfIterable stores T's
+        // TODO this should not be required because records are passed
+        static_assert(std::is_default_constructible_v<T>, "Currently only default_constructible is supported");
+
+        assert(fldIndices.size() == recIndices.size());
+        assert(recIndices.size() == recValues.size() || recValues.Empty());
+
+        auto reserve = std::max(fldIndices.size() * recIndices.size(), capacity);
+        auto df = DataFrame(reserve, std::move(res));
+        df.AddFields(fldIndices); // default value not needed if default constructable
+
+        // TODO add function to add multiple records with same values
+        auto valueIndex = 0;
+        for(auto rec : recIndices) df.AddRecordPopulated(rec, recValues[valueIndex++]);
+
+        return df;
+    }
+
+    template <typename T, typename F, typename R, typename L>
+    auto DataFrame<T, F, R, L>::FromFieldsAndRecords(std::initializer_list<F const> const            fldIndices,
+                                                     std::initializer_list<R const> const            recIndices,
+                                                     std::initializer_list<std::initializer_list<T>> recValues,
+                                                     size_t const capacity,
+                                                     MemR res) noexcept -> DataFrame
+    {
+        // TODO this should not be required because records are passed
+        static_assert(std::is_default_constructible_v<T>, "Currently only default_constructible is supported");
+
+        assert(fldIndices.size() == recIndices.size());
+        assert(recIndices.size() == recValues.size());
+
+        auto reserve = std::max(fldIndices.size() * recIndices.size(), capacity);
+        auto df = DataFrame(reserve, std::move(res));
+        df.AddFields(fldIndices); // default value not needed if default constructable
+
+        if(recValues.size() != 0)
+        {
+            // TODO add function to add multiple records with same values
+            auto recBegin = std::begin(recIndices);
+            for(auto& vals : recValues)
+            {
+                // TODO add function to add multiple records with same values
+                auto const& rec = *recBegin;
+                df.AddRecordPopulated(rec, vals);
+                ++recBegin;
+            }
+        }
+        else
+        {
+            for(auto rec : recIndices) df.AddRecord(rec);
+        }
+
+        return df;
+    }
+
+    // ======== COPY, MOVE & DELETE ========================================================================================================
+
+    template <typename T, typename F, typename R, typename L>
+    DataFrame<T, F, R, L>::DataFrame(DataFrame &&other) noexcept
+    {
+        if(this != &other)
+        {
+            backingRes = std::move(other.backingRes);
+            capacity   = other.capacity;
+            data       = std::move(other.data);
+            recsData   = std::move(other.recsData);
+            fldIndex   = std::move(other.fldIndex);
+            recIndex   = std::move(other.recIndex);
+
+            other.backingRes = nullptr;
+            other.capacity   = 0;
+            other.data       = nullptr;
+            other.recsData   = {};
+            other.fldIndex   = FldI();
+            other.recIndex   = RecI();
+        }
+    }
+
+    template <typename T, typename F, typename R, typename L>
+    auto DataFrame<T, F, R, L>::operator=(DataFrame&& other) noexcept -> DataFrame&
+    {
+        if(this != &other)
+        {
+            backingRes = std::move(other.backingRes);
+            capacity   = other.capacity;
+            data       = std::move(other.data);
+            recsData   = std::move(other.recsData);
+            fldIndex   = std::move(other.fldIndex);
+            recIndex   = std::move(other.recIndex);
+
+            other.backingRes = nullptr;
+            other.capacity   = 0;
+            other.data       = nullptr;
+            other.recsData   = {};
+            other.fldIndex   = FldI();
+            other.recIndex   = RecI();
+        }
+
+        return *this;
+    }
+
     template <typename T, typename F, typename R, typename L>
     DataFrame<T, F, R, L>::~DataFrame() noexcept
     {
+        assert(not (data != nullptr && capacity == 0));
         if(data != nullptr && capacity) backingRes->deallocate(data, capacity, alignof(T));
     }
+
+    // ======== MANIPULATION ===============================================================================================================
 
     template <typename T, typename F, typename R, typename L>
     auto DataFrame<T, F, R, L>::AddField(F index, T const& defaultValue) -> bool

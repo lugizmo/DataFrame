@@ -62,6 +62,84 @@ namespace lugizmo {
             }
         }
 
+        void Insert(std::span<Key const> inKeys, std::span<Value const> inValues)
+        {
+            static constexpr auto SMALL_ENTRIES_SIZE = 10U;
+
+            assert(inKeys.size() == inValues.size() && "Spans have different sizes!");
+            if (inKeys.empty()) return;
+
+            // small element size & capacity optimization
+            // don't need to create temporaries
+            if(inKeys.size() <= this->keys.capacity() || inKeys.size() < SMALL_ENTRIES_SIZE)
+            {
+                for(size_t i = 0; i < inKeys.size(); ++i) Insert(inKeys[i], inValues[i]);
+                return;
+            }
+
+            // TODO check if reserving is not better
+
+            // temporary vectors to hold merged keys and values
+            std::pmr::vector<Key>   mergedKeys(this->keys.get_allocator());
+            std::pmr::vector<Value> mergedValues(this->values.get_allocator());
+
+            mergedKeys.reserve(this->keys.size() + inKeys.size());
+            mergedValues.reserve(this->values.size() + inValues.size());
+
+            // merge existing keys/values with new keys/values
+            auto existingKeyIt   = this->keys.begin();
+            auto existingValueIt = this->values.begin();
+            auto newKeyIt        = inKeys.begin();
+            auto newValueIt      = inValues.begin();
+
+            while (existingKeyIt != this->keys.end() && newKeyIt != inKeys.end())
+            {
+                if (*existingKeyIt < *newKeyIt)
+                {
+                    // existing key is smaller, keep it
+                    mergedKeys.push_back(*existingKeyIt);
+                    mergedValues.push_back(*existingValueIt);
+                    ++existingKeyIt;
+                    ++existingValueIt;
+                }
+                else if (*newKeyIt < *existingKeyIt)
+                {
+                    // new key is smaller, insert it
+                    mergedKeys.push_back(*newKeyIt);
+                    mergedValues.push_back(*newValueIt);
+                    ++newKeyIt;
+                    ++newValueIt;
+                }
+                else
+                {
+                    // key are equal, replace value
+                    mergedKeys.push_back(*existingKeyIt);
+                    mergedValues.push_back(*newValueIt);
+                    ++existingKeyIt;
+                    ++existingValueIt;
+                    ++newKeyIt;
+                    ++newValueIt;
+                }
+            }
+
+            // add remaining elements from existing keys/values
+            mergedKeys.insert(mergedKeys.end(), existingKeyIt, this->keys.end());
+            mergedValues.insert(mergedValues.end(), existingValueIt, this->values.end());
+
+            // add remaining elements from new keys/values
+            while (newKeyIt != inKeys.end())
+            {
+                mergedKeys.push_back(*newKeyIt);
+                mergedValues.push_back(*newValueIt);
+                ++newKeyIt;
+                ++newValueIt;
+            }
+
+            // replace existing keys and values with merged results
+            this->keys = std::move(mergedKeys);
+            this->values = std::move(mergedValues);
+        }
+
         [[nodiscard]]
         auto Get(Key const& key) const -> std::optional<Value>
         {
@@ -142,6 +220,12 @@ namespace lugizmo {
         auto Values() -> std::span<Value>
         {
             return std::span(values.data(), values.size());
+        }
+
+        [[nodiscard]]
+        auto Allocator() const -> typename std::pmr::vector<Key>::allocator_type //decltype(std::declval<std::pmr::vector<Key>>().get_allocator())&
+        {
+            return keys.get_allocator();
         }
 
     private:
