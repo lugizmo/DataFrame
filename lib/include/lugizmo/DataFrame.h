@@ -29,6 +29,7 @@
 #include "container/Concepts.h"
 
 #include "dataframe/Index.h"
+#include "dataframe/Selector.h"
 #include "dataframe/Layout.h"
 #include "dataframe/View.h"
 #include "dataframe/ViewIndexed.h"
