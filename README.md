@@ -48,6 +48,7 @@ Functional:
 ### TODO Code
 
 - more constexpr
+- add multi type version or specialization for single type
 - todo thing about using lugizmo::df to drop the DF names everywhere
   - DFView -> lugizmo::df::View -> df::View
   - DFHashIndex -> lugizmo::df::IndexHash -> df::IndexHash
