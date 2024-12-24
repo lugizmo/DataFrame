@@ -14,34 +14,61 @@
 
 namespace lugizmo {
 
+    /**
+     * @brief   Flatmap like used by the dataframe class.
+     * @detauls Does not use hashes and buckets. A dataframe does
+     *          only contain one field/record of the same name.
+     *
+     * @tparam Key   Type of the key to store.
+     * @tparam Value Type of the value to store.
+     */
     template <typename Key, typename Value>
     struct DataFrameMap
     {
+        /// @brief Const iterator to keys and values.
         struct IteratorPair
         {
             typename std::pmr::vector<Key>::const_iterator   keyIt;
             typename std::pmr::vector<Value>::const_iterator valIt;
         };
 
+        /// @brief Mutable iterator to keys and values.
         struct MutableIteratorPair
         {
-            typename std::pmr::vector<Key>::iterator   keyIt;
-            typename std::pmr::vector<Value>::iterator valIt;
+            typename std::pmr::vector<Key>::const_iterator keyIt;
+            typename std::pmr::vector<Value>::iterator     valIt;
         };
 
-        explicit DataFrameMap(std::pmr::memory_resource* resource = std::pmr::get_default_resource()) :
+        /**
+         * @brief Default constructor for a DataFrameMap.
+         * @param resource Excepts a user defined memory resource. If not provided
+         *                 default system memory resource is used.
+         */
+        explicit DataFrameMap(std::pmr::memory_resource* resource = std::pmr::get_default_resource()) noexcept :
             keys(resource),
             values(resource)
         {
         }
 
-        void Reserve(size_t capacity)
+        /**
+         * @brief Reserves capacity for keys and values.
+         * @param capacity to uses for keys and values storage.
+         */
+        void Reserve(size_t capacity) noexcept
         {
             keys.reserve(capacity);
             values.reserve(capacity);
         }
 
-        void Insert(Key const& key, Value const& value)
+        /// @return Currently available capacity in the map.
+        auto Capacity() noexcept -> size_t
+        {
+            // keys & values capacity is in sync
+            return keys.capacity();
+        }
+
+        /// @brief Store a key value pair in the map.
+        void Insert(Key const& key, Value const& value) noexcept
         {
             // find the insertion point or existing element
             auto it = std::lower_bound(keys.begin(), keys.end(), key);
@@ -62,12 +89,16 @@ namespace lugizmo {
             }
         }
 
-        void Insert(std::span<Key const> inKeys, std::span<Value const> inValues)
+        /**
+         * @brief   Stores a list of keys and associated values in the map.
+         * @details Keys and values must have the same size otherwise nothing is stored.
+         */
+        void Insert(std::span<Key const> inKeys, std::span<Value const> inValues) noexcept
         {
             static constexpr auto SMALL_ENTRIES_SIZE = 10U;
 
-            assert(inKeys.size() == inValues.size() && "Spans have different sizes!");
-            if (inKeys.empty()) return;
+            // check input
+            if(inKeys.empty() || inKeys.size() != inValues.size()) return;
 
             // small element size & capacity optimization
             // don't need to create temporaries
@@ -140,8 +171,12 @@ namespace lugizmo {
             this->values = std::move(mergedValues);
         }
 
+        /**
+         * @param key to get value for.
+         * @return If key is stored in the map associated value otherwise nullopt.
+         */
         [[nodiscard]]
-        auto Get(Key const& key) const -> std::optional<Value>
+        auto Get(Key const& key) const noexcept -> std::optional<Value>
         {
             auto it = std::lower_bound(keys.begin(), keys.end(), key);
 
@@ -153,8 +188,28 @@ namespace lugizmo {
             return std::nullopt;
         }
 
+        /**
+         * @param key to find and set value for.
+         * @param val to set, if key exists.
+         * @return True when value was set otherwise false.
+         */
+        [[maybe_unused]]
+        auto Set(Key const& key, Value&& val) noexcept -> bool
+        {
+            if(auto it = Find(key); it.valIt != values.end())
+            {
+                *it.valIt = std::forward<Value>(val);
+                return true;
+            }
+
+            return false;
+        }
+
+        /**
+         *  @return Const iterator to key-value-pair if in map.
+         */
         [[nodiscard]]
-        auto Find(const Key& key) const -> IteratorPair
+        auto Find(const Key& key) const noexcept -> IteratorPair
         {
             if(auto it = std::lower_bound(keys.begin(), keys.end(), key); it != keys.end() && *it == key)
             {
@@ -165,8 +220,11 @@ namespace lugizmo {
             return {.keyIt = keys.end(), .valIt = values.end()};
         }
 
+        /**
+         *  @return Mutable iterator to key-value-pair if in map.
+         */
         [[nodiscard]]
-        auto Find(const Key& key) -> MutableIteratorPair
+        auto Find(const Key& key) noexcept -> MutableIteratorPair
         {
             if(auto it = std::lower_bound(keys.begin(), keys.end(), key); it != keys.end() && *it == key)
             {
@@ -177,13 +235,22 @@ namespace lugizmo {
             return {.keyIt = keys.end(), .valIt = values.end()};
         }
 
+        /**
+         *  @param key to check if in map.
+         *  @return true when key in map.
+         */
         [[nodiscard]]
-        auto Contains(Key const& key) const -> bool
+        auto Contains(Key const& key) const noexcept -> bool
         {
             return std::binary_search(keys.begin(), keys.end(), key);
         }
 
-        void Erase(Key const& key)
+        /**
+         * @param key to remove from map.
+         * @return true when key was found and removed otherwise false.
+         */
+        [[maybe_unused]]
+        auto Erase(Key const& key) noexcept -> bool
         {
             auto it = std::lower_bound(keys.begin(), keys.end(), key);
 
@@ -192,45 +259,55 @@ namespace lugizmo {
                 auto index = std::distance(keys.begin(), it);
                 keys.erase(it);
                 values.erase(values.begin() + index);
+
+                return true;
             }
+
+            return false;
         }
 
+        /// @return size of key/values stored in map.
         [[nodiscard]]
-        auto Size() const -> size_t
+        auto Size() const noexcept -> size_t
         {
             return keys.size();
         }
 
+        /// @return true when noting stored in map.
         [[nodiscard]]
-        auto Empty() const -> bool
+        auto Empty() const noexcept -> bool
         {
             return keys.empty();
         }
 
-        auto Keys() const -> std::span<Key const>
+        /// @return Span to constant keys in map.
+        auto Keys() const noexcept -> std::span<Key const>
         {
             return std::span(keys.data(), keys.size());
         }
 
-        auto Values() const -> std::span<Value const>
+        /// @return Span to constant values in map.
+        auto Values() const noexcept -> std::span<Value const>
         {
             return std::span(values.data(), values.size());
         }
 
-        auto Values() -> std::span<Value>
+        /// @return Span to mutable values in map.
+        auto Values() noexcept -> std::span<Value>
         {
             return std::span(values.data(), values.size());
         }
 
+        /// @return Backing allocator.
         [[nodiscard]]
-        auto Allocator() const -> typename std::pmr::vector<Key>::allocator_type //decltype(std::declval<std::pmr::vector<Key>>().get_allocator())&
+        auto Allocator() const noexcept -> typename std::pmr::vector<Key>::allocator_type //decltype(std::declval<std::pmr::vector<Key>>().get_allocator())&
         {
             return keys.get_allocator();
         }
 
     private:
 
-        std::pmr::vector<Key> keys;
+        std::pmr::vector<Key>   keys;
         std::pmr::vector<Value> values;
     };
 }
