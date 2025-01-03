@@ -19,13 +19,13 @@ namespace lugizmo {
      *  @tparam KeyType
      */
     template <typename Derived, typename KeyType>
-    struct DFBaseIndex
+    struct DFBaseValueIndex
     {
-    /**
-     * TODO doc + idea
-     */
+        /**
+         * TODO doc + idea
+         */
         [[nodiscard]]
-        auto Keys() const -> std::span<KeyType const>
+        auto Keys() const noexcept -> std::span<KeyType const>
         {
             return static_cast<Derived*>(this)->Keys();
         }
@@ -34,7 +34,7 @@ namespace lugizmo {
          * TODO doc + idea
          */
         [[nodiscard]]
-        auto Key(size_t const position) const -> std::optional<KeyType>
+        auto Key(size_t const position) const noexcept -> std::optional<KeyType>
         {
             return static_cast<Derived*>(this)->Key(position);
         }
@@ -111,11 +111,85 @@ namespace lugizmo {
         }
     };
 
+    template <typename Derived, typename KeyType>
+    struct DFBaseSequenceIndex
+    {
+        /**
+         * TODO doc + idea
+         */
+        [[nodiscard]]
+        auto LowerBound() const noexcept -> KeyType
+        {
+            return static_cast<Derived*>(this)->LowerBound();
+        }
+
+        /**
+         * TODO doc + idea
+         */
+        [[nodiscard]]
+        auto UpperBound() const noexcept -> KeyType
+        {
+            return static_cast<Derived*>(this)->UpperBound();
+        }
+
+        /**
+         * TODO doc + idea
+         */
+        [[nodiscard]]
+        auto InBound(KeyType const key) const noexcept -> bool
+        {
+            return static_cast<Derived*>(this)->InBound(key);
+        }
+
+        /**
+         * TODO doc + idea
+         */
+        [[maybe_unused]]
+        auto SetLowerBound(KeyType const key) noexcept -> std::optional<KeyType>
+        {
+            return static_cast<Derived*>(this)->SetLowerBound(key);
+        }
+
+        /**
+         * TODO doc + idea
+         */
+        [[maybe_unused]]
+        auto SetUpperBound(KeyType const key) noexcept -> std::optional<KeyType>
+        {
+            return static_cast<Derived*>(this)->SetUpperBound(key);
+        }
+
+        /**
+         * TODO doc + idea
+         */
+        [[nodiscard]]
+        auto Size() const noexcept -> KeyType
+        {
+            return static_cast<Derived const*>(this)->Size();
+        }
+
+        /**
+         * TODO doc + idea
+         */
+        [[nodiscard]]
+        auto Empty() const noexcept -> bool
+        {
+            return static_cast<Derived const*>(this)->Empty();
+        }
+    };
+
     /**
-     *  @brief   Concept of a Dataframe Index.
-     *  @details Only checks if contains a KeyType and inherits from DFBaseIndex.
+     *  @brief   Concept of a Dataframe Value Index.
+     *  @details Only checks if contains a KeyType and inherits from DFBaseValueIndex.
      */
     template <typename Derived>
-    concept DFIndex = requires { typename Derived::KeyType; } && std::is_base_of_v<DFBaseIndex<Derived, typename Derived::KeyType>, Derived>;
+    concept DFValueIndex = requires { typename Derived::KeyType; } && std::is_base_of_v<DFBaseValueIndex<Derived, typename Derived::KeyType>, Derived>;
+
+    /**
+     *  @brief   Concept of a Dataframe Sequence Index.
+     *  @details Only checks if contains a KeyType and inherits from DFBaseSequenceIndex.
+     */
+    template <typename Derived>
+    concept DFSequenceIndex = requires { typename Derived::KeyType; } && std::is_base_of_v<DFBaseSequenceIndex<Derived, typename Derived::KeyType>, Derived>;
 }
 #endif // LUGIZMO_DF_INDEX_BASE_H

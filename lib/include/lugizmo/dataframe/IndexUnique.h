@@ -1,11 +1,11 @@
-// Filename: Index.h
+// Filename: IndexHash.h
 // Copyright 2024 Lukas Guz
 // Licensed under the Apache License, Version 2.0.
 // See the LICENSE file in the project root or at
 // http://www.apache.org/licenses/LICENSE-2.0 for full license information.
 
-#ifndef LUGIZMO_DF_INDEX_H
-#define LUGIZMO_DF_INDEX_H
+#ifndef LUGIZMO_DF_INDEX_HASH_H
+#define LUGIZMO_DF_INDEX_HASH_H
 
 #include <cassert>
 #include <algorithm>
@@ -22,20 +22,23 @@ namespace lugizmo {
     // ====== DF INDICES ===================================================================================================================
 
     template<typename T>
-    struct DFHashIndex final : DFBaseIndex<DFHashIndex<T>, T>
+    struct DFUniqueIndex final : DFBaseValueIndex<DFUniqueIndex<T>, T>
     {
         using KeyType = T;
         using KeyView = std::span<KeyType const>;
 
-        explicit DFHashIndex() noexcept : values()
+        explicit DFUniqueIndex() noexcept : values()
         {
         }
 
-        explicit DFHashIndex(std::pmr::memory_resource* memResource, size_t const capacity = 0) :
+        explicit DFUniqueIndex(std::pmr::memory_resource* memResource, size_t const capacity = 0) :
             values(memResource)
         {
             values.Reserve(capacity); // TODO check when 0
         }
+
+        // constructors ...
+        // destructor
 
         [[nodiscard]]
         auto Keys() const -> std::span<KeyType const>
@@ -76,7 +79,7 @@ namespace lugizmo {
             auto positions = std::pmr::vector<size_t>(keys.size(), values.Allocator());
 
             auto vectorPos = 0;
-            for(size_t i = startIndex; i < keys.size(); i = ++nextIndex)
+            for(size_t i = startIndex; vectorPos < keys.size(); i = ++nextIndex)
             {
                 positions[vectorPos] = i;
                 ++vectorPos;
@@ -141,7 +144,7 @@ namespace lugizmo {
         size_t nextIndex = 0;                // next index to use (when taken +1)
     };
 
-    static_assert(DFIndex<DFHashIndex<int>>);
+    static_assert(DFValueIndex<DFUniqueIndex<int>>);
 }
 
-#endif // LUGIZMO_DF_INDEX_H
+#endif // LUGIZMO_DF_INDEX_HASH_H

@@ -13,7 +13,8 @@ set(LUGIZMO_DF_INCLUDES
 
         include/lugizmo/dataframe/Layout.h
         include/lugizmo/dataframe/IndexBase.h
-        include/lugizmo/dataframe/Index.h
+        include/lugizmo/dataframe/IndexUnique.h
+        include/lugizmo/dataframe/IndexRange.h
         include/lugizmo/dataframe/Selector.h
         include/lugizmo/dataframe/View.h
         include/lugizmo/dataframe/ViewIndexed.h
@@ -45,6 +46,11 @@ add_subdirectory(bench)
 if(OPT_BUILD_TESTS)
     add_executable(DataFrameTest
             test/container/ConceptsTest.cpp
+            test/container/DataFrameMapTest.cpp
+
+            test/dataframe/IndexRangeTest.cpp
+            test/dataframe/IndexUniqueTest.cpp
+
             test/DataframeTest.cpp
             test/main.cpp
     )

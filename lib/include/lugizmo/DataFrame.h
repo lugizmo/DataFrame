@@ -28,7 +28,7 @@
 
 #include "container/Concepts.h"
 
-#include "dataframe/Index.h"
+#include "dataframe/IndexUnique.h"
 #include "dataframe/Selector.h"
 #include "dataframe/Layout.h"
 #include "dataframe/View.h"
@@ -58,8 +58,8 @@ namespace lugizmo {
         using MemR = std::shared_ptr<std::pmr::memory_resource>;                    // backing memory resource type
 
         // field/record index & view types
-        using FldI = DFHashIndex<FldIndex>;                                         // index for field values
-        using RecI = DFHashIndex<RecIndex>;                                         // index for record values
+        using FldI = DFUniqueIndex<FldIndex>;                                       // index for field values
+        using RecI = DFUniqueIndex<RecIndex>;                                       // index for record values
         using Flds = typename FldI::KeyView;                                        // stored view into field indices
         using Recs = typename RecI::KeyView;                                        // stored view into record indices
 
@@ -544,7 +544,7 @@ namespace lugizmo {
         static_assert(std::is_default_constructible_v<T>, "Currently only default_constructible is supported");
 
         assert(fldIndices.size() == recIndices.size());
-        assert(recIndices.size() == recValues.size() || recValues.Empty());
+        assert(recIndices.size() == recValues.size() || recValues.empty());
 
         auto reserve = std::max(fldIndices.size() * recIndices.size(), capacity);
         auto df = DataFrame(reserve, std::move(res));
@@ -575,7 +575,7 @@ namespace lugizmo {
         static_assert(std::is_default_constructible_v<T>, "Currently only default_constructible is supported");
 
         assert(fldIndices.size() == recIndices.size());
-        assert(recIndices.size() == recValues.size() || recValues.Empty());
+        assert(recIndices.size() == recValues.size() || recValues.empty());
 
         auto reserve = std::max(fldIndices.size() * recIndices.size(), capacity);
         auto df = DataFrame(reserve, std::move(res));
@@ -599,7 +599,7 @@ namespace lugizmo {
         static_assert(std::is_default_constructible_v<T>, "Currently only default_constructible is supported");
 
         assert(fldIndices.size() == recIndices.size());
-        assert(recIndices.size() == recValues.size());
+        assert(recIndices.size() == recValues.size() || recValues.size() == 0);
 
         auto reserve = std::max(fldIndices.size() * recIndices.size(), capacity);
         auto df = DataFrame(reserve, std::move(res));
