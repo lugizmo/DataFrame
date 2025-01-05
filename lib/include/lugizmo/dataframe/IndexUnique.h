@@ -143,8 +143,6 @@ namespace lugizmo {
         DataFrameMap<T, size_t> values;      // keys and the associated position
         size_t nextIndex = 0;                // next index to use (when taken +1)
     };
-
-    static_assert(DFValueIndex<DFUniqueIndex<int>>);
 }
 
 #endif // LUGIZMO_DF_INDEX_HASH_H

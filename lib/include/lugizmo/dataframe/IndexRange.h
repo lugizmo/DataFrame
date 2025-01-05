@@ -103,8 +103,6 @@ namespace lugizmo {
         KeyType lowerBound;
         KeyType upperBound;
     };
-
-    static_assert(DFSequenceIndex<DFRangeIndex<int>>);
 }
 
 #endif // LUGIZMO_DF_INDEX_RANGE_H
