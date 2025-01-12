@@ -48,10 +48,12 @@ if(OPT_BUILD_TESTS)
             test/container/ConceptsTest.cpp
             test/container/DataFrameMapTest.cpp
 
+            test/dataframe/IndexBaseTest.cpp
             test/dataframe/IndexRangeTest.cpp
             test/dataframe/IndexUniqueTest.cpp
 
             test/DataframeTest.cpp
+            test/DataframeRangeIndexTest.cpp
             test/main.cpp
     )
     target_link_libraries(DataFrameTest PUBLIC DataFrame gtest)

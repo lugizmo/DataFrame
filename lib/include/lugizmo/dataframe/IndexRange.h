@@ -8,18 +8,28 @@
 #define LUGIZMO_DF_INDEX_RANGE_H
 
 #include <type_traits>
-#include <span>
+#include <utility>
 #include <optional>
 
 #include "IndexBase.h"
 
 namespace lugizmo {
 
+    template<typename T>
+    struct DFRangeIndexBounds
+    {
+        T lower;
+        T upper;
+
+        auto Size() const noexcept { return upper - lower; }
+        auto size() const noexcept { return Size(); }
+    };
+
     template<typename T = size_t> requires std::is_integral_v<T>
     struct DFRangeIndex final : DFBaseSequenceIndex<DFRangeIndex<T>, T>
     {
         using KeyType = T;
-        using KeyView = std::span<KeyType const>;
+        using KeyView = DFRangeIndexBounds<T>;
 
         explicit constexpr DFRangeIndex() noexcept :
             lowerBound(0),
@@ -31,6 +41,11 @@ namespace lugizmo {
             lowerBound(lower <= upper ? lower : 0),
             upperBound(upper >= lower ? upper : 0)
         {
+        }
+
+        constexpr auto Keys() const noexcept -> KeyView
+        {
+            return {.lower = lowerBound, .upper = upperBound};
         }
 
         /**

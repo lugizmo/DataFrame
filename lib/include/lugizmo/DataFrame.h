@@ -28,7 +28,9 @@
 
 #include "container/Concepts.h"
 
+#include "dataframe/IndexBase.h"
 #include "dataframe/IndexUnique.h"
+#include "dataframe/IndexRange.h"
 #include "dataframe/Selector.h"
 #include "dataframe/Layout.h"
 #include "dataframe/View.h"
@@ -46,22 +48,29 @@ namespace lugizmo {
      *  @tparam LayoutPolicy Underlying layout of storage to use.
      */
     template <typename T, typename FldIndex, typename RecIndex, typename LayoutPolicy = std::layout_right>
-    class DataFrame
+    struct DataFrame
     {
-        // data types
+        // dataframe basic options & types
         static_assert(std::is_same_v<LayoutPolicy, std::layout_right>, "Currently only layout_right is supported");
         static_assert(std::is_default_constructible_v<T>, "Currently only default constructable values are supported");
 
         using Layout = std::conditional_t<std::is_same_v<LayoutPolicy, std::layout_right>, DFRowMajor<T>, void>;
 
-        using Data = T*;                                                            // stored view into data
-        using MemR = std::shared_ptr<std::pmr::memory_resource>;                    // backing memory resource type
+    private:
+
+        static constexpr bool IsFldSeq = DFSeqIndex<FldIndex>;
+        static constexpr bool IsRecSeq = DFSeqIndex<RecIndex>;
+
+        using Data = T*;                                                                // stored view into data
+        using MemR = std::shared_ptr<std::pmr::memory_resource>;                        // backing memory resource type
 
         // field/record index & view types
-        using FldI = DFUniqueIndex<FldIndex>;                                       // index for field values
-        using RecI = DFUniqueIndex<RecIndex>;                                       // index for record values
-        using Flds = typename FldI::KeyView;                                        // stored view into field indices
-        using Recs = typename RecI::KeyView;                                        // stored view into record indices
+        using FldI = std::conditional_t<IsFldSeq, FldIndex, DFUniqueIndex<FldIndex>>;   // index for field values
+        using RecI = std::conditional_t<IsRecSeq, RecIndex, DFUniqueIndex<RecIndex>>;   // index for record values
+        using FldT = typename FldI::KeyType;
+        using RecT = typename RecI::KeyType;
+        using Flds = typename FldI::KeyView;                                            // stored view into field indices
+        using Recs = typename RecI::KeyView;                                            // stored view into record indices
 
         template<typename MDT>
         using RecsData = std::mdspan<MDT, std::dextents<size_t, 2>, LayoutPolicy>;  // stored view into data;
@@ -108,7 +117,7 @@ namespace lugizmo {
          *
          * @return Dataframe initialized with given fields.
          */
-        static auto FromFields(std::span<FldIndex const> fields, size_t reservedValues = 0, MemR res = BackingResDefault()) noexcept -> DataFrame;
+        static auto FromFields(std::span<FldT const> fields, size_t reservedValues = 0, MemR res = BackingResDefault()) noexcept -> DataFrame requires DFValIndex<FldI>;
 
         /**
          * @brief Empty Dataframe with field definitions optionally reserving memory
@@ -120,7 +129,7 @@ namespace lugizmo {
          *
          * @return Dataframe initialized with given fields.
          */
-        static auto FromFields(std::initializer_list<FldIndex> fields, size_t reservedValues = 0, MemR res = BackingResDefault()) noexcept -> DataFrame;
+        static auto FromFields(std::initializer_list<FldIndex> fields, size_t reservedValues = 0, MemR res = BackingResDefault()) noexcept -> DataFrame requires DFValIndex<FldI>;
 
         // TODO add option to move fields (check if really worth it)
         //static auto FromFields(Iterable auto&& fields,
@@ -143,7 +152,7 @@ namespace lugizmo {
                                         std::span<RecIndex const> recIndices,
                                         std::span<T const>        recValues = {},
                                         size_t capacity = 0,
-                                        MemR   res      = BackingResDefault()) noexcept -> DataFrame;
+                                        MemR   res      = BackingResDefault()) noexcept -> DataFrame requires DFValIndex<FldI> && DFValIndex<RecI>;
 
         /**
          *  @brief Add new fields and records; all records are
@@ -161,7 +170,7 @@ namespace lugizmo {
                                          std::span<RecIndex const>      recIndices,
                                          IterableOfIterable auto const& recValues,
                                          size_t capacity = 0,
-                                         MemR res        = BackingResDefault()) noexcept -> DataFrame;
+                                         MemR res        = BackingResDefault()) noexcept -> DataFrame requires DFValIndex<FldI> && DFValIndex<RecI>;
 
         /**
          *  @brief Add new fields and records; all records are
@@ -179,7 +188,7 @@ namespace lugizmo {
                                          std::initializer_list<RecIndex const>           recIndices,
                                          std::initializer_list<std::initializer_list<T>> recValues = {},
                                          size_t capacity = 0,
-                                         MemR   res      = BackingResDefault()) noexcept -> DataFrame;
+                                         MemR   res      = BackingResDefault()) noexcept -> DataFrame requires DFValIndex<FldI> && DFValIndex<RecI>;
 
         // TODO dataframe needs a way to decide if "iota" is appropriate to add as record indices
         //      but this makes only sense when adding of new records later allows for that.
@@ -197,7 +206,7 @@ namespace lugizmo {
 
         ~DataFrame() noexcept;
 
-        // ======== MANIPULATION ===========================================================================================================
+        // ======== MANIPULATION UNIQUE INDEX ==============================================================================================
 
         /**
          * @brief Add a new field to the dataframe.
@@ -208,9 +217,9 @@ namespace lugizmo {
          * @return              success indicator.
          */
         // TODO think about making it replace if already in
-        auto AddField(FldIndex index, T const& defaultValue = T()) -> bool;
+        auto AddField(FldIndex index, T const& defaultValue = T()) -> bool requires DFValIndex<FldI>;
 
-        auto AddFields(std::span<FldIndex const> const indices, T const& defaultValue = T()) -> bool
+        auto AddFields(std::span<FldIndex const> const indices, T const& defaultValue = T()) -> bool requires DFValIndex<FldI>
         {
             // add fields to index
             auto const added = fldIndex.AddMultiple(indices);
@@ -223,13 +232,21 @@ namespace lugizmo {
         }
 
         // TODO think about making it replace if already in
-        auto AddRecord(RecIndex index, T const& defaultValue = T()) -> bool;
+        auto AddRecord(RecIndex index, T const& defaultValue = T()) -> bool requires DFValIndex<RecI>;
 
         // TODO think about making it replace if already in
-        auto AddRecordPopulated(RecIndex index, std::span<T const> records) -> bool;
+        auto AddRecordPopulated(RecIndex index, std::span<T const> records) -> bool requires DFValIndex<RecI>;
+
+        // ======== MANIPULATION SEQUENCE INDEX ============================================================================================
+
+        auto SetFieldRange(std::optional<FldT> lower, std::optional<FldT> upper, T const& defaultVal = T()) -> bool requires DFSeqIndex<FldI>;
+
+        auto SetRecordRange(std::optional<RecT> lower, std::optional<RecT> upper, T const& defaultVal = T()) -> bool requires DFSeqIndex<RecI>;
+
+        // ======== ACCESSORS UNIQUE INDEX =================================================================================================
 
         [[nodiscard]]
-        auto GetValue(FldIndex const& field, RecIndex const& record) const -> std::optional<std::reference_wrapper<T const>>
+        auto GetValue(FldIndex const& field, RecIndex const& record) const -> std::optional<std::reference_wrapper<T const>> requires DFValIndex<FldI> && DFValIndex<RecI>
         {
             auto const fldPos = fldIndex.Position(field);
             auto const recPos = recIndex.Position(record);
@@ -245,7 +262,7 @@ namespace lugizmo {
         }
 
         [[nodiscard]]
-        auto GetValue(FldIndex const& field, RecIndex const& record) -> std::optional<std::reference_wrapper<T>>
+        auto GetValue(FldIndex const& field, RecIndex const& record) -> std::optional<std::reference_wrapper<T>> requires DFValIndex<FldI> && DFValIndex<RecI>
         {
             auto const fldPos = fldIndex.Position(field);
             auto const recPos = recIndex.Position(record);
@@ -261,7 +278,7 @@ namespace lugizmo {
         }
 
         [[nodiscard]]
-        auto operator[](FldIndex const& field, RecIndex const& record) -> T&
+        auto operator[](FldIndex const& field, RecIndex const& record) -> T& requires DFValIndex<FldI> && DFValIndex<RecI>
         {
             auto const fldPos = fldIndex.Position(field);
             auto const recPos = recIndex.Position(record);
@@ -271,7 +288,7 @@ namespace lugizmo {
         }
 
         [[nodiscard]]
-        auto operator[](FldIndex const& field, RecIndex const& record) const -> T const&
+        auto operator[](FldIndex const& field, RecIndex const& record) const -> T const& requires DFValIndex<FldI> && DFValIndex<RecI>
         {
             auto const fldPos = fldIndex.Position(field);
             auto const recPos = recIndex.Position(record);
@@ -280,7 +297,7 @@ namespace lugizmo {
             return recsData[*recPos, *fldPos];
         }
 
-        auto SetValue(FldIndex const& field, RecIndex const& record, T const& value) -> bool
+        auto SetValue(FldIndex const& field, RecIndex const& record, T const& value) -> bool requires DFValIndex<FldI> && DFValIndex<RecI>
         {
             if(auto get = GetValue(field, record); get.has_value())
             {
@@ -294,9 +311,9 @@ namespace lugizmo {
 
         // ======== DROP ===================================================================================================================
 
-        auto DropField(FldIndex const& index) -> bool;
+        auto DropField(FldIndex const& index) -> bool requires DFValIndex<FldI>;
 
-        auto DropRecord(RecIndex const& index) -> bool;
+        auto DropRecord(RecIndex const& index) -> bool requires DFValIndex<RecI>;
 
         // ======== VIEWS ==================================================================================================================
 
@@ -305,14 +322,14 @@ namespace lugizmo {
          * @param index field index to try getting data for.
          */
         [[nodiscard]]
-        auto ViewField(FldIndex const& index) noexcept -> DFView<T>;
+        auto ViewField(FldIndex const& index) noexcept -> DFView<T> requires DFValIndex<FldI>;
 
         /**
          * @return      View into a field (handling layout) if field found in (const) dataframe.
          * @param index field index to try getting data for.
          */
         [[nodiscard]]
-        auto ViewField(FldIndex const& index) const noexcept -> DFView<T const>;
+        auto ViewField(FldIndex const& index) const noexcept -> DFView<T const> requires DFValIndex<FldI>;
 
         /**
          * @return      View into a field (handling layout) if field found in dataframe.
@@ -321,7 +338,7 @@ namespace lugizmo {
          * @param index field index to try getting data for.
          */
         [[nodiscard]]
-        auto ViewFieldIndexed(FldIndex const& index) noexcept -> DFViewIndexed<T, RecIndex const>;
+        auto ViewFieldIndexed(FldIndex const& index) noexcept -> DFViewIndexed<T, RecIndex const> requires DFValIndex<FldI>;
 
         /**
          * @return      View into a field (handling layout) if field found in (const) dataframe.
@@ -330,21 +347,21 @@ namespace lugizmo {
          * @param index field index to try getting data for.
          */
         [[nodiscard]]
-        auto ViewFieldIndexed(FldIndex const& index) const noexcept -> DFViewIndexed<T const, RecIndex const>;
+        auto ViewFieldIndexed(FldIndex const& index) const noexcept -> DFViewIndexed<T const, RecIndex const> requires DFValIndex<FldI>;
 
         /**
          * @return      View into a record (handling layout) if record found in dataframe.
          * @param index record index to try getting data for.
          */
         [[nodiscard]]
-        auto ViewRecord(RecIndex const& index) noexcept -> DFView<T>;
+        auto ViewRecord(RecIndex const& index) noexcept -> DFView<T> requires DFValIndex<RecI>;
 
         /**
          * @return      View into a record (handling layout) if record found in (const) dataframe.
          * @param index record index to try getting data for.
          */
         [[nodiscard]]
-        auto ViewRecord(RecIndex const& index) const noexcept -> DFView<T const>;
+        auto ViewRecord(RecIndex const& index) const noexcept -> DFView<T const> requires DFValIndex<RecI>;
 
         /**
          * @return      View into a record (handling layout) if record found in dataframe.
@@ -353,7 +370,7 @@ namespace lugizmo {
          * @param index record index to try getting data for.
          */
         [[nodiscard]]
-        auto ViewRecordIndexed(RecIndex const& index) noexcept -> DFViewIndexed<T, FldIndex const>;
+        auto ViewRecordIndexed(RecIndex const& index) noexcept -> DFViewIndexed<T, FldIndex const> requires DFValIndex<RecI>;
 
         /**
          * @return      View into a record (handling layout) if record found in (const) dataframe.
@@ -362,31 +379,31 @@ namespace lugizmo {
          * @param index record index to try getting data for.
          */
         [[nodiscard]]
-        auto ViewRecordIndexed(RecIndex const& index) const noexcept -> DFViewIndexed<T const, FldIndex const>;
+        auto ViewRecordIndexed(RecIndex const& index) const noexcept -> DFViewIndexed<T const, FldIndex const> requires DFValIndex<RecI>;
 
         /// @brief Alternative syntax for GetField()
-        auto operator|(SelectField<FldIndex> const& index) noexcept -> DFView<T> { return ViewField(index.val); }
+        auto operator|(SelectField<FldIndex> const& index) noexcept -> DFView<T> requires DFValIndex<FldI> { return ViewField(index.val); }
 
         /// @brief Alternative syntax for GetField() const
-        auto operator|(SelectField<FldIndex> const& index) const noexcept -> DFView<T const> { return ViewField(index.val); }
+        auto operator|(SelectField<FldIndex> const& index) const noexcept -> DFView<T const> requires DFValIndex<FldI> { return ViewField(index.val); }
 
         /// @brief Alternative syntax for GetRecord()
-        auto operator|(SelectRecord<RecIndex> const& index) noexcept -> DFView<T> { return ViewRecord(index.val); }
+        auto operator|(SelectRecord<RecIndex> const& index) noexcept -> DFView<T> requires DFValIndex<RecI> { return ViewRecord(index.val); }
 
         /// @brief Alternative syntax for GetRecord() const
-        auto operator|(SelectRecord<RecIndex> const& index) const noexcept -> DFView<T const> { return ViewRecord(index.val); }
+        auto operator|(SelectRecord<RecIndex> const& index) const noexcept -> DFView<T const> requires DFValIndex<RecI> { return ViewRecord(index.val); }
 
         /// @brief Alternative syntax for GetFieldIndexed()
-        auto operator|(SelectFieldIndexed<FldIndex> const& index) noexcept -> DFViewIndexed<T, RecIndex const> { return ViewFieldIndexed(index.val); }
+        auto operator|(SelectFieldIndexed<FldIndex> const& index) noexcept -> DFViewIndexed<T, RecIndex const> requires DFValIndex<FldI> { return ViewFieldIndexed(index.val); }
 
          /// @brief Alternative syntax for GetFieldIndexed() const
-        auto operator|(SelectFieldIndexed<FldIndex> const& index) const noexcept -> DFViewIndexed<T const, RecIndex const> { return ViewFieldIndexed(index.val); }
+        auto operator|(SelectFieldIndexed<FldIndex> const& index) const noexcept -> DFViewIndexed<T const, RecIndex const> requires DFValIndex<FldI> { return ViewFieldIndexed(index.val); }
 
          /// @brief Alternative syntax for GetRecordIndexed()
-        auto operator|(SelectRecordIndexed<RecIndex> const& index) noexcept -> DFViewIndexed<T, RecIndex const> { return ViewRecordIndexed(index.val); }
+        auto operator|(SelectRecordIndexed<RecIndex> const& index) noexcept -> DFViewIndexed<T, RecIndex const> requires DFValIndex<RecI> { return ViewRecordIndexed(index.val); }
 
          /// @brief Alternative syntax for GetRecordIndexed() const
-        auto operator|(SelectRecordIndexed<RecIndex> const& index) const noexcept -> DFViewIndexed<T const, RecIndex const> { return ViewRecordIndexed(index.val); }
+        auto operator|(SelectRecordIndexed<RecIndex> const& index) const noexcept -> DFViewIndexed<T const, RecIndex const> requires DFValIndex<RecI> { return ViewRecordIndexed(index.val); }
 
         // ======== FUNCTIONAL =============================================================================================================
 
@@ -399,7 +416,7 @@ namespace lugizmo {
          * @return For chaining the view the function was applied on.
          */
         template <typename Func>
-        auto ForEachOnField(FldIndex const& index, Func&& func) -> DFView<T>;
+        auto ForEachOnField(FldIndex const& index, Func&& func) -> DFView<T> requires DFValIndex<FldI>;
 
         /**
          * @brief       Apply a function on each value in a field on constant DataFrame.
@@ -410,7 +427,7 @@ namespace lugizmo {
          * @return For chaining the view the function was applied on.
          */
         template <typename Func>
-        auto ForEachOnField(FldIndex const& index, Func&& func) const -> DFView<T const>;
+        auto ForEachOnField(FldIndex const& index, Func&& func) const -> DFView<T const> requires DFValIndex<FldI>;
 
         /**
          * @brief       Apply a function on each value in a record.
@@ -421,7 +438,7 @@ namespace lugizmo {
          * @return For chaining the view the function was applied on.
          */
         template<typename Func>
-        auto ForEachOnRecord(RecIndex const& index, Func&& func) -> DFView<T>;
+        auto ForEachOnRecord(RecIndex const& index, Func&& func) -> DFView<T> requires DFValIndex<RecI>;
 
         /**
          * @brief       Apply a function on each value in a record on constant DataFrame.
@@ -432,7 +449,7 @@ namespace lugizmo {
          * @return For chaining the view the function was applied on.
          */
         template<typename Func>
-        auto ForEachOnRecord(RecIndex const& index, Func&& func) const -> DFView<T const>;
+        auto ForEachOnRecord(RecIndex const& index, Func&& func) const -> DFView<T const> requires DFValIndex<RecI>;
 
         // ======== PRINT ==================================================================================================================
 
@@ -490,10 +507,13 @@ namespace lugizmo {
         backingRes(BackingResDefault()),
         capacity(0),
         data(nullptr),
-        recsData(data, 0, 0),
-        fldIndex(backingRes.get(), 0),
-        recIndex(backingRes.get(), 0)
+        recsData(data, 0, 0)
     {
+        if constexpr (DFValIndex<FldI>) fldIndex = FldI{backingRes.get(), 0};
+        else                              fldIndex = FldI{};
+
+        if constexpr (DFValIndex<RecI>) recIndex = RecI{backingRes.get(), 0};
+        else                              recIndex = RecI{};
     }
 
     template <typename T, typename F, typename R, typename L>
@@ -501,14 +521,17 @@ namespace lugizmo {
         backingRes(std::move(res)),
         capacity(reservedValues),
         data(static_cast<T*>(backingRes->allocate(reservedValues * sizeof(T), alignof(T)))),
-        recsData(data, 0, 0),
-        fldIndex(backingRes.get(), 0),
-        recIndex(backingRes.get(), 0)
+        recsData(data, 0, 0)
     {
+        if constexpr (DFValIndex<FldI>) fldIndex = FldI{backingRes.get(), 0};
+        else                              fldIndex = FldI{};
+
+        if constexpr (DFValIndex<RecI>) recIndex = RecI{backingRes.get(), 0};
+        else                              recIndex = RecI{};
     }
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::FromFields(std::span<F const> const fields, size_t const reservedValues, MemR res) noexcept -> DataFrame
+    auto DataFrame<T, F, R, L>::FromFields(std::span<FldT const> const fields, size_t const reservedValues, MemR res) noexcept -> DataFrame requires DFValIndex<FldI>
     {
         // TODO change this to Use function X with default value
         static_assert(std::is_default_constructible_v<T>, "Currently only default_constructible is supported");
@@ -521,7 +544,7 @@ namespace lugizmo {
     }
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::FromFields(std::initializer_list<F> fields, size_t const reservedValues, MemR res) noexcept -> DataFrame
+    auto DataFrame<T, F, R, L>::FromFields(std::initializer_list<F> fields, size_t const reservedValues, MemR res) noexcept -> DataFrame requires DFValIndex<FldI>
     {
         // TODO change this to Use function X with default value
         static_assert(std::is_default_constructible_v<T>, "Currently only default_constructible is supported");
@@ -538,7 +561,7 @@ namespace lugizmo {
                                                     std::span<R const> const recIndices,
                                                     std::span<T const> const recValues,
                                                     size_t const capacity,
-                                                    MemR res) noexcept -> DataFrame
+                                                    MemR res) noexcept -> DataFrame requires DFValIndex<FldI> && DFValIndex<RecI>
     {
         // TODO this should not be required because records are passed
         static_assert(std::is_default_constructible_v<T>, "Currently only default_constructible is supported");
@@ -568,7 +591,7 @@ namespace lugizmo {
                                                      std::span<R const> const       recIndices,
                                                      IterableOfIterable auto const& recValues,
                                                      size_t const capacity,
-                                                     MemR res) noexcept -> DataFrame
+                                                     MemR res) noexcept -> DataFrame requires DFValIndex<FldI> && DFValIndex<RecI>
     {
         // TODO add check if IterableOfIterable stores T's
         // TODO this should not be required because records are passed
@@ -593,7 +616,7 @@ namespace lugizmo {
                                                      std::initializer_list<R const> const            recIndices,
                                                      std::initializer_list<std::initializer_list<T>> recValues,
                                                      size_t const capacity,
-                                                     MemR res) noexcept -> DataFrame
+                                                     MemR res) noexcept -> DataFrame requires DFValIndex<FldI> && DFValIndex<RecI>
     {
         // TODO this should not be required because records are passed
         static_assert(std::is_default_constructible_v<T>, "Currently only default_constructible is supported");
@@ -678,10 +701,10 @@ namespace lugizmo {
         if(data != nullptr && capacity) backingRes->deallocate(data, capacity, alignof(T));
     }
 
-    // ======== MANIPULATION ===============================================================================================================
+    // ======== MANIPULATION UNIQUE INDEX ==================================================================================================
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::AddField(F index, T const& defaultValue) -> bool
+    auto DataFrame<T, F, R, L>::AddField(F index, T const& defaultValue) -> bool requires DFValIndex<FldI>
     {
         // add field to index
         auto const added = fldIndex.Add(std::move(index));
@@ -693,19 +716,19 @@ namespace lugizmo {
     }
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::AddRecord(R index, T const& defaultValue) -> bool
+    auto DataFrame<T, F, R, L>::AddRecord(R index, T const& defaultValue) -> bool requires DFValIndex<RecI>
     {
         // add row to index
         auto const added = recIndex.Add(std::move(index));
         if(not added) return false;
 
         // add row to storage
-        Layout::AddRowWithDefault(data, capacity, *backingRes.get(), recsData, defaultValue);
+        Layout::AddRow(data, capacity, *backingRes.get(), recsData, 1, defaultValue);
         return true;
     }
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::AddRecordPopulated(R index, std::span<T const> records) -> bool
+    auto DataFrame<T, F, R, L>::AddRecordPopulated(R index, std::span<T const> records) -> bool requires DFValIndex<RecI>
     {
         // this function only excepts full records
         if(records.size() != fldIndex.Size()) return false;
@@ -719,10 +742,61 @@ namespace lugizmo {
         return true;
     }
 
+    // ======== MANIPULATION SEQUENCE INDEX ================================================================================================
+
+    template <typename T, typename F, typename R, typename L>
+    auto DataFrame<T, F, R, L>::SetFieldRange(std::optional<FldT> const lower, std::optional<FldT> const upper, T const& defaultVal) -> bool requires DFSeqIndex<FldI>
+    {
+        // store current bounds in case need to recover
+        auto const currentLower = fldIndex.LowerBound();
+        auto const currentUpper = fldIndex.UpperBound();
+
+        // compute and adjust index
+        std::optional<FldT> lowerChange;
+        std::optional<FldT> upperChange;
+        if(lower.has_value()) lowerChange = fldIndex.SetLowerBound(*lower);
+        if(upper.has_value()) upperChange = fldIndex.SetUpperBound(*upper);
+
+        // check if one of new bounds is not valid
+        // and restore previous state
+        if(not lowerChange) fldIndex.SetUpperBound(currentUpper);
+        if(not upperChange) fldIndex.SetLowerBound(currentLower);
+        if(not lowerChange or not upperChange) return false;
+
+        // if lower bound is
+        Layout::AdjustColumnCount(data, capacity, *backingRes.get(), recsData, lowerChange.value(), upperChange.value(), defaultVal);
+
+        return true;
+    }
+
+    template <typename T, typename F, typename R, typename L>
+    auto DataFrame<T, F, R, L>::SetRecordRange(std::optional<RecT> const lower, std::optional<RecT> const upper, T const& defaultVal) -> bool requires DFSeqIndex<RecI>
+    {
+        // store current bounds in case need to recover
+        auto const currentLower = recIndex.LowerBound();
+        auto const currentUpper = recIndex.UpperBound();
+
+        // compute and adjust index
+        std::optional<RecT> lowerChange;
+        std::optional<RecT> upperChange;
+        if(lower.has_value()) lowerChange = recIndex.SetLowerBound(*lower);
+        if(upper.has_value()) upperChange = recIndex.SetUpperBound(*upper);
+
+        // check if one of new bounds is not valid
+        // and restore previous state
+        if(not lowerChange) recIndex.SetUpperBound(currentUpper);
+        if(not upperChange) recIndex.SetLowerBound(currentLower);
+        if(not lowerChange or not upperChange) return false;
+
+        // if lower bound is
+        Layout::AdjustRecordCount(data, capacity, *backingRes.get(), recsData, lowerChange.value(), upperChange.value(), defaultVal);
+        return true;
+    }
+
     // ======== DROP =======================================================================================================================
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::DropField(F const& index) -> bool
+    auto DataFrame<T, F, R, L>::DropField(F const& index) -> bool requires DFValIndex<FldI>
     {
         // drop record from index
         auto const dropped = fldIndex.Drop(index);
@@ -734,7 +808,7 @@ namespace lugizmo {
     }
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::DropRecord(R const& index) -> bool
+    auto DataFrame<T, F, R, L>::DropRecord(R const& index) -> bool requires DFValIndex<RecI>
     {
         // drop record from index
         auto const dropped = recIndex.Drop(index);
@@ -748,7 +822,7 @@ namespace lugizmo {
     // ======== VIEWS ======================================================================================================================
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::ViewField(F const& index) noexcept -> DFView<T>
+    auto DataFrame<T, F, R, L>::ViewField(F const& index) noexcept -> DFView<T> requires DFValIndex<FldI>
     {
         auto const pos = fldIndex.Position(index);
         if (!pos.has_value()) { return DFView<T>(); }
@@ -757,7 +831,7 @@ namespace lugizmo {
     }
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::ViewField(F const& index) const noexcept -> DFView<T const>
+    auto DataFrame<T, F, R, L>::ViewField(F const& index) const noexcept -> DFView<T const> requires DFValIndex<FldI>
     {
         auto const pos = fldIndex.Position(index);
         if (!pos.has_value()) { return DFView<T const>(); }
@@ -766,7 +840,7 @@ namespace lugizmo {
     }
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::ViewFieldIndexed(F const& index) noexcept -> DFViewIndexed<T, R const>
+    auto DataFrame<T, F, R, L>::ViewFieldIndexed(F const& index) noexcept -> DFViewIndexed<T, R const> requires DFValIndex<FldI>
     {
         auto const pos = fldIndex.Position(index);
         if (!pos.has_value()) { return DFViewIndexed<T, R const>(); }
@@ -775,7 +849,7 @@ namespace lugizmo {
     }
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::ViewFieldIndexed(F const& index) const noexcept -> DFViewIndexed<T const, R const>
+    auto DataFrame<T, F, R, L>::ViewFieldIndexed(F const& index) const noexcept -> DFViewIndexed<T const, R const> requires DFValIndex<FldI>
     {
         auto const pos = fldIndex.Position(index);
         if (!pos.has_value()) { return DFViewIndexed<T const, R const>(); }
@@ -784,7 +858,7 @@ namespace lugizmo {
     }
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::ViewRecord(R const& index) noexcept -> DFView<T>
+    auto DataFrame<T, F, R, L>::ViewRecord(R const& index) noexcept -> DFView<T> requires DFValIndex<RecI>
     {
         auto pos = recIndex.Position(index);
         if(not pos.has_value()) return DFView<T>();
@@ -793,7 +867,7 @@ namespace lugizmo {
     }
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::ViewRecord(R const& index) const noexcept -> DFView<T const>
+    auto DataFrame<T, F, R, L>::ViewRecord(R const& index) const noexcept -> DFView<T const> requires DFValIndex<RecI>
     {
         auto pos = recIndex.Position(index);
         if(not pos.has_value()) return DFView<T const>();
@@ -802,7 +876,7 @@ namespace lugizmo {
     }
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::ViewRecordIndexed(R const& index) noexcept -> DFViewIndexed<T, F const>
+    auto DataFrame<T, F, R, L>::ViewRecordIndexed(R const& index) noexcept -> DFViewIndexed<T, F const> requires DFValIndex<RecI>
     {
         auto pos = recIndex.Position(index);
         if(not pos.has_value()) return DFViewIndexed<T, F const>();
@@ -811,7 +885,7 @@ namespace lugizmo {
     }
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::ViewRecordIndexed(R const& index) const noexcept -> DFViewIndexed<T const, F const>
+    auto DataFrame<T, F, R, L>::ViewRecordIndexed(R const& index) const noexcept -> DFViewIndexed<T const, F const> requires DFValIndex<RecI>
     {
         auto pos = recIndex.Position(index);
         if(not pos.has_value()) return DFViewIndexed<T const, F const>();
@@ -823,7 +897,7 @@ namespace lugizmo {
 
     template <typename T, typename F, typename R, typename L>
     template <typename Func>
-    auto DataFrame<T, F, R, L>::ForEachOnField(F const& index, Func&& func) -> DFView<T>
+    auto DataFrame<T, F, R, L>::ForEachOnField(F const& index, Func&& func) -> DFView<T> requires DFValIndex<FldI>
     {
         auto view = ViewField(index);
         std::ranges::for_each(view, std::forward<Func>(func));
@@ -833,7 +907,7 @@ namespace lugizmo {
 
     template <typename T, typename F, typename R, typename L>
     template <typename Func>
-    auto DataFrame<T, F, R, L>::ForEachOnField(F const& index, Func&& func) const -> DFView<T const>
+    auto DataFrame<T, F, R, L>::ForEachOnField(F const& index, Func&& func) const -> DFView<T const> requires DFValIndex<FldI>
     {
         auto const view = ViewField(index);
         std::ranges::for_each(view, std::forward<Func>(func));
@@ -843,7 +917,7 @@ namespace lugizmo {
 
     template <typename T, typename F, typename R, typename L>
     template <typename Func>
-    auto DataFrame<T, F, R, L>::ForEachOnRecord(R const& index, Func&& func) -> DFView<T>
+    auto DataFrame<T, F, R, L>::ForEachOnRecord(R const& index, Func&& func) -> DFView<T> requires DFValIndex<RecI>
     {
         auto view = ViewRecord(index);
         std::ranges::for_each(view, std::forward<Func>(func));
@@ -853,7 +927,7 @@ namespace lugizmo {
 
     template <typename T, typename F, typename R, typename L>
     template <typename Func>
-    auto DataFrame<T, F, R, L>::ForEachOnRecord(R const& index, Func&& func) const -> DFView<T const>
+    auto DataFrame<T, F, R, L>::ForEachOnRecord(R const& index, Func&& func) const -> DFView<T const> requires DFValIndex<RecI>
     {
         auto view = ViewRecord(index);
         std::ranges::for_each(view, std::forward<Func>(func));
@@ -877,41 +951,73 @@ namespace lugizmo {
         auto const rowCount = extents.extent(0);
 
         // get the maximum amount of fields & records stored in the dataframe
-        auto const opMaxFields  = fldIndex.MaxPosition();
-        auto const opMaxRecords = recIndex.MaxPosition();
-        if(not opMaxFields or not opMaxRecords)
-        {
-            stream << "Empty\n";
-            return;
-        }
-
-        auto const maxFields  = opMaxFields.value();
-        auto const maxRecords = opMaxFields.value();
+//        auto const opMaxFields  = fldIndex.MaxPosition();
+//        auto const opMaxRecords = recIndex.MaxPosition();
+//        if(not opMaxFields or not opMaxRecords)
+//        {
+//            stream << "Empty\n";
+//            return;
+//        }
+//
+//        auto const maxFields  = opMaxFields.value();
+//        auto const maxRecords = opMaxFields.value();
 
         // print columns/fields and record index column
         stream << std::format("{:<{}}", "Rec. Index", 15);
-        for(auto pos = 0; pos <= maxFields; pos++)
+        if constexpr(IsFldSeq)
         {
-            auto fld = fldIndex.Key(pos);
-            assert(fld.has_value());
+            for(auto pos = fldIndex.LowerBound(); pos < fldIndex.UpperBound(); ++pos)
+            {
+                // TODO right name?
+                stream << std::format("{:<{}}", pos, 15);
+            }
+        }
+        else
+        {
+            for(auto pos = 0; pos <= colCount; pos++)
+            {
+                auto fld = fldIndex.Key(pos);
+                assert(fld.has_value());
 
-            stream << std::format("{:<{}}", *fld, 15);
+                stream << std::format("{:<{}}", *fld, 15);
+            }
         }
 
         stream << '\n';
 
         // print records to stream
-        for(auto i = 0; i <= maxRecords; ++i)
+        if constexpr(IsRecSeq)
         {
-            auto const recIndexStr = recIndex.Key(i);
-            assert(recIndexStr.has_value());
+            if(recIndex.Empty()) return;
+            auto const lowerBoundRec = recIndex.LowerBound();
+            auto const upperBoundRec = recIndex.UpperBound();
+            auto const lowerBoundFld = fldIndex.LowerBound();
+            auto const upperBoundFld = fldIndex.UpperBound();
 
-            stream << std::format("{:<{}}", *recIndexStr, 15);
-            for(size_t j = 0; j < colCount; ++j)
+            for(auto i = lowerBoundRec; i < upperBoundRec; ++i)
             {
-                stream << std::format("{:<{}} ", recsData[i, j], 15);
+                stream << std::format("{:<{}}", i, 15);
+                for(auto j = lowerBoundFld; j < upperBoundFld; ++j)
+                {
+                    stream << std::format("{:<{}} ", recsData[i - lowerBoundRec, j - lowerBoundFld], 15);
+                }
+                stream << "\n";
             }
-            stream << "\n";
+        }
+        else
+        {
+            for(auto i = 0; i <= rowCount; ++i)
+            {
+                auto const recIndexStr = recIndex.Key(i);
+                assert(recIndexStr.has_value());
+
+                stream << std::format("{:<{}}", *recIndexStr, 15);
+                for(size_t j = 0; j < colCount; ++j)
+                {
+                    stream << std::format("{:<{}} ", recsData[i, j], 15);
+                }
+                stream << "\n";
+            }
         }
     }
 

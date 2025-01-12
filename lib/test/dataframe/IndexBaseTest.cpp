@@ -17,17 +17,53 @@ TEST(lugizmo_dataframe_index_base_test, concepts)
     using namespace lugizmo;
 
     // unique index
-    static_assert(DFValueIndex<DFUniqueIndex<int>>);
-    static_assert(DFValueIndex<DFUniqueIndex<std::string>>);
-    static_assert(DFIndexType<DFUniqueIndex<std::string>>);
-    static_assert(DFIndexType<DFUniqueIndex<int>>);
+    constexpr auto valInt    = DFValIndex<DFUniqueIndex<int>>;
+    constexpr auto valStr    = DFValIndex<DFUniqueIndex<std::string>>;
+    constexpr auto idxValInt = DFIdxType<DFUniqueIndex<std::string>>;
+    constexpr auto idxValStr = DFIdxType<DFUniqueIndex<int>>;
+    ASSERT_TRUE(valInt);
+    ASSERT_TRUE(valStr);
+    ASSERT_TRUE(idxValInt);
+    ASSERT_TRUE(idxValStr);
+
+    // multiple unique indices
+    // TODO clang does show annoying errors in the moment but compiles
+    //constexpr auto valMulInt    = DFValIndex<DFUniqueIndex<int>, DFUniqueIndex<long>>;
+    //constexpr auto valMulStr    = DFValIndex<DFUniqueIndex<std::string>, DFUniqueIndex<int>>;
+    //constexpr auto idxValMulInt = DFIdxType<DFUniqueIndex<int>, DFUniqueIndex<long>>;
+    //constexpr auto idxValMulStr = DFIdxType<DFUniqueIndex<std::string>, DFUniqueIndex<int>>;
+    //ASSERT_TRUE(valMulInt);
+    //ASSERT_TRUE(valMulStr);
+    //ASSERT_TRUE(idxValMulInt);
+    //ASSERT_TRUE(idxValMulStr);
 
     // range index
-    static_assert(DFSequenceIndex<DFRangeIndex<int>>);
-    static_assert(DFIndexType<DFRangeIndex<int>>);
+    constexpr auto seqInt    = DFSeqIndex<DFRangeIndex<int>>;
+    constexpr auto idxSeqInt = DFIdxType<DFRangeIndex<int>>;
+    ASSERT_TRUE(seqInt);
+    ASSERT_TRUE(idxSeqInt);
+
+    // multiple range indices
+    // TODO clang does show annoying errors in the moment but compiles
+    //constexpr auto seqMultInt   = DFSeqIndex<DFRangeIndex<int>, DFRangeIndex<long>>;
+    //constexpr auto idxSeqMulInt = DFIdxType<DFRangeIndex<int>, DFRangeIndex<long>>;
+    //ASSERT_TRUE(seqMultInt);
+    //ASSERT_TRUE(idxSeqMulInt);
 
     // not index
-    static_assert(not DFValueIndex<int>);
-    static_assert(not DFSequenceIndex<int>);
-    static_assert(not DFIndexType<int>);
+    constexpr auto notValInt = DFValIndex<int>;
+    constexpr auto notSeqInt = DFSeqIndex<int>;
+    constexpr auto notIdxInt = DFIdxType<int>;
+    ASSERT_FALSE(notValInt);
+    ASSERT_FALSE(notSeqInt);
+    ASSERT_FALSE(notIdxInt);
+
+    // multiple not index
+    // TODO clang does show annoying errors in the moment but compiles
+    //constexpr auto notValMulInt = DFValIndex<int, long>;
+    //constexpr auto notSeqMulInt = DFSeqIndex<int, long>;
+    //constexpr auto notIdxMulInt = DFIdxType<int, long>;
+    //ASSERT_FALSE(notValMulInt);
+    //ASSERT_FALSE(notSeqMulInt);
+    //ASSERT_FALSE(notIdxMulInt);
 }

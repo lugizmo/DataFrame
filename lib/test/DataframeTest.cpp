@@ -19,8 +19,13 @@
 #include <ranges>
 #include <span>
 #include <numeric>
-#include <fstream>
+#include <compare>
+#include <functional>
 
+#include "lugizmo/memory/References.h"
+#include "lugizmo/dataframe/Selector.h"
+#include "lugizmo/dataframe/View.h"
+#include "lugizmo/dataframe/ViewIndexed.h"
 #include "lugizmo/DataFrame.h"
 
 #define PRINT_ALLOCATIONS 0
@@ -66,6 +71,13 @@ auto AllocateMMAP(size_t const size) -> std::byte*
 void DeallocateMMAP(std::byte* ptr, size_t const size)
 {
     munmap(ptr, size);
+}
+
+TEST(lugizmo_dataframe_test, layout_default_is_row_major)
+{
+    using namespace lugizmo;
+    using DF = DataFrame<int, int, int>;
+    static_assert(std::is_same_v<DF::Layout, DFRowMajor<int>>);
 }
 
 TEST(lugizmo_dataframe_test, row_major_empty_initialization)
@@ -549,7 +561,7 @@ TEST(lugizmo_dataframe_test, dev)
     using ms = milliseconds;
 
     constexpr int COL_COUNT = 100;
-    constexpr int ROW_COUNT = 150;
+    constexpr int ROW_COUNT = 100;
 
     auto const loggingRes =
 #if PRINT_ALLOCATIONS

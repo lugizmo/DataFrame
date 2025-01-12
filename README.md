@@ -43,6 +43,7 @@ Functional:
 - code documentation
 - usage examples
 - watch out what gcc is doing and add support if possible
+- handling user types that might throw in any of it's constructors
 - add more todo's
 
 ### TODO Code
@@ -63,4 +64,11 @@ Functional:
 - ~~indexed iterator does not have the same usage like iterating over an map.~~
 - add reversed (index) iterator  
 - make views not eagerly so that they fit better with ranges.
+- add test for mixed dataframe index types
+- handling of exception enabled code. E.g. std::uninitialized_fill_n will handle ctor's etc. and therefor exceptions might happen.
+  - think about using memcpy instead of std::uninitialized_fill_n or making it an option
 - add more todo's
+
+### TODO Benchmarks
+
+- Manipulating "big" dataframes, so not testing creating but really just adding columns/row with row-/col major layouts when already big 

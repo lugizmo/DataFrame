@@ -183,19 +183,20 @@ namespace lugizmo {
      *  @details Only checks if contains a KeyType and inherits from DFBaseValueIndex.
      */
     template<typename T>
-    concept DFValueIndex = requires { typename T::KeyType; } && std::is_base_of_v<DFBaseValueIndex<T, typename T::KeyType>, T>;
+    concept DFValIndex = requires { typename T::KeyType; } && std::is_base_of_v<DFBaseValueIndex<T, typename T::KeyType>, T>;
 
     /**
      *  @brief   Concept of a Dataframe Sequence Index.
      *  @details Only checks if contains a KeyType and inherits from DFBaseSequenceIndex.
      */
     template<typename T>
-    concept DFSequenceIndex = requires { typename T::KeyType; } && std::is_base_of_v<DFBaseSequenceIndex<T, typename T::KeyType>, T>;
+    concept DFSeqIndex = requires { typename T::KeyType; } && std::is_base_of_v<DFBaseSequenceIndex<T, typename T::KeyType>, T>;
 
     /**
      *  @brief Concept of a Dataframe Index Type.
      */
     template<typename T>
-    concept DFIndexType = DFValueIndex<T> || DFSequenceIndex<T>;
+    concept DFIdxType= DFValIndex<T> || DFSeqIndex<T>;
+
 }
 #endif // LUGIZMO_DF_INDEX_BASE_H
