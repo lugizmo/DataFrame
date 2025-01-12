@@ -21,8 +21,8 @@ namespace lugizmo {
         T lower;
         T upper;
 
-        auto Size() const noexcept { return upper - lower; }
-        auto size() const noexcept { return Size(); }
+        [[nodiscard]] auto Size() const noexcept { return upper - lower; }  // TODO support other types like chrono, here should be fine but what about dataframe
+        [[nodiscard]] auto size() const noexcept { return Size(); }         // TODO support other types like chrono, here should be fine but what about dataframe
     };
 
     template<typename T = size_t> requires std::is_integral_v<T>

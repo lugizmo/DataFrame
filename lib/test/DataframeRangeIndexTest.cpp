@@ -52,18 +52,19 @@ TEST(lugizmo_dataframe_range_index_test, row_major_initializations)
 
     // initialize fields
     {
-//        // build from span
-//        auto const fields    = std::array{std::string("0"), std::string("1"), std::string("2")};
-//        auto const dfFromFld = TestDF::FromFields(fields);
-//        ASSERT_TRUE(dfFromFld.Empty());
-//        ASSERT_TRUE(dfFromFld.Fields().size() == 3);
-//
-//        // build from initializer_list
-//        auto const dfFromFldInt = TestDF::FromFields({"0", "1", "2"});
-//        ASSERT_TRUE(dfFromFldInt.Empty());
-//        ASSERT_TRUE(dfFromFldInt.Fields().size() == 3);
-//
-//        // TODO add test with "wrong" capacities and a backing mem-resource
+        // build from span
+        auto constexpr fields = DFRangeIndexBounds{.lower = -10, .upper = 10};
+        auto const dfFromFld  = TestDF::FromFields(fields);
+        ASSERT_TRUE(dfFromFld.Empty());
+        ASSERT_TRUE(dfFromFld.Fields().size() == fields.upper - fields.lower);
+
+        // build from lower bound "ctor" mimicking look when using fields based on unique indices.
+        // other than that this does not test anything really.
+        auto const dfFromFldInt = TestDF::FromFields({-10, 10});
+        ASSERT_TRUE(dfFromFldInt.Empty());
+        ASSERT_TRUE(dfFromFldInt.Fields().size() == 20);
+
+        // TODO add test with "wrong" capacities and a backing mem-resource
     }
 
     // all at once

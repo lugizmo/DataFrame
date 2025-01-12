@@ -87,7 +87,7 @@ namespace lugizmo {
 
     public:
 
-        // ======== CONSTRUCTION ===========================================================================================================
+        // ======== CONSTRUCTION ===================================================================================================================================================
 
         /**
          *  @brief   Default constructor that creates an empty
@@ -106,6 +106,8 @@ namespace lugizmo {
          * @param res            Backing memory resource to use (defaults to system-default).
          */
         explicit DataFrame(size_t reservedValues, MemR res = BackingResDefault()) noexcept;
+
+        // ======== CONSTRUCTION UNIQUE INDEX ======================================================================================================================================
 
         /**
          * @brief Empty Dataframe with field definitions optionally reserving memory
@@ -196,7 +198,11 @@ namespace lugizmo {
         //                                 size_t capacity = 0,
         //                                 MemR   res      = BackingResDefault()) noexcept -> DataFrame;
 
-        // ======== COPY, MOVE & DELETE ====================================================================================================
+        // ======== CONSTRUCTION SEQUENCE INDEX ====================================================================================================================================
+
+        static auto FromFields(DFRangeIndexBounds<FldT> const& fields, size_t reservedValues = 0, MemR res = BackingResDefault()) noexcept -> DataFrame requires DFSeqIndex<FldI>;
+
+        // ======== COPY, MOVE & DELETE ============================================================================================================================================
 
         DataFrame(DataFrame const&) noexcept = delete;      // TODO figure out how to do it!?
         auto operator=(DataFrame const&) noexcept = delete; // TODO figure out how to do it!?
@@ -648,7 +654,23 @@ namespace lugizmo {
         return df;
     }
 
-    // ======== COPY, MOVE & DELETE ========================================================================================================
+
+    // ======== CONSTRUCTION SEQUENCE INDEX ========================================================================================================================================
+
+    template <typename T, typename F, typename R, typename L>
+    auto DataFrame<T, F, R, L>::FromFields(DFRangeIndexBounds<FldT> const& fields, size_t reservedValues, MemR res) noexcept -> DataFrame requires DFSeqIndex<FldI>
+    {
+        // TODO change this to Use function X with default value
+        static_assert(std::is_default_constructible_v<T>, "Currently only default_constructible is supported");
+
+        auto reserve = std::max<size_t>(std::min(0, fields.Size()), reservedValues);
+        auto df      = DataFrame(reserve, std::move(res));
+        df.SetFieldRange(fields.lower, fields.upper, T()); // default value not needed if default constructable
+
+        return df;
+    }
+
+    // ======== COPY, MOVE & DELETE ================================================================================================================================================
 
     template <typename T, typename F, typename R, typename L>
     DataFrame<T, F, R, L>::DataFrame(DataFrame &&other) noexcept
