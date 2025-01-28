@@ -107,7 +107,7 @@ namespace lugizmo {
          */
         explicit DataFrame(size_t reservedValues, MemR res = BackingResDefault()) noexcept;
 
-        // ======== CONSTRUCTION UNIQUE INDEX ======================================================================================================================================
+        // ======== CONSTRUCTION FUNCTIONS =========================================================================================================================================
 
         /**
          * @brief Empty Dataframe with field definitions optionally reserving memory
@@ -119,24 +119,19 @@ namespace lugizmo {
          *
          * @return Dataframe initialized with given fields.
          */
-        static auto FromFields(std::span<FldT const> fields, size_t reservedValues = 0, MemR res = BackingResDefault()) noexcept -> DataFrame requires DFValIndex<FldI>;
+        static auto FromFields(std::conditional_t<IsFldSeq, DFRangeIndexBounds<FldT>, std::span<FldT const>> fields, size_t reservedValues = 0, MemR res = BackingResDefault()) noexcept -> DataFrame;
 
         /**
          * @brief Empty Dataframe with field definitions optionally reserving memory
          *        and using a backing memory resource.
          *
-         * @param fields          Span of fields to initialize the vector with.
+         * @param fields          Initializer list of fields to initialize the vector with.
          * @param reservedValues  Optional capacity to allocate memory for.
          * @param res             Optional backing memory resource to use.
          *
          * @return Dataframe initialized with given fields.
          */
-        static auto FromFields(std::initializer_list<FldIndex> fields, size_t reservedValues = 0, MemR res = BackingResDefault()) noexcept -> DataFrame requires DFValIndex<FldI>;
-
-        // TODO add option to move fields (check if really worth it)
-        //static auto FromFields(Iterable auto&& fields,
-        //                       size_t const capacity = 0,
-        //                       MemR res = BackingResDefault()) noexcept -> DataFrame;
+        static auto FromFields(std::initializer_list<FldT const> fields, size_t reservedValues = 0, MemR res = BackingResDefault()) noexcept -> DataFrame requires DFValIndex<FldI>;
 
         /**
          *  @brief Add new fields and records; all records are
@@ -150,11 +145,11 @@ namespace lugizmo {
          *
          *  @return Dataframe with initialized fields and records (values).
          */
-        static auto FromFieldsAndRecord(std::span<FldIndex const> fldIndices,
-                                        std::span<RecIndex const> recIndices,
-                                        std::span<T const>        recValues = {},
-                                        size_t capacity = 0,
-                                        MemR   res      = BackingResDefault()) noexcept -> DataFrame requires DFValIndex<FldI> && DFValIndex<RecI>;
+        static auto FromFieldsAndRecord(std::conditional_t<IsFldSeq, DFRangeIndexBounds<FldT>, std::span<FldIndex const>> fldIndices,
+                                        std::conditional_t<IsRecSeq, DFRangeIndexBounds<RecT>, std::span<RecIndex const>> recIndices,
+                                        std::span<T const> recValues = {},
+                                        size_t             capacity  = 0,
+                                        MemR               res       = BackingResDefault()) noexcept -> DataFrame;
 
         /**
          *  @brief Add new fields and records; all records are
@@ -168,11 +163,11 @@ namespace lugizmo {
          *
          *  @return Dataframe with initialized fields and records (values).
          */
-        static auto FromFieldsAndRecords(std::span<FldIndex const>      fldIndices,
-                                         std::span<RecIndex const>      recIndices,
+        static auto FromFieldsAndRecords(std::conditional_t<IsFldSeq, DFRangeIndexBounds<FldT>, std::span<FldIndex const>> fldIndices,
+                                         std::conditional_t<IsRecSeq, DFRangeIndexBounds<RecT>, std::span<RecIndex const>> recIndices,
                                          IterableOfIterable auto const& recValues,
-                                         size_t capacity = 0,
-                                         MemR res        = BackingResDefault()) noexcept -> DataFrame requires DFValIndex<FldI> && DFValIndex<RecI>;
+                                         size_t             capacity  = 0,
+                                         MemR               res       = BackingResDefault()) noexcept -> DataFrame;
 
         /**
          *  @brief Add new fields and records; all records are
@@ -186,26 +181,16 @@ namespace lugizmo {
          *
          *  @return Dataframe with initialized fields and records (values).
          */
-        static auto FromFieldsAndRecords(std::initializer_list<FldIndex const>           fldIndices,
-                                         std::initializer_list<RecIndex const>           recIndices,
+        static auto FromFieldsAndRecords(std::conditional_t<IsFldSeq, DFRangeIndexBounds<FldT>, std::initializer_list<FldIndex const>> fldIndices,
+                                         std::conditional_t<IsRecSeq, DFRangeIndexBounds<RecT>, std::initializer_list<RecIndex const>> recIndices,
                                          std::initializer_list<std::initializer_list<T>> recValues = {},
                                          size_t capacity = 0,
-                                         MemR   res      = BackingResDefault()) noexcept -> DataFrame requires DFValIndex<FldI> && DFValIndex<RecI>;
-
-        // TODO dataframe needs a way to decide if "iota" is appropriate to add as record indices
-        //      but this makes only sense when adding of new records later allows for that.
-        //static auto FromFieldsAndRecords(std::pair<FldIndex const, std::initializer_list<T const>> fieldToValues,
-        //                                 size_t capacity = 0,
-        //                                 MemR   res      = BackingResDefault()) noexcept -> DataFrame;
-
-        // ======== CONSTRUCTION SEQUENCE INDEX ====================================================================================================================================
-
-        static auto FromFields(DFRangeIndexBounds<FldT> const& fields, size_t reservedValues = 0, MemR res = BackingResDefault()) noexcept -> DataFrame requires DFSeqIndex<FldI>;
+                                         MemR   res      = BackingResDefault()) noexcept -> DataFrame;
 
         // ======== COPY, MOVE & DELETE ============================================================================================================================================
 
-        DataFrame(DataFrame const&) noexcept = delete;      // TODO figure out how to do it!?
-        auto operator=(DataFrame const&) noexcept = delete; // TODO figure out how to do it!?
+        DataFrame(DataFrame const&) noexcept = delete;      // TODO or should I !?
+        auto operator=(DataFrame const&) noexcept = delete; // TODO or should I !?
 
         DataFrame(DataFrame &&other) noexcept;
         auto operator=(DataFrame&& other) noexcept -> DataFrame&;
@@ -245,14 +230,30 @@ namespace lugizmo {
 
         // ======== MANIPULATION SEQUENCE INDEX ============================================================================================
 
-        auto SetFieldRange(std::optional<FldT> lower, std::optional<FldT> upper, T const& defaultVal = T()) -> bool requires DFSeqIndex<FldI>;
+        auto SetFieldRange(std::optional<FldT> lower, std::optional<FldT> upper, T const& defaultVal = T()) noexcept -> bool requires DFSeqIndex<FldI>;
 
-        auto SetRecordRange(std::optional<RecT> lower, std::optional<RecT> upper, T const& defaultVal = T()) -> bool requires DFSeqIndex<RecI>;
+        auto SetFieldRange(DFRangeIndexBounds<FldT>, T const& defaultVal = T()) noexcept -> bool requires DFSeqIndex<FldI>;
 
-        // ======== ACCESSORS UNIQUE INDEX =================================================================================================
+        auto SetRecordRange(std::optional<RecT> lower, std::optional<RecT> upper, T const& defaultVal = T()) noexcept -> bool requires DFSeqIndex<RecI>;
+
+        auto SetRecordRange(DFRangeIndexBounds<RecT>, T const& defaultVal = T()) noexcept -> bool requires DFSeqIndex<RecI>;
+
+        auto SetRecordRange(std::optional<RecT> lower, std::optional<RecT> upper, std::span<T const> records) noexcept -> bool requires DFSeqIndex<RecI>;
+
+        auto SetRecordRange(DFRangeIndexBounds<RecT>, std::span<T const> records) noexcept -> bool requires DFSeqIndex<RecI>;
+
+        auto SetRecordRange(std::optional<RecT> lower, std::optional<RecT> upper, IterableOfIterable auto const& records) noexcept -> bool requires DFSeqIndex<RecI>;
+
+        auto SetRecordRange(DFRangeIndexBounds<RecT>, IterableOfIterable auto const& records) noexcept -> bool requires DFSeqIndex<RecI>;
+
+        auto SetRecordRange(std::optional<RecT> lower, std::optional<RecT> upper, std::initializer_list<std::initializer_list<T>> records) noexcept -> bool requires DFSeqIndex<RecI>;
+
+        auto SetRecordRange(DFRangeIndexBounds<RecT>, std::initializer_list<std::initializer_list<T>> records) noexcept -> bool requires DFSeqIndex<RecI>;
+
+        // ======== ACCESSORS UNIQUE INDEX =========================================================================================================================================
 
         [[nodiscard]]
-        auto GetValue(FldIndex const& field, RecIndex const& record) const -> std::optional<std::reference_wrapper<T const>> requires DFValIndex<FldI> && DFValIndex<RecI>
+        auto GetValue(FldT const& field, RecT const& record) const -> std::optional<std::reference_wrapper<T const>>
         {
             auto const fldPos = fldIndex.Position(field);
             auto const recPos = recIndex.Position(record);
@@ -268,7 +269,7 @@ namespace lugizmo {
         }
 
         [[nodiscard]]
-        auto GetValue(FldIndex const& field, RecIndex const& record) -> std::optional<std::reference_wrapper<T>> requires DFValIndex<FldI> && DFValIndex<RecI>
+        auto GetValue(FldT const& field, RecT const& record) -> std::optional<std::reference_wrapper<T>>
         {
             auto const fldPos = fldIndex.Position(field);
             auto const recPos = recIndex.Position(record);
@@ -284,7 +285,7 @@ namespace lugizmo {
         }
 
         [[nodiscard]]
-        auto operator[](FldIndex const& field, RecIndex const& record) -> T& requires DFValIndex<FldI> && DFValIndex<RecI>
+        auto operator[](FldT const& field, RecT const& record) -> T&
         {
             auto const fldPos = fldIndex.Position(field);
             auto const recPos = recIndex.Position(record);
@@ -294,7 +295,7 @@ namespace lugizmo {
         }
 
         [[nodiscard]]
-        auto operator[](FldIndex const& field, RecIndex const& record) const -> T const& requires DFValIndex<FldI> && DFValIndex<RecI>
+        auto operator[](FldT const& field, RecT const& record) const -> T const&
         {
             auto const fldPos = fldIndex.Position(field);
             auto const recPos = recIndex.Position(record);
@@ -303,7 +304,7 @@ namespace lugizmo {
             return recsData[*recPos, *fldPos];
         }
 
-        auto SetValue(FldIndex const& field, RecIndex const& record, T const& value) -> bool requires DFValIndex<FldI> && DFValIndex<RecI>
+        auto SetValue(FldT const& field, RecT const& record, T const& value) -> bool
         {
             if(auto get = GetValue(field, record); get.has_value())
             {
@@ -317,8 +318,22 @@ namespace lugizmo {
 
         // ======== DROP ===================================================================================================================
 
+        /**
+         *  @brief Drop a field index from the dataframe.
+         *  @see   SetFieldRange to shrink the dataframe when range index is used.
+         *
+         *  @param index the index to drop from the dataframe.
+         *  @return true when index was removed otherwise such index wasn't present in the dataframe.
+         */
         auto DropField(FldIndex const& index) -> bool requires DFValIndex<FldI>;
 
+        /**
+         *  @brief Drop a record index from the dataframe.
+         *  @see   SetRecordRange to shrink the dataframe when range index is used.
+         *
+         *  @param index the index to drop from the dataframe.
+         *  @return true when index was removed otherwise such index wasn't present in the dataframe.
+         */
         auto DropRecord(RecIndex const& index) -> bool requires DFValIndex<RecI>;
 
         // ======== VIEWS ==================================================================================================================
@@ -506,7 +521,7 @@ namespace lugizmo {
         static_assert(std::is_trivially_copyable_v<Flds>, "Fields() returns this.");
     };
 
-    // ======== CONSTRUCTION ===============================================================================================================
+    // ======== CONSTRUCTION =======================================================================================================================================================
 
     template <typename T, typename F, typename R, typename L>
     DataFrame<T, F, R, L>::DataFrame() noexcept :
@@ -536,38 +551,43 @@ namespace lugizmo {
         else                              recIndex = RecI{};
     }
 
+    // ======== CONSTRUCTION FUNCTIONS =============================================================================================================================================
+
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::FromFields(std::span<FldT const> const fields, size_t const reservedValues, MemR res) noexcept -> DataFrame requires DFValIndex<FldI>
+    auto DataFrame<T, F, R, L>::FromFields(std::conditional_t<IsFldSeq, DFRangeIndexBounds<FldT>, std::span<FldT const>> const fields, size_t const reservedValues, MemR res) noexcept -> DataFrame
+    {
+        // TODO change this to Use function X with default value
+        static_assert(std::is_default_constructible_v<T>, "Currently only default_constructible is supported");
+
+        auto reserve = std::max<size_t>(fields.size(), reservedValues);
+        auto df = DataFrame(reserve, std::move(res));
+
+        // add new fields to empty df
+        if constexpr(IsFldSeq) df.SetFieldRange(fields.lower, fields.upper, T());
+        else                   df.AddFields(fields);
+
+        return df;
+    }
+
+    template <typename T, typename F, typename R, typename L>
+    auto DataFrame<T, F, R, L>::FromFields(std::initializer_list<FldT const> const fields, size_t const reservedValues, MemR res) noexcept -> DataFrame requires DFValIndex<FldI>
     {
         // TODO change this to Use function X with default value
         static_assert(std::is_default_constructible_v<T>, "Currently only default_constructible is supported");
 
         auto reserve = std::max(fields.size(), reservedValues);
         auto df = DataFrame(reserve, std::move(res));
-        df.AddFields(fields); // default value not needed if default constructable
+        df.AddFields(fields);
 
         return df;
     }
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::FromFields(std::initializer_list<F> fields, size_t const reservedValues, MemR res) noexcept -> DataFrame requires DFValIndex<FldI>
-    {
-        // TODO change this to Use function X with default value
-        static_assert(std::is_default_constructible_v<T>, "Currently only default_constructible is supported");
-
-        auto reserve = std::max(fields.size(), reservedValues);
-        auto df = DataFrame(reserve, std::move(res));
-        df.AddFields(fields); // default value not needed if default constructable
-
-        return df;
-    }
-
-    template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::FromFieldsAndRecord(std::span<F const> const fldIndices,
-                                                    std::span<R const> const recIndices,
+    auto DataFrame<T, F, R, L>::FromFieldsAndRecord(std::conditional_t<IsFldSeq, DFRangeIndexBounds<FldT>, std::span<F const>> const fldIndices,
+                                                    std::conditional_t<IsRecSeq, DFRangeIndexBounds<RecT>, std::span<R const>> const recIndices,
                                                     std::span<T const> const recValues,
-                                                    size_t const capacity,
-                                                    MemR res) noexcept -> DataFrame requires DFValIndex<FldI> && DFValIndex<RecI>
+                                                    size_t const             capacity,
+                                                    MemR                     res) noexcept -> DataFrame
     {
         // TODO this should not be required because records are passed
         static_assert(std::is_default_constructible_v<T>, "Currently only default_constructible is supported");
@@ -575,54 +595,62 @@ namespace lugizmo {
         assert(fldIndices.size() == recIndices.size());
         assert(recIndices.size() == recValues.size() || recValues.empty());
 
-        auto reserve = std::max(fldIndices.size() * recIndices.size(), capacity);
-        auto df = DataFrame(reserve, std::move(res));
-        df.AddFields(fldIndices); // default value not needed if default constructable
+        auto reserve = std::max<size_t>(fldIndices.size() * recIndices.size(), capacity);
+        auto df      = DataFrame(reserve, std::move(res));
 
+        // add fields to dataframe
+        if constexpr(IsFldSeq) df.SetFieldRange(fldIndices.lower, fldIndices.upper);
+        else                   df.AddFields(fldIndices);
+
+        // populate records in dataframe
         if(not recValues.empty())
         {
-            // TODO add function to add multiple records with same values
-            for(auto rec : recIndices) df.AddRecordPopulated(rec, recValues);
+            if constexpr(IsRecSeq) df.SetRecordRange(recIndices.lower, recIndices.upper, recValues);
+            else                   for(auto rec : recIndices) df.AddRecordPopulated(rec, recValues); // TODO add function to add multiple records with same values
         }
         else
         {
-            for(auto rec : recIndices) df.AddRecord(rec);
+            if constexpr(IsRecSeq) df.SetRecordRange(recIndices.lower, recIndices.upper);
+            else                   for(auto rec : recIndices) df.AddRecord(rec);                     // TODO add function to add multiple records with same values
         }
 
         return df;
     }
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::FromFieldsAndRecords(std::span<F const> const       fldIndices,
-                                                     std::span<R const> const       recIndices,
-                                                     IterableOfIterable auto const& recValues,
-                                                     size_t const capacity,
-                                                     MemR res) noexcept -> DataFrame requires DFValIndex<FldI> && DFValIndex<RecI>
+    auto DataFrame<T, F, R, L>::FromFieldsAndRecords(std::conditional_t<IsFldSeq, DFRangeIndexBounds<FldT>, std::span<F const>> const fldIndices,
+                                                    std::conditional_t<IsRecSeq, DFRangeIndexBounds<RecT>, std::span<R const>> const recIndices,
+                                                    IterableOfIterable auto const& recValues,
+                                                    size_t const                   capacity,
+                                                    MemR                           res) noexcept -> DataFrame
     {
-        // TODO add check if IterableOfIterable stores T's
         // TODO this should not be required because records are passed
         static_assert(std::is_default_constructible_v<T>, "Currently only default_constructible is supported");
 
         assert(fldIndices.size() == recIndices.size());
         assert(recIndices.size() == recValues.size() || recValues.empty());
 
-        auto reserve = std::max(fldIndices.size() * recIndices.size(), capacity);
-        auto df = DataFrame(reserve, std::move(res));
-        df.AddFields(fldIndices); // default value not needed if default constructable
+        auto reserve = std::max<size_t>(fldIndices.size() * recIndices.size(), capacity);
+        auto df      = DataFrame(reserve, std::move(res));
 
-        // TODO add function to add multiple records with same values
+        // add fields to dataframe
+        if constexpr(IsFldSeq) df.SetFieldRange(fldIndices.lower, fldIndices.upper);
+        else                   df.AddFields(fldIndices);
+
+        // populate records in dataframe
         auto valueIndex = 0;
-        for(auto rec : recIndices) df.AddRecordPopulated(rec, recValues[valueIndex++]);
+        if constexpr(IsRecSeq) df.SetRecordRange(recIndices.lower, recIndices.upper, recValues);
+        else                   for(auto rec : recIndices) df.AddRecordPopulated(rec, recValues[valueIndex++]); // TODO add function to init. in "one go"
 
         return df;
     }
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::FromFieldsAndRecords(std::initializer_list<F const> const            fldIndices,
-                                                     std::initializer_list<R const> const            recIndices,
-                                                     std::initializer_list<std::initializer_list<T>> recValues,
+    auto DataFrame<T, F, R, L>::FromFieldsAndRecords(std::conditional_t<IsFldSeq, DFRangeIndexBounds<FldT>, std::initializer_list<F const>> const fldIndices,
+                                                     std::conditional_t<IsRecSeq, DFRangeIndexBounds<RecT>, std::initializer_list<R const>> const recIndices,
+                                                     std::initializer_list<std::initializer_list<T>> const recValues,
                                                      size_t const capacity,
-                                                     MemR res) noexcept -> DataFrame requires DFValIndex<FldI> && DFValIndex<RecI>
+                                                     MemR         res) noexcept -> DataFrame
     {
         // TODO this should not be required because records are passed
         static_assert(std::is_default_constructible_v<T>, "Currently only default_constructible is supported");
@@ -630,42 +658,39 @@ namespace lugizmo {
         assert(fldIndices.size() == recIndices.size());
         assert(recIndices.size() == recValues.size() || recValues.size() == 0);
 
-        auto reserve = std::max(fldIndices.size() * recIndices.size(), capacity);
-        auto df = DataFrame(reserve, std::move(res));
-        df.AddFields(fldIndices); // default value not needed if default constructable
+        auto reserve = std::max<size_t>(fldIndices.size() * recIndices.size(), capacity);
+        auto df      = DataFrame(reserve, std::move(res));
 
+        // add fields to dataframe
+        if constexpr(IsFldSeq) df.SetFieldRange(fldIndices.lower, fldIndices.upper);
+        else                   df.AddFields(fldIndices);
+
+        // populate records in dataframe
         if(recValues.size() != 0)
         {
-            // TODO add function to add multiple records with same values
-            auto recBegin = std::begin(recIndices);
-            for(auto& vals : recValues)
+            if constexpr(IsRecSeq)
+            {
+                df.SetRecordRange(recIndices.lower, recIndices.upper, recValues);
+            }
+            else
             {
                 // TODO add function to add multiple records with same values
-                auto const& rec = *recBegin;
-                df.AddRecordPopulated(rec, vals);
-                ++recBegin;
+                auto recBegin = std::begin(recIndices);
+                for(auto& vals : recValues)
+                {
+                    auto const& rec = *recBegin;
+                    df.AddRecordPopulated(rec, vals);
+
+                    ++recBegin;
+                }
             }
+
         }
         else
         {
-            for(auto rec : recIndices) df.AddRecord(rec);
+            if constexpr(IsRecSeq) df.SetRecordRange(recIndices.lower, recIndices.upper);
+            else                   for(auto rec : recIndices) df.AddRecord(rec);                     // TODO add function to add multiple records with same values
         }
-
-        return df;
-    }
-
-
-    // ======== CONSTRUCTION SEQUENCE INDEX ========================================================================================================================================
-
-    template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::FromFields(DFRangeIndexBounds<FldT> const& fields, size_t reservedValues, MemR res) noexcept -> DataFrame requires DFSeqIndex<FldI>
-    {
-        // TODO change this to Use function X with default value
-        static_assert(std::is_default_constructible_v<T>, "Currently only default_constructible is supported");
-
-        auto reserve = std::max<size_t>(std::min(0, fields.Size()), reservedValues);
-        auto df      = DataFrame(reserve, std::move(res));
-        df.SetFieldRange(fields.lower, fields.upper, T()); // default value not needed if default constructable
 
         return df;
     }
@@ -767,7 +792,7 @@ namespace lugizmo {
     // ======== MANIPULATION SEQUENCE INDEX ================================================================================================
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::SetFieldRange(std::optional<FldT> const lower, std::optional<FldT> const upper, T const& defaultVal) -> bool requires DFSeqIndex<FldI>
+    auto DataFrame<T, F, R, L>::SetFieldRange(std::optional<FldT> const lower, std::optional<FldT> const upper, T const& defaultVal) noexcept -> bool requires DFSeqIndex<FldI>
     {
         // store current bounds in case need to recover
         auto const currentLower = fldIndex.LowerBound();
@@ -781,18 +806,24 @@ namespace lugizmo {
 
         // check if one of new bounds is not valid
         // and restore previous state
-        if(not lowerChange) fldIndex.SetUpperBound(currentUpper);
-        if(not upperChange) fldIndex.SetLowerBound(currentLower);
-        if(not lowerChange or not upperChange) return false;
+        if(not lowerChange) fldIndex.SetLowerBound(currentLower);
+        if(not upperChange) fldIndex.SetUpperBound(currentUpper);
+        if(not lowerChange and not upperChange) return false;
 
         // if lower bound is
-        Layout::AdjustColumnCount(data, capacity, *backingRes.get(), recsData, lowerChange.value(), upperChange.value(), defaultVal);
+        Layout::AdjustColumnCount(data, capacity, *backingRes.get(), recsData, lowerChange ? lowerChange.value() : 0, upperChange ? upperChange.value() : 0, defaultVal);
 
         return true;
     }
 
-    template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::SetRecordRange(std::optional<RecT> const lower, std::optional<RecT> const upper, T const& defaultVal) -> bool requires DFSeqIndex<RecI>
+    template<typename T, typename F, typename R, typename L>
+    auto DataFrame<T, F, R, L>::SetFieldRange(DFRangeIndexBounds<FldT> bounds, T const& defaultVal) noexcept -> bool requires DFSeqIndex<FldI>
+    {
+        return SetFieldRange(bounds.lower, bounds.upper, defaultVal);
+    }
+
+    template<typename T, typename F, typename R, typename L>
+    auto DataFrame<T, F, R, L>::SetRecordRange(std::optional<RecT> const lower, std::optional<RecT> const upper, T const& defaultVal) noexcept -> bool requires DFSeqIndex<RecI>
     {
         // store current bounds in case need to recover
         auto const currentLower = recIndex.LowerBound();
@@ -806,16 +837,120 @@ namespace lugizmo {
 
         // check if one of new bounds is not valid
         // and restore previous state
-        if(not lowerChange) recIndex.SetUpperBound(currentUpper);
-        if(not upperChange) recIndex.SetLowerBound(currentLower);
-        if(not lowerChange or not upperChange) return false;
+        if(not lowerChange) recIndex.SetLowerBound(currentLower);
+        if(not upperChange) recIndex.SetUpperBound(currentUpper);
+        if(not lowerChange and not upperChange) return false;
 
         // if lower bound is
-        Layout::AdjustRecordCount(data, capacity, *backingRes.get(), recsData, lowerChange.value(), upperChange.value(), defaultVal);
+        Layout::AdjustRecordCount(data, capacity, *backingRes.get(), recsData, lowerChange ? lowerChange.value() : 0, upperChange ? upperChange.value() : 0, defaultVal);
         return true;
     }
 
-    // ======== DROP =======================================================================================================================
+    template<typename T, typename F, typename R, typename L>
+    auto DataFrame<T, F, R, L>::SetRecordRange(DFRangeIndexBounds<RecT> const bounds, T const& defaultVal) noexcept -> bool requires DFSeqIndex<RecI>
+    {
+        return SetRecordRange(bounds.lower, bounds.upper, defaultVal);
+    }
+
+    template<typename T, typename F, typename R, typename L>
+    auto DataFrame<T, F, R, L>::SetRecordRange(std::optional<RecT> const lower, std::optional<RecT> const upper, std::span<T const> const records) noexcept -> bool requires DFSeqIndex<RecI>
+    {
+        // store current bounds in case need to recover
+        auto const currentLower = recIndex.LowerBound();
+        auto const currentUpper = recIndex.UpperBound();
+
+        // compute and adjust index
+        std::optional<RecT> lowerChange;
+        std::optional<RecT> upperChange;
+        if(lower.has_value()) lowerChange = recIndex.SetLowerBound(*lower);
+        if(upper.has_value()) upperChange = recIndex.SetUpperBound(*upper);
+
+        // check if one of new bounds is not valid
+        // and restore previous state
+        if(not lowerChange) recIndex.SetLowerBound(currentLower);
+        if(not upperChange) recIndex.SetUpperBound(currentUpper);
+        if(not lowerChange and not upperChange) return false;
+
+        if(records.size() != recIndex.Size()) return false;
+
+        Layout::AdjustRecordCount(data, capacity, *backingRes.get(), recsData, lowerChange ? lowerChange.value() : 0, upperChange ? upperChange.value() : 0, records);
+        return true;
+    }
+
+    template<typename T, typename F, typename R, typename L>
+    auto DataFrame<T, F, R, L>::SetRecordRange(DFRangeIndexBounds<RecT> const bounds, std::span<T const> const records) noexcept -> bool requires DFSeqIndex<RecI>
+    {
+        return SetRecordRange(bounds.lower, bounds.upper, records);
+    }
+
+    template <typename T, typename F, typename R, typename L>
+    auto DataFrame<T, F, R, L>::SetRecordRange(std::optional<RecT> const lower,
+                                               std::optional<RecT> const upper,
+                                               IterableOfIterable auto const& records) noexcept -> bool requires DFSeqIndex<RecI>
+    {
+        // store current bounds in case need to recover
+        auto const currentLower = recIndex.LowerBound();
+        auto const currentUpper = recIndex.UpperBound();
+
+        // compute and adjust index
+        std::optional<RecT> lowerChange;
+        std::optional<RecT> upperChange;
+        if(lower.has_value()) lowerChange = recIndex.SetLowerBound(*lower);
+        if(upper.has_value()) upperChange = recIndex.SetUpperBound(*upper);
+
+        // check if one of new bounds is not valid
+        // and restore previous state
+        if(not lowerChange) recIndex.SetLowerBound(currentLower);
+        if(not upperChange) recIndex.SetUpperBound(currentUpper);
+        if(not lowerChange and not upperChange) return false;
+
+        if(records.size() != recIndex.Size()) return false;
+
+        Layout::AdjustRecordCount(data, capacity, *backingRes.get(), recsData, lowerChange ? lowerChange.value() : 0, upperChange ? upperChange.value() : 0, records);
+        return true;
+    }
+
+    template <typename T, typename F, typename R, typename L>
+    auto DataFrame<T, F, R, L>::SetRecordRange(DFRangeIndexBounds<RecT> const bounds, IterableOfIterable auto const& records) noexcept -> bool requires DFSeqIndex<RecI>
+    {
+        return SetRecordRange(bounds.lower, bounds.upper, records);
+    }
+
+    template <typename T, typename F, typename R, typename L>
+    auto DataFrame<T, F, R, L>::SetRecordRange(std::optional<RecT> const lower,
+                                               std::optional<RecT> const upper,
+                                               std::initializer_list<std::initializer_list<T>> const records) noexcept -> bool requires DFSeqIndex<RecI>
+    {
+        // store current bounds in case need to recover
+        auto const currentLower = recIndex.LowerBound();
+        auto const currentUpper = recIndex.UpperBound();
+
+        // compute and adjust index
+        std::optional<RecT> lowerChange;
+        std::optional<RecT> upperChange;
+        if(lower.has_value()) lowerChange = recIndex.SetLowerBound(*lower);
+        if(upper.has_value()) upperChange = recIndex.SetUpperBound(*upper);
+
+        // check if one of new bounds is not valid
+        // and restore previous state
+        if(not lowerChange) recIndex.SetLowerBound(currentLower);
+        if(not upperChange) recIndex.SetUpperBound(currentUpper);
+        if(not lowerChange and not upperChange) return false;
+
+        if(records.size() != recIndex.Size()) return false;
+
+        Layout::AdjustRecordCount(data, capacity, *backingRes.get(), recsData, lowerChange ? lowerChange.value() : 0, upperChange ? upperChange.value() : 0, records);
+        return true;
+    }
+
+    template <typename T, typename F, typename R, typename L>
+    auto DataFrame<T, F, R, L>::SetRecordRange(DFRangeIndexBounds<RecT> const bounds,
+                                               std::initializer_list<std::initializer_list<T>> const records) noexcept -> bool requires DFSeqIndex<RecI>
+    {
+        return SetRecordRange(bounds.lower, bounds.upper, records);
+    }
+
+    // ======== DROP ===============================================================================================================================================================
 
     template <typename T, typename F, typename R, typename L>
     auto DataFrame<T, F, R, L>::DropField(F const& index) -> bool requires DFValIndex<FldI>

@@ -15,19 +15,26 @@
 
 namespace lugizmo {
 
-    template<typename T>
+    template<typename T = size_t>
     struct DFRangeIndexBounds
     {
+        static_assert(std::is_integral_v<T>, "DFRangeIndexBounds must be an integral type.");
+
         T lower;
         T upper;
 
         [[nodiscard]] auto Size() const noexcept { return upper - lower; }  // TODO support other types like chrono, here should be fine but what about dataframe
         [[nodiscard]] auto size() const noexcept { return Size(); }         // TODO support other types like chrono, here should be fine but what about dataframe
+
+        [[nodiscard]] auto Empty() const noexcept { return Size() == T(0); }  // TODO support other types like chrono, here should be fine but what about dataframe
+        [[nodiscard]] auto empty() const noexcept { return Empty(); }         // TODO support other types like chrono, here should be fine but what about dataframe
     };
 
-    template<typename T = size_t> requires std::is_integral_v<T>
+    template<typename T = size_t>
     struct DFRangeIndex final : DFBaseSequenceIndex<DFRangeIndex<T>, T>
     {
+        static_assert(std::is_integral_v<T>, "DFRangeIndex must be an integral type.");
+
         using KeyType = T;
         using KeyView = DFRangeIndexBounds<T>;
 
@@ -43,6 +50,10 @@ namespace lugizmo {
         {
         }
 
+        /**
+        * TODO doc + idea
+        */
+        [[nodiscard]]
         constexpr auto Keys() const noexcept -> KeyView
         {
             return {.lower = lowerBound, .upper = upperBound};
@@ -81,7 +92,7 @@ namespace lugizmo {
         [[maybe_unused]]
         constexpr auto SetLowerBound(KeyType const key) noexcept -> std::optional<KeyType>
         {
-            if(key > upperBound) return std::nullopt;
+            if(key > upperBound || key == lowerBound) return std::nullopt;
             auto diff = (key - lowerBound) * -1;
 
             lowerBound = key;
@@ -94,11 +105,19 @@ namespace lugizmo {
         [[maybe_unused]]
         constexpr auto SetUpperBound(KeyType const key) noexcept -> std::optional<KeyType>
         {
-            if(key < lowerBound) return std::nullopt;
+            if(key < lowerBound || key == upperBound) return std::nullopt;
             auto diff = key - upperBound;
 
             upperBound = key;
             return diff;
+        }
+
+        // TODO add to base
+        [[nodiscard]]
+        constexpr auto Position(KeyType const key) const noexcept -> std::optional<size_t>
+        {
+            if(key < lowerBound || key >= upperBound) return std::nullopt;
+            return key - lowerBound;
         }
 
         [[nodiscard]]
