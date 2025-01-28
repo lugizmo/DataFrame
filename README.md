@@ -44,6 +44,7 @@ Functional:
 - usage examples
 - watch out what gcc is doing and add support if possible
 - handling user types that might throw in any of it's constructors
+- when looking at a view of record or field enable not just iterate but also doing lookups by using operator[] or .Get or something like this
 - add more todo's
 
 ### TODO Code

@@ -331,7 +331,122 @@ namespace lugizmo {
                 // Fill new rows at the beginning
                 for(size_t row = 0; row < adjCountByBeg; ++row)
                 {
+                    #ifndef NDEBUG
+                    auto* const start = newData + row * colCount;
+                    auto* const end   = newData + (row + 1) * colCount;
+                    assert(start < newData + (row + 1) * colCount && end <= newData + newCapacity && "Invalid memory range for std::uninitialized_fill_n");
+                    #endif // NDEBUG
+
                     std::uninitialized_fill_n(newData + row * colCount, colCount, defaultValue);
+                }
+
+                // Copy existing rows
+                if(rowCount > 0)
+                {
+                    #ifndef NDEBUG
+                    auto* const destBeg = newData + adjCountByBeg * colCount;
+                    auto* const destEnd = destBeg + rowCount * colCount;
+                    assert(destEnd <= newData + newCapacity && "Destination out of bounds for std::uninitialized_copy_n");
+                    #endif // NDEBUG
+
+                    std::uninitialized_copy_n(data, rowCount * colCount, newData + adjCountByBeg * colCount);
+                }
+
+                // Fill new rows at the end
+                for(size_t row = 0; row < adjCountByEnd; ++row)
+                {
+                    #ifndef NDEBUG
+                    auto* const start = newData + (adjCountByBeg + rowCount + row) * colCount;
+                    auto* const end   = newData + (adjCountByBeg + rowCount + row + 1) * colCount;
+                    assert(start < end && end <= newData + newCapacity && "Invalid memory range for std::uninitialized_fill_n");
+                    #endif // NDEBUG
+
+                    std::uninitialized_fill_n(newData + (adjCountByBeg + rowCount + row) * colCount, colCount, defaultValue);
+                }
+
+                // Deallocate old memory
+                res.deallocate(data, capacity * sizeof(T));
+
+                // Update pointer and capacity
+                data = newData;
+                capacity = newCapacity;
+            }
+            else
+            {
+                // If no expansion is needed, shift rows in place
+                if(adjCountByBeg > 0)
+                {
+                    // Move rows up to make room at the beginning
+                    auto const begin  = data;
+                    auto const end    = data + rowCount * colCount;
+                    auto const newEnd = data + (rowCount + adjCountByBeg) * colCount;
+
+                    assert(newEnd > end && begin <= end && "Move backward memory in undefined range");
+                    if(rowCount != 0) std::move_backward(begin, end, newEnd);
+
+                    // Initialize newly exposed rows at the beginning
+                    for(size_t row = 0; row < adjCountByBeg; ++row)
+                    {
+                        auto* const fillStart = data + row * colCount;
+                        auto* const fillEnd   = data + (row + 1) * colCount;
+                        assert(fillStart < fillEnd && fillEnd <= data + capacity * colCount && "Invalid memory range for std::fill");
+
+                        std::fill(fillStart, fillEnd, defaultValue);
+                    }
+                }
+
+                // Initialize newly exposed rows at the end
+                for (size_t row = 0; row < adjCountByEnd; ++row)
+                {
+                    auto* const start = data + (adjCountByBeg + rowCount + row) * colCount;
+                    auto* const end   = data + (adjCountByBeg + rowCount + row + 1) * colCount;
+                    assert(start < end && end <= data + capacity * colCount && "Invalid memory range for std::fill");
+
+                    std::fill(start, end, defaultValue);
+                }
+            }
+
+            // Update the view to reflect the new row count
+            dataView = std::mdspan<T, std::dextents<size_t, 2>, Layout>(data, newRowCount, colCount);
+        }
+
+        static void AdjustRecordCount(T*& data, size_t& capacity, Memory& res, MDSpan& dataView, size_t const adjCountByBeg, size_t const adjCountByEnd, std::span<T const> const values) noexcept
+        {
+            if (adjCountByBeg == 0 && adjCountByEnd == 0) return;
+
+            auto const colCount = dataView.extent(1);
+            auto const rowCount = dataView.extent(0);
+
+            // Ensure the size of the span matches the column count
+            if (values.size() != colCount) return;
+
+            auto const newRowCount = rowCount + adjCountByBeg + adjCountByEnd;
+
+            // This is considered an error.
+            if (newRowCount < 0) return;
+
+            // Clear data if zero count
+            if (newRowCount == 0)
+            {
+                res.deallocate(data, capacity * sizeof(T));
+
+                data = nullptr;
+                capacity = 0;
+                dataView = MDSpan{nullptr, 0, 0};
+
+                return;
+            }
+
+            if (newRowCount * colCount > capacity || capacity == 0)
+            {
+                // Expand storage
+                auto const newCapacity = std::max<size_t>(2 * capacity, colCount * (newRowCount + 1));
+                auto* const newData = static_cast<T*>(res.allocate(newCapacity * sizeof(T)));
+
+                // Fill new rows at the beginning
+                for (size_t row = 0; row < adjCountByBeg; ++row)
+                {
+                    std::uninitialized_copy(values.begin(), values.end(), newData + row * colCount);
                 }
 
                 // Copy existing rows
@@ -340,7 +455,7 @@ namespace lugizmo {
                 // Fill new rows at the end
                 for (size_t row = 0; row < adjCountByEnd; ++row)
                 {
-                    std::uninitialized_fill_n(newData + (adjCountByBeg + rowCount + row) * colCount, colCount, defaultValue);
+                    std::uninitialized_copy(values.begin(), values.end(), newData + (adjCountByBeg + rowCount + row) * colCount);
                 }
 
                 // Deallocate old memory
@@ -358,21 +473,213 @@ namespace lugizmo {
                 // Fill new rows at the beginning
                 for (size_t row = 0; row < adjCountByBeg; ++row)
                 {
-                    std::fill(data + row * colCount, data + (row + 1) * colCount, defaultValue);
+                    std::copy(values.begin(), values.end(), data + row * colCount);
                 }
 
                 // Fill new rows at the end
                 for (size_t row = 0; row < adjCountByEnd; ++row)
                 {
-                    std::fill(data + (adjCountByBeg + rowCount + row) * colCount,
-                              data + (adjCountByBeg + rowCount + row + 1) * colCount,
-                              defaultValue);
+                    std::copy(values.begin(), values.end(), data + (adjCountByBeg + rowCount + row) * colCount);
                 }
             }
 
             // Update the view to reflect the new row count
             dataView = std::mdspan<T, std::dextents<size_t, 2>, Layout>(data, newRowCount, colCount);
+        }
 
+        static void AdjustRecordCount(T*& data, size_t& capacity, Memory& res, MDSpan& dataView, size_t const adjCountByBeg, size_t const adjCountByEnd, IterableOfIterable auto const& values) noexcept
+        {
+            if (adjCountByBeg == 0 && adjCountByEnd == 0) return;
+
+            auto const colCount = dataView.extent(1);
+            auto const rowCount = dataView.extent(0);
+
+            // Check if the input matches the required dimensions
+            auto const inputRowCount = std::ranges::distance(values);
+            if (inputRowCount == 0) return;
+
+            auto const inputColCount = std::ranges::distance(*std::begin(values));
+            if (inputColCount != colCount) return;
+
+            auto const newRowCount = rowCount + adjCountByBeg + adjCountByEnd;
+
+            // This is considered an error
+            if (newRowCount < 0) return;
+
+            // Clear data if zero count
+            if (newRowCount == 0)
+            {
+                res.deallocate(data, capacity * sizeof(T));
+
+                data = nullptr;
+                capacity = 0;
+                dataView = MDSpan{nullptr, 0, 0};
+
+                return;
+            }
+
+            if (newRowCount * colCount > capacity || capacity == 0)
+            {
+                // Expand storage
+                auto const newCapacity = std::max<size_t>(2 * capacity, colCount * (newRowCount + 1));
+                auto* const newData = static_cast<T*>(res.allocate(newCapacity * sizeof(T)));
+
+                // Fill new rows at the beginning
+                auto inputRowIt = std::begin(values);
+                for (size_t row = 0; row < adjCountByBeg; ++row)
+                {
+                    if (inputRowIt != std::end(values)) {
+                        std::ranges::copy(*inputRowIt, newData + row * colCount);
+                        ++inputRowIt;
+                    }
+                }
+
+                // Copy existing rows
+                std::uninitialized_copy_n(data, rowCount * colCount, newData + adjCountByBeg * colCount);
+
+                // Fill new rows at the end
+                for (size_t row = 0; row < adjCountByEnd; ++row)
+                {
+                    if (inputRowIt != std::end(values)) {
+                        std::ranges::copy(*inputRowIt, newData + (adjCountByBeg + rowCount + row) * colCount);
+                        ++inputRowIt;
+                    }
+                }
+
+                // Deallocate old memory
+                res.deallocate(data, capacity * sizeof(T));
+
+                // Update pointer and capacity
+                data = newData;
+                capacity = newCapacity;
+            }
+            else
+            {
+                // If no expansion is needed, shift rows in place
+                std::move_backward(data, data + rowCount * colCount, data + (rowCount + adjCountByEnd) * colCount);
+
+                // Fill new rows at the beginning
+                auto inputRowIt = std::begin(values);
+                for (size_t row = 0; row < adjCountByBeg; ++row)
+                {
+                    if (inputRowIt != std::end(values)) {
+                        std::copy(std::begin(*inputRowIt), std::end(*inputRowIt), data + row * colCount);
+                        ++inputRowIt;
+                    }
+                }
+
+                // Fill new rows at the end
+                for (size_t row = 0; row < adjCountByEnd; ++row)
+                {
+                    if (inputRowIt != std::end(values)) {
+                        std::copy(std::begin(*inputRowIt), std::end(*inputRowIt),
+                                  data + (adjCountByBeg + rowCount + row) * colCount);
+                        ++inputRowIt;
+                    }
+                }
+            }
+
+            // Update the view to reflect the new row count
+            dataView = std::mdspan<T, std::dextents<size_t, 2>, Layout>(data, newRowCount, colCount);
+        }
+
+        static void AdjustRecordCount(T*& data, size_t& capacity, Memory& res, MDSpan& dataView, size_t const adjCountByBeg, size_t const adjCountByEnd,
+                                      std::initializer_list<std::initializer_list<T>> values) noexcept
+        {
+            if (adjCountByBeg == 0 && adjCountByEnd == 0) return;
+
+            auto const colCount = dataView.extent(1);
+            auto const rowCount = dataView.extent(0);
+
+            // Validate dimensions of the input
+            auto const inputRowCount = values.size();
+            if (inputRowCount == 0) return;
+
+            auto const inputColCount = values.begin()->size();
+            for (auto const& row : values) {
+                if (row.size() != inputColCount) return; // Ensure uniform column size in input
+            }
+            if (inputColCount != colCount) return;
+
+            auto const newRowCount = rowCount + adjCountByBeg + adjCountByEnd;
+
+            // This is considered an error
+            if (newRowCount < 0) return;
+
+            // Clear data if zero count
+            if (newRowCount == 0)
+            {
+                res.deallocate(data, capacity * sizeof(T));
+                data = nullptr;
+                capacity = 0;
+                dataView = MDSpan{nullptr, 0, 0};
+                return;
+            }
+
+            if (newRowCount * colCount > capacity || capacity == 0)
+            {
+                // Expand storage
+                auto const newCapacity = std::max<size_t>(2 * capacity, colCount * (newRowCount + 1));
+                auto* const newData = static_cast<T*>(res.allocate(newCapacity * sizeof(T)));
+
+                // Fill new rows at the beginning
+                auto inputRowIt = values.begin();
+                for (size_t row = 0; row < adjCountByBeg; ++row)
+                {
+                    if (inputRowIt != values.end()) {
+                        std::uninitialized_copy(inputRowIt->begin(), inputRowIt->end(), newData + row * colCount);
+                        ++inputRowIt;
+                    }
+                }
+
+                // Copy existing rows
+                std::uninitialized_copy_n(data, rowCount * colCount, newData + adjCountByBeg * colCount);
+
+                // Fill new rows at the end
+                for (size_t row = 0; row < adjCountByEnd; ++row)
+                {
+                    if (inputRowIt != values.end()) {
+                        std::uninitialized_copy(inputRowIt->begin(), inputRowIt->end(),
+                                                newData + (adjCountByBeg + rowCount + row) * colCount);
+                        ++inputRowIt;
+                    }
+                }
+
+                // Deallocate old memory
+                res.deallocate(data, capacity * sizeof(T));
+
+                // Update pointer and capacity
+                data = newData;
+                capacity = newCapacity;
+            }
+            else
+            {
+                // If no expansion is needed, shift rows in place
+                std::move_backward(data, data + rowCount * colCount, data + (rowCount + adjCountByEnd) * colCount);
+
+                // Fill new rows at the beginning
+                auto inputRowIt = values.begin();
+                for (size_t row = 0; row < adjCountByBeg; ++row)
+                {
+                    if (inputRowIt != values.end()) {
+                        std::copy(inputRowIt->begin(), inputRowIt->end(), data + row * colCount);
+                        ++inputRowIt;
+                    }
+                }
+
+                // Fill new rows at the end
+                for (size_t row = 0; row < adjCountByEnd; ++row)
+                {
+                    if (inputRowIt != values.end()) {
+                        std::copy(inputRowIt->begin(), inputRowIt->end(),
+                                  data + (adjCountByBeg + rowCount + row) * colCount);
+                        ++inputRowIt;
+                    }
+                }
+            }
+
+            // Update the view to reflect the new row count
+            dataView = std::mdspan<T, std::dextents<size_t, 2>, Layout>(data, newRowCount, colCount);
         }
 
         static void DropRow(T*& data, size_t& /*capacity*/, Memory& /*res*/, MDSpan& dataView, size_t const rowToRemove) noexcept
