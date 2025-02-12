@@ -61,8 +61,8 @@ namespace lugizmo {
         static constexpr bool IsFldSeq = DFSeqIndex<FldIndex>;
         static constexpr bool IsRecSeq = DFSeqIndex<RecIndex>;
 
-        using Data = T*;                                                                // stored view into data
-        using MemR = std::shared_ptr<std::pmr::memory_resource>;                        // backing memory resource type
+        using DataPt = T*;                                                              // stored view into data
+        using MemRsc = std::shared_ptr<std::pmr::memory_resource>;                      // backing memory resource type
 
         // field/record index & view types
         using FldI = std::conditional_t<IsFldSeq, FldIndex, DFUniqueIndex<FldIndex>>;   // index for field values
@@ -73,12 +73,12 @@ namespace lugizmo {
         using Recs = typename RecI::KeyView;                                            // stored view into record indices
 
         template<typename MDT>
-        using RecsData = std::mdspan<MDT, std::dextents<size_t, 2>, LayoutPolicy>;  // stored view into data;
+        using RecsData = std::mdspan<MDT, std::dextents<size_t, 2>, LayoutPolicy>;      // stored view into data;
 
         // data section
-        MemR        backingRes;     // memory resource to use
+        MemRsc      backingRes;     // memory resource to use
         size_t      capacity;       // capacity of data
-        Data        data;           // pointer to allocated memory
+        DataPt      data;           // pointer to allocated memory
         RecsData<T> recsData;       // view into whole stored data
 
         // indices/view section
@@ -87,7 +87,7 @@ namespace lugizmo {
 
     public:
 
-        // ======== CONSTRUCTION ===================================================================================================================================================
+        // ======== CONSTRUCTION ===========================================================================================================
 
         /**
          *  @brief   Default constructor that creates an empty
@@ -105,9 +105,9 @@ namespace lugizmo {
          *                       record nor column count but the multiple of both.
          * @param res            Backing memory resource to use (defaults to system-default).
          */
-        explicit DataFrame(size_t reservedValues, MemR res = BackingResDefault()) noexcept;
+        explicit DataFrame(size_t reservedValues, MemRsc res = BackingResDefault()) noexcept;
 
-        // ======== CONSTRUCTION FUNCTIONS =========================================================================================================================================
+        // ======== CONSTRUCTION FUNCTIONS =================================================================================================
 
         /**
          * @brief Empty Dataframe with field definitions optionally reserving memory
@@ -119,7 +119,8 @@ namespace lugizmo {
          *
          * @return Dataframe initialized with given fields.
          */
-        static auto FromFields(std::conditional_t<IsFldSeq, DFRangeIndexBounds<FldT>, std::span<FldT const>> fields, size_t reservedValues = 0, MemR res = BackingResDefault()) noexcept -> DataFrame;
+        static auto FromFields(std::conditional_t<IsFldSeq, DFRangeIndexBounds<FldT>, std::span<FldT const>> fields, size_t reservedValues = 0,
+                               MemRsc res = BackingResDefault()) noexcept -> DataFrame;
 
         /**
          * @brief Empty Dataframe with field definitions optionally reserving memory
@@ -131,7 +132,8 @@ namespace lugizmo {
          *
          * @return Dataframe initialized with given fields.
          */
-        static auto FromFields(std::initializer_list<FldT const> fields, size_t reservedValues = 0, MemR res = BackingResDefault()) noexcept -> DataFrame requires DFValIndex<FldI>;
+        static auto FromFields(std::initializer_list<FldT const> fields, size_t reservedValues = 0,
+                               MemRsc res = BackingResDefault()) noexcept -> DataFrame requires DFValIndex<FldI>;
 
         /**
          *  @brief Add new fields and records; all records are
@@ -149,7 +151,7 @@ namespace lugizmo {
                                         std::conditional_t<IsRecSeq, DFRangeIndexBounds<RecT>, std::span<RecIndex const>> recIndices,
                                         std::span<T const> recValues = {},
                                         size_t             capacity  = 0,
-                                        MemR               res       = BackingResDefault()) noexcept -> DataFrame;
+                                        MemRsc             res       = BackingResDefault()) noexcept -> DataFrame;
 
         /**
          *  @brief Add new fields and records; all records are
@@ -167,7 +169,7 @@ namespace lugizmo {
                                          std::conditional_t<IsRecSeq, DFRangeIndexBounds<RecT>, std::span<RecIndex const>> recIndices,
                                          IterableOfIterable auto const& recValues,
                                          size_t             capacity  = 0,
-                                         MemR               res       = BackingResDefault()) noexcept -> DataFrame;
+                                         MemRsc             res       = BackingResDefault()) noexcept -> DataFrame;
 
         /**
          *  @brief Add new fields and records; all records are
@@ -185,9 +187,9 @@ namespace lugizmo {
                                          std::conditional_t<IsRecSeq, DFRangeIndexBounds<RecT>, std::initializer_list<RecIndex const>> recIndices,
                                          std::initializer_list<std::initializer_list<T>> recValues = {},
                                          size_t capacity = 0,
-                                         MemR   res      = BackingResDefault()) noexcept -> DataFrame;
+                                         MemRsc res      = BackingResDefault()) noexcept -> DataFrame;
 
-        // ======== COPY, MOVE & DELETE ============================================================================================================================================
+        // ======== COPY, MOVE & DELETE ====================================================================================================
 
         DataFrame(DataFrame const&) noexcept = delete;      // TODO or should I !?
         auto operator=(DataFrame const&) noexcept = delete; // TODO or should I !?
@@ -250,7 +252,7 @@ namespace lugizmo {
 
         auto SetRecordRange(DFRangeIndexBounds<RecT>, std::initializer_list<std::initializer_list<T>> records) noexcept -> bool requires DFSeqIndex<RecI>;
 
-        // ======== ACCESSORS UNIQUE INDEX =========================================================================================================================================
+        // ======== ACCESSORS UNIQUE INDEX =================================================================================================
 
         [[nodiscard]]
         auto GetValue(FldT const& field, RecT const& record) const -> std::optional<std::reference_wrapper<T const>>
@@ -501,11 +503,24 @@ namespace lugizmo {
         /// @return The size of all elements stored in the dataframe.
         [[nodiscard]] auto Size() const noexcept -> size_t { return recsData.size(); }
 
+        /// @return The count of fields.
+        [[nodiscard]] auto FieldSize() const noexcept -> size_t { return fldIndex.Size(); }
+
+        /// @return The count of records.
+        [[nodiscard]] auto RecordSize() const noexcept -> size_t { return recIndex.Size(); }
+
+        /// @attention It's a view so can be invalidated when adding/removing fields/records.
         /// @return A view into the current fields (indices) stored in the dataframe.
         [[nodiscard]] auto Fields() const noexcept -> Flds { return fldIndex.Keys(); }
 
+        /// @attention It's a view so can be invalidated when adding/removing fields/records.
         /// @return A view into the current records (indices) stored in the dataframe.
         [[nodiscard]] auto Records() const noexcept -> Recs { return recIndex.Keys(); }
+
+        /// @attention It's a pointer so can be invalidated when adding/removing fields/records.
+        ///            Only keep this pointer alive as long as this dataframe wasn't mutated.
+        /// @return    Pointer to the currently stored dataframe->data.
+        [[nodiscard]] auto Data() const noexcept -> T const* { return data; }
 
         /// @attention It's a view so can be invalidated when adding/removing fields/records.
         /// @return    A span over the values as natural 2D view
@@ -521,7 +536,7 @@ namespace lugizmo {
         static_assert(std::is_trivially_copyable_v<Flds>, "Fields() returns this.");
     };
 
-    // ======== CONSTRUCTION =======================================================================================================================================================
+    // ======== CONSTRUCTION ===============================================================================================================
 
     template <typename T, typename F, typename R, typename L>
     DataFrame<T, F, R, L>::DataFrame() noexcept :
@@ -538,7 +553,7 @@ namespace lugizmo {
     }
 
     template <typename T, typename F, typename R, typename L>
-    DataFrame<T, F, R, L>::DataFrame(size_t const reservedValues, MemR res) noexcept :
+    DataFrame<T, F, R, L>::DataFrame(size_t const reservedValues, MemRsc res) noexcept :
         backingRes(std::move(res)),
         capacity(reservedValues),
         data(static_cast<T*>(backingRes->allocate(reservedValues * sizeof(T), alignof(T)))),
@@ -551,10 +566,10 @@ namespace lugizmo {
         else                              recIndex = RecI{};
     }
 
-    // ======== CONSTRUCTION FUNCTIONS =============================================================================================================================================
+    // ======== CONSTRUCTION FUNCTIONS =====================================================================================================
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::FromFields(std::conditional_t<IsFldSeq, DFRangeIndexBounds<FldT>, std::span<FldT const>> const fields, size_t const reservedValues, MemR res) noexcept -> DataFrame
+    auto DataFrame<T, F, R, L>::FromFields(std::conditional_t<IsFldSeq, DFRangeIndexBounds<FldT>, std::span<FldT const>> const fields, size_t const reservedValues, MemRsc res) noexcept -> DataFrame
     {
         // TODO change this to Use function X with default value
         static_assert(std::is_default_constructible_v<T>, "Currently only default_constructible is supported");
@@ -570,7 +585,7 @@ namespace lugizmo {
     }
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::FromFields(std::initializer_list<FldT const> const fields, size_t const reservedValues, MemR res) noexcept -> DataFrame requires DFValIndex<FldI>
+    auto DataFrame<T, F, R, L>::FromFields(std::initializer_list<FldT const> const fields, size_t const reservedValues, MemRsc res) noexcept -> DataFrame requires DFValIndex<FldI>
     {
         // TODO change this to Use function X with default value
         static_assert(std::is_default_constructible_v<T>, "Currently only default_constructible is supported");
@@ -587,7 +602,7 @@ namespace lugizmo {
                                                     std::conditional_t<IsRecSeq, DFRangeIndexBounds<RecT>, std::span<R const>> const recIndices,
                                                     std::span<T const> const recValues,
                                                     size_t const             capacity,
-                                                    MemR                     res) noexcept -> DataFrame
+                                                    MemRsc                   res) noexcept -> DataFrame
     {
         // TODO this should not be required because records are passed
         static_assert(std::is_default_constructible_v<T>, "Currently only default_constructible is supported");
@@ -622,7 +637,7 @@ namespace lugizmo {
                                                     std::conditional_t<IsRecSeq, DFRangeIndexBounds<RecT>, std::span<R const>> const recIndices,
                                                     IterableOfIterable auto const& recValues,
                                                     size_t const                   capacity,
-                                                    MemR                           res) noexcept -> DataFrame
+                                                    MemRsc                         res) noexcept -> DataFrame
     {
         // TODO this should not be required because records are passed
         static_assert(std::is_default_constructible_v<T>, "Currently only default_constructible is supported");
@@ -650,7 +665,7 @@ namespace lugizmo {
                                                      std::conditional_t<IsRecSeq, DFRangeIndexBounds<RecT>, std::initializer_list<R const>> const recIndices,
                                                      std::initializer_list<std::initializer_list<T>> const recValues,
                                                      size_t const capacity,
-                                                     MemR         res) noexcept -> DataFrame
+                                                     MemRsc       res) noexcept -> DataFrame
     {
         // TODO this should not be required because records are passed
         static_assert(std::is_default_constructible_v<T>, "Currently only default_constructible is supported");
@@ -695,7 +710,7 @@ namespace lugizmo {
         return df;
     }
 
-    // ======== COPY, MOVE & DELETE ================================================================================================================================================
+    // ======== COPY, MOVE & DELETE ========================================================================================================
 
     template <typename T, typename F, typename R, typename L>
     DataFrame<T, F, R, L>::DataFrame(DataFrame &&other) noexcept
@@ -950,7 +965,7 @@ namespace lugizmo {
         return SetRecordRange(bounds.lower, bounds.upper, records);
     }
 
-    // ======== DROP ===============================================================================================================================================================
+    // ======== DROP =======================================================================================================================
 
     template <typename T, typename F, typename R, typename L>
     auto DataFrame<T, F, R, L>::DropField(F const& index) -> bool requires DFValIndex<FldI>
