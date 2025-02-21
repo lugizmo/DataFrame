@@ -7,11 +7,13 @@
 set(LUGIZMO_DF_INCLUDES
         include/lugizmo/memory/Memory.h
         include/lugizmo/memory/References.h
+#        include/lugizmo/memory/DFMemory.h
 
         include/lugizmo/container/Concepts.h
         include/lugizmo/container/DataFrameMap.h
 
-        include/lugizmo/dataframe/Layout.h
+        include/lugizmo/dataframe/LayoutColMajor.h
+        include/lugizmo/dataframe/LayoutRowMajor.h
         include/lugizmo/dataframe/IndexBase.h
         include/lugizmo/dataframe/IndexUnique.h
         include/lugizmo/dataframe/IndexRange.h
@@ -45,12 +47,14 @@ add_subdirectory(bench)
 # TODO move to separate CMakeLists.txt
 if(OPT_BUILD_TESTS)
     add_executable(DataFrameTest
+
             test/container/ConceptsTest.cpp
             test/container/DataFrameMapTest.cpp
 
             test/dataframe/IndexBaseTest.cpp
             test/dataframe/IndexRangeTest.cpp
             test/dataframe/IndexUniqueTest.cpp
+            test/dataframe/LayoutRowMajorTest.cpp
 
             test/DataframeTest.cpp
             test/DataframeRangeIndexTest.cpp

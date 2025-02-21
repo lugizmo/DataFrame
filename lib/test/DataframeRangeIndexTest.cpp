@@ -8,8 +8,6 @@
 
 #include "lugizmo/DataFrame.h"
 
-#include <mdspan>
-
 TEST(lugizmo_dataframe_range_index_test, layout_default_is_row_major)
 {
     using namespace lugizmo;
@@ -179,4 +177,37 @@ TEST(lugizmo_dataframe_range_index_test, row_major_set_get_records)
 
     values = df.ValuesSpan();
     ASSERT_TRUE(std::ranges::all_of(values, [](auto const& v) { return v == 43; }));
+
+    // ====== SHRINK IT! ==========================================================================================
+
+    auto lower = records.lower;
+    auto upper = records.upper;
+
+    ASSERT_TRUE(lower < 0);
+    ASSERT_TRUE(upper > 0);
+
+    // remove records one by one
+    // don't do this at home
+    while(lower <= 0)
+    {
+        records = {.lower = lower++, .upper = upper};
+        df.SetRecordRange(records, 0);
+    }
+    ASSERT_FALSE(df.Empty());
+    ASSERT_EQ(df.Records().size(), 5);
+
+    while(upper >= 0)
+    {
+        records = {.lower = lower, .upper = upper--};
+        df.SetRecordRange(records, 0);
+    }
+    ASSERT_TRUE(df.Empty());
+    ASSERT_EQ(df.Records().size(), 0);
 }
+
+TEST(lugizmo_dataframe_range_index_test, row_major_set_with_records)
+{
+
+}
+
+// TODO test adding ranges by using span<T>, initializer<T> & iterable<iterable<T>>

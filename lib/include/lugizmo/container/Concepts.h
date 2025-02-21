@@ -83,6 +83,28 @@ namespace lugizmo {
      */
     template<typename T>
     concept IterableOfIterable = Iterable<T> && Iterable<decltype(*std::declval<T>().begin())>;
-}
+
+    /**
+     * @brief Concept for checking if a type is an iterable with minimal requirements (supports range-based for loops).
+     */
+    template<typename T>
+    concept MinimalIterable = requires(T t) {
+        std::ranges::begin(t);
+        std::ranges::end(t);
+    };
+
+    /**
+     * @brief Concept for checking if a type is an iterable of iterables.
+     *        This checks only the minimal requirements.
+     *
+     * This ensures that:
+     *  - The outer type is iterable (minimal).
+     *  - The elements of the outer type are also iterable (minimal).
+     */
+    template<typename T>
+    concept MinimalIterableOfIterable =
+        MinimalIterable<T> &&
+        MinimalIterable<std::ranges::range_value_t<T>>;
+    }
 
 #endif // LUGIZMO_CONTAINER_CONCEPTS_H

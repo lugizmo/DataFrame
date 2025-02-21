@@ -32,7 +32,7 @@
 #include "dataframe/IndexUnique.h"
 #include "dataframe/IndexRange.h"
 #include "dataframe/Selector.h"
-#include "dataframe/Layout.h"
+#include "dataframe/LayoutRowMajor.h"
 #include "dataframe/View.h"
 #include "dataframe/ViewIndexed.h"
 
@@ -218,7 +218,7 @@ namespace lugizmo {
             auto const added = fldIndex.AddMultiple(indices);
             if(not added) return false; // TODO see TODO at last return of this function
 
-            Layout::AddColumn(data, capacity, *backingRes.get(), recsData, indices.size(), defaultValue);
+            Layout::ResizeCols(data, capacity, *backingRes.get(), recsData, 0, indices.size(), defaultValue);
 
             // TODO this return is bad, better to switch returning an iterator to fields added? Then user can check on != end
             return true;
@@ -773,7 +773,7 @@ namespace lugizmo {
         if(not added) return false;
 
         // if added to index add new columns to data
-        Layout::AddColumn(data, capacity, *backingRes.get(), recsData, 1, defaultValue);
+        Layout::ResizeCols(data, capacity, *backingRes.get(), recsData, 0, 1, defaultValue);
         return true;
     }
 
@@ -785,7 +785,7 @@ namespace lugizmo {
         if(not added) return false;
 
         // add row to storage
-        Layout::AddRow(data, capacity, *backingRes.get(), recsData, 1, defaultValue);
+        Layout::ResizeRows(data, capacity, *backingRes.get(), recsData, 0, 1, defaultValue);
         return true;
     }
 
@@ -800,7 +800,7 @@ namespace lugizmo {
         if(not added) return false;
 
         // add row to storage
-        Layout::AddRowWithValues(data, capacity, *backingRes.get(), recsData, records);
+        Layout::ResizeRows(data, capacity, *backingRes.get(), recsData, 0, 1, records);
         return true;
     }
 
@@ -826,7 +826,7 @@ namespace lugizmo {
         if(not lowerChange and not upperChange) return false;
 
         // if lower bound is
-        Layout::AdjustColumnCount(data, capacity, *backingRes.get(), recsData, lowerChange ? lowerChange.value() : 0, upperChange ? upperChange.value() : 0, defaultVal);
+        Layout::ResizeCols(data, capacity, *backingRes.get(), recsData, lowerChange ? lowerChange.value() : 0, upperChange ? upperChange.value() : 0, defaultVal);
 
         return true;
     }
@@ -857,7 +857,7 @@ namespace lugizmo {
         if(not lowerChange and not upperChange) return false;
 
         // if lower bound is
-        Layout::AdjustRecordCount(data, capacity, *backingRes.get(), recsData, lowerChange ? lowerChange.value() : 0, upperChange ? upperChange.value() : 0, defaultVal);
+        Layout::ResizeRows(data, capacity, *backingRes.get(), recsData, lowerChange ? lowerChange.value() : 0, upperChange ? upperChange.value() : 0, defaultVal);
         return true;
     }
 
@@ -888,7 +888,7 @@ namespace lugizmo {
 
         if(records.size() != recIndex.Size()) return false;
 
-        Layout::AdjustRecordCount(data, capacity, *backingRes.get(), recsData, lowerChange ? lowerChange.value() : 0, upperChange ? upperChange.value() : 0, records);
+        Layout::ResizeRows(data, capacity, *backingRes.get(), recsData, lowerChange ? lowerChange.value() : 0, upperChange ? upperChange.value() : 0, records);
         return true;
     }
 
@@ -921,7 +921,7 @@ namespace lugizmo {
 
         if(records.size() != recIndex.Size()) return false;
 
-        Layout::AdjustRecordCount(data, capacity, *backingRes.get(), recsData, lowerChange ? lowerChange.value() : 0, upperChange ? upperChange.value() : 0, records);
+        Layout::ResizeRows(data, capacity, *backingRes.get(), recsData, lowerChange ? lowerChange.value() : 0, upperChange ? upperChange.value() : 0, records);
         return true;
     }
 
@@ -954,7 +954,7 @@ namespace lugizmo {
 
         if(records.size() != recIndex.Size()) return false;
 
-        Layout::AdjustRecordCount(data, capacity, *backingRes.get(), recsData, lowerChange ? lowerChange.value() : 0, upperChange ? upperChange.value() : 0, records);
+        Layout::ResizeRows(data, capacity, *backingRes.get(), recsData, lowerChange ? lowerChange.value() : 0, upperChange ? upperChange.value() : 0, records);
         return true;
     }
 
