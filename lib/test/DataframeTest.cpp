@@ -225,6 +225,67 @@ TEST(lugizmo_dataframe_test, row_major_set_get_field_views)
             ASSERT_EQ(df.GetValue(col, row), 42);
 }
 
+TEST(lugizmo_dataframe_test, has_field)
+{
+    using namespace lugizmo;
+
+    {
+        using DF = DataFrame<int, int, int>;
+        auto df = DF();
+
+        df.AddField(2);
+        df.AddField(3);
+
+        ASSERT_TRUE(df.HasField(2));
+        ASSERT_TRUE(df.HasField(3));
+        ASSERT_FALSE(df.HasField(4));
+    }
+
+    {
+        using DF = DataFrame<int, DFRangeIndex<int>, int>;
+        auto df = DF();
+
+        df.SetFieldRange(1, 2);
+        df.AddRecord(1);
+
+        ASSERT_FALSE(df.HasField(0));
+        ASSERT_TRUE(df.HasField(1));
+        ASSERT_FALSE(df.HasField(2));
+    }
+}
+
+TEST(lugizmo_dataframe_test, has_record)
+{
+    using namespace lugizmo;
+
+    {
+        using DF = DataFrame<int, int, int>;
+        auto df = DF();
+
+        df.AddField(2);
+        df.AddField(3);
+        df.AddRecord(1);
+        df.AddRecord(2);
+
+        ASSERT_TRUE(df.HasRecord(1));
+        ASSERT_TRUE(df.HasRecord(2));
+        ASSERT_FALSE(df.HasRecord(3));
+    }
+
+    {
+        using DF = DataFrame<int, int, DFRangeIndex<int>>;
+        auto df = DF();
+
+        df.AddField(2);
+        df.AddField(3);
+        df.SetRecordRange(1, 2);
+
+        ASSERT_FALSE(df.HasRecord(0));
+        ASSERT_TRUE(df.HasRecord(1));
+        ASSERT_FALSE(df.HasRecord(2));
+    }
+}
+
 TEST(lugizmo_dataframe_test, row_major_set_get_record_views)
 {
     using namespace lugizmo;

@@ -51,6 +51,15 @@ namespace lugizmo {
         }
 
         /**
+         * TODO doc + test
+         */
+        [[nodiscard]]
+        auto Has(T const& key) const noexcept -> bool
+        {
+            return key >= lowerBound && key < upperBound;
+        }
+
+        /**
         * TODO doc + idea
         */
         [[nodiscard]]
@@ -90,10 +99,10 @@ namespace lugizmo {
          * TODO doc + idea
          */
         [[maybe_unused]]
-        constexpr auto SetLowerBound(KeyType const key) noexcept -> std::optional<KeyType>
+        constexpr auto SetLowerBound(KeyType const key) noexcept -> std::optional<ssize_t>
         {
             if(key > upperBound || key == lowerBound) return std::nullopt;
-            auto diff = (key - lowerBound) * -1;
+            ssize_t diff = (key - lowerBound) * static_cast<ssize_t>(-1);
 
             lowerBound = key;
             return diff;
@@ -103,13 +112,43 @@ namespace lugizmo {
          * TODO doc + idea
          */
         [[maybe_unused]]
-        constexpr auto SetUpperBound(KeyType const key) noexcept -> std::optional<KeyType>
+        constexpr auto SetUpperBound(KeyType const key) noexcept -> std::optional<ssize_t>
         {
             if(key < lowerBound || key == upperBound) return std::nullopt;
-            auto diff = key - upperBound;
+            ssize_t diff = key - upperBound;
 
             upperBound = key;
             return diff;
+        }
+
+        /**
+         * TODO doc + idea
+         */
+        [[maybe_unused]]
+        constexpr auto SetLowerUpperBound(std::optional<KeyType> const lower,
+                                          std::optional<KeyType> const upper) noexcept -> std::pair<std::optional<ssize_t>, std::optional<ssize_t>>
+        {
+            auto const newLower = lower.value_or(lowerBound);
+            auto const newUpper = upper.value_or(upperBound);
+
+            if(newLower > newUpper) return { std::nullopt, std::nullopt };
+
+            // update bounds and compute differences
+            std::optional<ssize_t> lowerDiff, upperDiff;
+
+            if(newLower != lowerBound)
+            {
+                lowerDiff = (newLower - lowerBound) * static_cast<ssize_t>(-1);
+                lowerBound = newLower;
+            }
+
+            if(newUpper != upperBound)
+            {
+                upperDiff = newUpper - upperBound;
+                upperBound = newUpper;
+            }
+
+            return { lowerDiff, upperDiff };
         }
 
         // TODO add to base

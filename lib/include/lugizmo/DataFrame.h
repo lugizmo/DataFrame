@@ -252,7 +252,15 @@ namespace lugizmo {
 
         auto SetRecordRange(DFRangeIndexBounds<RecT>, std::initializer_list<std::initializer_list<T>> records) noexcept -> bool requires DFSeqIndex<RecI>;
 
-        // ======== ACCESSORS UNIQUE INDEX =================================================================================================
+        // ======== CHECKS =========================================================================================================================================================
+
+        [[nodiscard]]
+        auto HasField(FldT const& field) const noexcept -> bool;
+
+        [[nodiscard]]
+        auto HasRecord(RecT const& record) const noexcept -> bool;
+
+        // ======== ACCESSORS UNIQUE INDEX =========================================================================================================================================
 
         [[nodiscard]]
         auto GetValue(FldT const& field, RecT const& record) const -> std::optional<std::reference_wrapper<T const>>
@@ -809,20 +817,10 @@ namespace lugizmo {
     template <typename T, typename F, typename R, typename L>
     auto DataFrame<T, F, R, L>::SetFieldRange(std::optional<FldT> const lower, std::optional<FldT> const upper, T const& defaultVal) noexcept -> bool requires DFSeqIndex<FldI>
     {
-        // store current bounds in case need to recover
-        auto const currentLower = fldIndex.LowerBound();
-        auto const currentUpper = fldIndex.UpperBound();
-
         // compute and adjust index
-        std::optional<FldT> lowerChange;
-        std::optional<FldT> upperChange;
-        if(lower.has_value()) lowerChange = fldIndex.SetLowerBound(*lower);
-        if(upper.has_value()) upperChange = fldIndex.SetUpperBound(*upper);
+        auto [lowerChange, upperChange] = fldIndex.SetLowerUpperBound(lower, upper);
 
-        // check if one of new bounds is not valid
-        // and restore previous state
-        if(not lowerChange) fldIndex.SetLowerBound(currentLower);
-        if(not upperChange) fldIndex.SetUpperBound(currentUpper);
+        // check if both bounds are not changed
         if(not lowerChange and not upperChange) return false;
 
         // if lower bound is
@@ -840,20 +838,10 @@ namespace lugizmo {
     template<typename T, typename F, typename R, typename L>
     auto DataFrame<T, F, R, L>::SetRecordRange(std::optional<RecT> const lower, std::optional<RecT> const upper, T const& defaultVal) noexcept -> bool requires DFSeqIndex<RecI>
     {
-        // store current bounds in case need to recover
-        auto const currentLower = recIndex.LowerBound();
-        auto const currentUpper = recIndex.UpperBound();
-
         // compute and adjust index
-        std::optional<RecT> lowerChange;
-        std::optional<RecT> upperChange;
-        if(lower.has_value()) lowerChange = recIndex.SetLowerBound(*lower);
-        if(upper.has_value()) upperChange = recIndex.SetUpperBound(*upper);
+        auto [lowerChange, upperChange] = recIndex.SetLowerUpperBound(lower, upper);
 
-        // check if one of new bounds is not valid
-        // and restore previous state
-        if(not lowerChange) recIndex.SetLowerBound(currentLower);
-        if(not upperChange) recIndex.SetUpperBound(currentUpper);
+        // check if both bounds are not changed
         if(not lowerChange and not upperChange) return false;
 
         // if lower bound is
@@ -875,18 +863,19 @@ namespace lugizmo {
         auto const currentUpper = recIndex.UpperBound();
 
         // compute and adjust index
-        std::optional<RecT> lowerChange;
-        std::optional<RecT> upperChange;
-        if(lower.has_value()) lowerChange = recIndex.SetLowerBound(*lower);
-        if(upper.has_value()) upperChange = recIndex.SetUpperBound(*upper);
+        auto [lowerChange, upperChange] = recIndex.SetLowerUpperBound(lower, upper);
+
+        // check if both bounds are not changed
+        if(not lowerChange and not upperChange) return false;
 
         // check if one of new bounds is not valid
         // and restore previous state
-        if(not lowerChange) recIndex.SetLowerBound(currentLower);
-        if(not upperChange) recIndex.SetUpperBound(currentUpper);
-        if(not lowerChange and not upperChange) return false;
-
-        if(records.size() != recIndex.Size()) return false;
+        if(records.size() != recIndex.Size())
+        {
+            recIndex.SetLowerBound(currentLower);
+            recIndex.SetUpperBound(currentUpper);
+            return false;
+        }
 
         Layout::ResizeRows(data, capacity, *backingRes.get(), recsData, lowerChange ? lowerChange.value() : 0, upperChange ? upperChange.value() : 0, records);
         return true;
@@ -908,18 +897,19 @@ namespace lugizmo {
         auto const currentUpper = recIndex.UpperBound();
 
         // compute and adjust index
-        std::optional<RecT> lowerChange;
-        std::optional<RecT> upperChange;
-        if(lower.has_value()) lowerChange = recIndex.SetLowerBound(*lower);
-        if(upper.has_value()) upperChange = recIndex.SetUpperBound(*upper);
+        auto [lowerChange, upperChange] = recIndex.SetLowerUpperBound(lower, upper);
+
+        // check if both bounds are not changed
+        if(not lowerChange and not upperChange) return false;
 
         // check if one of new bounds is not valid
         // and restore previous state
-        if(not lowerChange) recIndex.SetLowerBound(currentLower);
-        if(not upperChange) recIndex.SetUpperBound(currentUpper);
-        if(not lowerChange and not upperChange) return false;
-
-        if(records.size() != recIndex.Size()) return false;
+        if(records.size() != recIndex.Size())
+        {
+            recIndex.SetLowerBound(currentLower);
+            recIndex.SetUpperBound(currentUpper);
+            return false;
+        }
 
         Layout::ResizeRows(data, capacity, *backingRes.get(), recsData, lowerChange ? lowerChange.value() : 0, upperChange ? upperChange.value() : 0, records);
         return true;
@@ -941,31 +931,46 @@ namespace lugizmo {
         auto const currentUpper = recIndex.UpperBound();
 
         // compute and adjust index
-        std::optional<RecT> lowerChange;
-        std::optional<RecT> upperChange;
-        if(lower.has_value()) lowerChange = recIndex.SetLowerBound(*lower);
-        if(upper.has_value()) upperChange = recIndex.SetUpperBound(*upper);
+        auto [lowerChange, upperChange] = recIndex.SetLowerUpperBound(lower, upper);
+
+        // check if both bounds are not changed
+        if(not lowerChange and not upperChange) return false;
 
         // check if one of new bounds is not valid
         // and restore previous state
-        if(not lowerChange) recIndex.SetLowerBound(currentLower);
-        if(not upperChange) recIndex.SetUpperBound(currentUpper);
-        if(not lowerChange and not upperChange) return false;
-
-        if(records.size() != recIndex.Size()) return false;
+        if(records.size() != recIndex.Size())
+        {
+            recIndex.SetLowerBound(currentLower);
+            recIndex.SetUpperBound(currentUpper);
+            return false;
+        }
 
         Layout::ResizeRows(data, capacity, *backingRes.get(), recsData, lowerChange ? lowerChange.value() : 0, upperChange ? upperChange.value() : 0, records);
         return true;
     }
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::SetRecordRange(DFRangeIndexBounds<RecT> const bounds,
-                                               std::initializer_list<std::initializer_list<T>> const records) noexcept -> bool requires DFSeqIndex<RecI>
+    auto DataFrame<T, F, R, L>::SetRecordRange(DFRangeIndexBounds<RecT> const bounds, std::initializer_list<std::initializer_list<T>> const records) noexcept -> bool
+        requires DFSeqIndex<RecI>
     {
         return SetRecordRange(bounds.lower, bounds.upper, records);
     }
 
-    // ======== DROP =======================================================================================================================
+    // ======== CHECKS =============================================================================================================================================================
+
+    template <typename T, typename F, typename R, typename L>
+    auto DataFrame<T, F, R, L>::HasField(FldT const& field) const noexcept -> bool
+    {
+        return fldIndex.Has(field);
+    }
+
+    template <typename T, typename F, typename R, typename L>
+    auto DataFrame<T, F, R, L>::HasRecord(RecT const& record) const noexcept -> bool
+    {
+        return recIndex.Has(record);
+    }
+
+    // ======== DROP ===============================================================================================================================================================
 
     template <typename T, typename F, typename R, typename L>
     auto DataFrame<T, F, R, L>::DropField(F const& index) -> bool requires DFValIndex<FldI>

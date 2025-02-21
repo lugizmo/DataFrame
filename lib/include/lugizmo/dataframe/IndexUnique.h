@@ -41,6 +41,12 @@ namespace lugizmo {
         // destructor
 
         [[nodiscard]]
+        auto Has(T const& key) const noexcept -> bool
+        {
+            return values.Contains(key);
+        }
+
+        [[nodiscard]]
         auto Keys() const -> std::span<KeyType const>
         {
             auto const keys = values.Keys();
