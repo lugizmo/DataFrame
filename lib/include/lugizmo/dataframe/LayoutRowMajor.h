@@ -365,7 +365,7 @@ namespace lugizmo {
             auto const  newCapacity = GrowthFactor(capacity + colCount * (newRowCount + 1));
             auto* const newData     = static_cast<T*>(res.allocate(newCapacity * sizeof(T)));
 
-            assert(newCapacity > capacity);
+            assert(newCapacity > capacity || colCount == 0);
             assert(newData != nullptr && "Memory allocation failed");
 
             // move existing data to the new buffer at the correct offset
@@ -461,6 +461,8 @@ namespace lugizmo {
         // TODO add test
         static void FillRows(T* data, size_t const startRow, size_t const numRows, size_t const colCount, T const& defaultValue)
         {
+            if(colCount == 0) return;
+
             for(size_t row = 0; row < numRows; ++row)
             {
                 auto* start = data + (startRow + row) * colCount;
@@ -479,6 +481,8 @@ namespace lugizmo {
         template <typename InputIterator>
         static void FillRows(T* data, size_t const startRow, size_t const numRows, size_t const colCount, InputIterator const begin, InputIterator const end)
         {
+            if(colCount == 0) return;
+
             for(size_t row = 0; row < numRows; ++row)
             {
                 auto* start  = data + (startRow + row) * colCount;
@@ -505,6 +509,8 @@ namespace lugizmo {
         static void FillRowByRow(T *const data, size_t const startRow, size_t const numRows, size_t const colCount,
                                  RowsIterator& rowBegin, RowsIterator const rowEnd)
         {
+            if(colCount == 0) return;
+
             for(size_t row = 0; row < numRows && rowBegin != rowEnd; ++row, ++rowBegin)
             {
                 FillRows(data, startRow + row, 1, colCount, rowBegin->begin(), rowBegin->end());
