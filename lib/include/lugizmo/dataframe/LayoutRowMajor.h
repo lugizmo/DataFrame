@@ -71,7 +71,7 @@ namespace lugizmo {
             if(newColCount == 0)
             {
                 // TODO check if this is like expected
-                res.deallocate(data, capacity * sizeof(T));
+                if(data != nullptr) res.deallocate(data, capacity * sizeof(T));
 
                 data     = nullptr;
                 capacity = 0;
@@ -102,7 +102,7 @@ namespace lugizmo {
                 }
 
                 // Deallocate old memory
-                res.deallocate(data, capacity * sizeof(T));
+                if(data != nullptr) res.deallocate(data, capacity * sizeof(T));
 
                 // Update pointer and capacity
                 data = newData;
@@ -379,7 +379,7 @@ namespace lugizmo {
             }
 
             // deallocate old memory
-            res.deallocate(data, capacity * sizeof(T));
+            if(data != nullptr) res.deallocate(data, capacity * sizeof(T));
 
             // update the pointer and capacity
             data     = newData;
@@ -447,7 +447,7 @@ namespace lugizmo {
          */
         static void Free(T*& data, size_t& capacity, MDSpan& dataView, Memory& res)
         {
-            res.deallocate(data, capacity * sizeof(T));
+            if(data != nullptr) res.deallocate(data, capacity * sizeof(T));
 
             data     = nullptr;
             capacity = 0;
