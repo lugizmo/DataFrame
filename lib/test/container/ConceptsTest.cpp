@@ -43,3 +43,46 @@ TEST(lugizmo_container_concepts_test, comparable)
     static_assert(not ComparableType<int, std::string>);
     static_assert(not ComparableType<std::string, int>);
 }
+
+TEST(lugizmo_container_concepts_test, is_optional)
+{
+    using namespace lugizmo;
+
+    using T    = int;
+    using Op   = std::optional<T>;
+    using OpOp = std::optional<Op>;
+
+    static_assert(not OptionalType<T>);
+    static_assert(OptionalType<Op>);
+    static_assert(OptionalType<OpOp>);
+}
+
+TEST(lugizmo_container_concepts_test, removed_optional)
+{
+    using namespace lugizmo;
+
+    using T    = int;
+    using Op   = std::optional<T>;
+    using OpOp = std::optional<Op>;
+
+    static_assert(std::is_same_v<RemovedOptional<Op>, T>);
+    static_assert(std::is_same_v<RemovedOptional<T>, T>);
+    static_assert(std::is_same_v<RemovedOptional<OpOp>, Op>);
+}
+
+//TEST(lugizmo_container_concepts_test, normalized_optional)
+//{
+//    using namespace lugizmo;
+//
+//    using NoOp = int;
+//    static_assert(std::is_same_v<NormalizedOptional<NoOp>, std::optional<int>>);
+//
+//    using Op = std::optional<int>;
+//    static_assert(std::is_same_v<NormalizedOptional<Op>, std::optional<int>>);
+//
+//    using OpOp = std::optional<std::optional<int>>;
+//    static_assert(std::is_same_v<NormalizedOptional<OpOp>, std::optional<int>>);
+//
+//    using OpOpOp = std::optional<std::optional<std::optional<int>>>;
+//    static_assert(std::is_same_v<NormalizedOptional<OpOpOp>, std::optional<int>>);
+//}

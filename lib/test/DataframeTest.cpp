@@ -374,20 +374,29 @@ TEST(lugizmo_dataframe_test, row_major_set_get_record_views)
 TEST(lugizmo_dataframe_test, row_major_indexed_views)
 {
     using namespace lugizmo;
-    using DF = DataFrame<int, int, int>;
+    using DF         = DataFrame<int, int, int>;
+    using DFOptional = DataFrame<std::optional<int>, int, int>;
 
     constexpr int COL_COUNT = 5;
     constexpr int ROW_COUNT = 10;
     constexpr auto ARRAY    = std::array{1, 2, 3, 4, 5};
+    constexpr auto ARRAY_OP = std::array<std::optional<int>, COL_COUNT>{1, 2, std::optional<int>(), 4, 5};
     static_assert(ARRAY.size() == COL_COUNT);
 
-    auto df = DF();
+    auto df   = DF();
+    auto dfOp = DFOptional();
 
     for(auto col = 0; col < COL_COUNT; ++col)
+    {
         ASSERT_TRUE(df.AddField(col));
+        ASSERT_TRUE(dfOp.AddField(col));
+    }
 
     for(auto row = 0; row < ROW_COUNT; ++row)
+    {
         ASSERT_TRUE(df.AddRecordPopulated(row, ARRAY));
+        ASSERT_TRUE(dfOp.AddRecordPopulated(row, ARRAY_OP));
+    }
 
     // check with view.Get() field values
     for(auto col = 0; col < COL_COUNT; ++col)
@@ -402,6 +411,19 @@ TEST(lugizmo_dataframe_test, row_major_indexed_views)
         }
     }
 
+    // check with view.GetUnwrappedOptional() field values
+    for(auto col = 0; col < COL_COUNT; ++col)
+    {
+        auto view = dfOp.ViewFieldIndexed(col);
+        ASSERT_FALSE(view.Empty());
+
+        auto columnValue = ARRAY_OP[col];
+        for(auto row = 0; row < ROW_COUNT; ++row)
+        {
+            ASSERT_EQ(view.GetUnwrappedOptional(row), columnValue);
+        }
+    }
+
     // check with view.Get() record values
     for(auto row = 0; row < ROW_COUNT; ++row)
     {
@@ -412,6 +434,19 @@ TEST(lugizmo_dataframe_test, row_major_indexed_views)
         {
             auto columnValue = ARRAY[col];
             ASSERT_EQ(view.Get(col), columnValue);
+        }
+    }
+
+    // check with view.GetUnwrappedOptional() record values
+    for(auto row = 0; row < ROW_COUNT; ++row)
+    {
+        auto view = dfOp.ViewRecordIndexed(row);
+        ASSERT_FALSE(view.Empty());
+
+        for(auto col = 0; col < COL_COUNT; ++col)
+        {
+            auto columnValue = ARRAY_OP[col];
+            ASSERT_EQ(view.GetUnwrappedOptional(col), columnValue);
         }
     }
 

@@ -16,6 +16,7 @@
 #include "lugizmo/memory/References.h"
 
 #include "View.h"
+#include "lugizmo/container/Concepts.h"
 
 namespace lugizmo {
 
@@ -330,7 +331,7 @@ namespace lugizmo {
         }
 
         template<typename Idx>
-        auto Get(Idx const& index) -> std::optional<NullableAssignableReferenceWrapper<T> const>
+        auto Get(Idx const& index) -> std::optional<NullableAssignableReferenceWrapper<T>>
         {
             // TODO store additionally a reference to the
             //      index type so that we don't have linear search here
@@ -342,7 +343,7 @@ namespace lugizmo {
         }
 
         template<typename Idx>
-        auto Get(Idx const& index) const -> std::optional<NullableAssignableReferenceWrapper<T const> const>
+        auto Get(Idx const& index) const -> std::optional<NullableAssignableReferenceWrapper<T> const>
         {
             // TODO store additionally a reference to the
             //      index type so that we don't have linear search here
@@ -351,6 +352,40 @@ namespace lugizmo {
 
             assert(indexSpan.size() == dataView.Size());
             return NullableAssignableReferenceWrapper<T>{&dataView[index]};
+        }
+
+        template<typename Idx>
+        auto GetUnwrappedOptional(Idx const& index) -> std::optional<NullableAssignableReferenceWrapper<RemovedOptional<T>>>
+        {
+            if constexpr(not OptionalType<T>)
+            {
+                return Get(index);
+            }
+            else
+            {
+                auto ref = Get(index);
+                if(not ref.has_value())               return std::nullopt;
+                if(not ref.value().Get().has_value()) return std::nullopt;
+
+                return NullableAssignableReferenceWrapper<RemovedOptional<T>>{&ref.value().Get().value()};
+            }
+        }
+
+        template<typename Idx>
+        auto GetUnwrappedOptional(Idx const& index) const -> std::optional<NullableAssignableReferenceWrapper<RemovedOptional<T>> const>
+        {
+            if constexpr(not OptionalType<T>)
+            {
+                return Get(index);
+            }
+            else
+            {
+                auto ref = Get(index);
+                if(not ref.has_value())               return std::nullopt;
+                if(not ref.value().Get().has_value()) return std::nullopt;
+
+                return NullableAssignableReferenceWrapper<RemovedOptional<T>>{&ref.value().Get().value()};
+            }
         }
 
         template <typename RangeAdaptor>

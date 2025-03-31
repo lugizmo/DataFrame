@@ -10,6 +10,7 @@
 #include <utility>
 #include <iterator>
 #include <type_traits>
+#include <optional>
 
 namespace lugizmo {
 
@@ -115,6 +116,48 @@ namespace lugizmo {
         { t1 == t2 } -> std::convertible_to<bool>;
         { t1 != t2 } -> std::convertible_to<bool>;
     };
+
+    template <typename T>
+    struct IsOptional : std::false_type {};
+
+    template <typename T>
+    struct IsOptional<std::optional<T>> : std::true_type {};
+
+    template <typename T>
+    concept OptionalType = IsOptional<std::remove_cvref_t<T>>::value;
+
+    template<typename T>
+    struct RemoveOptional { using Type = T; };
+
+    template<typename T>
+    struct RemoveOptional<std::optional<T>> { using Type = T; };
+
+    template<typename T>
+    using RemovedOptional = typename RemoveOptional<T>::Type;
+
+//    /**
+//     *  @brief Helper to remove optionals recursively.
+//     */
+//    template <typename T>
+//    struct RemoveAllOptionals { using Type = T; };
+//
+//    /**
+//     *  @brief Helper to remove optionals recursively.
+//     */
+//    template<typename T>
+//    struct RemoveAllOptionals<std::optional<T>> { using Type = typename RemoveAllOptionals<T>::Type; };
+//
+//    /**
+//     *  @brief Removes recursively optionals and wraps in a single optional.
+//     */
+//    template <typename T>
+//    struct NormalizeOptional { using Type = std::optional<typename RemoveAllOptionals<T>::Type>; };
+//
+//    /**
+//     *  @brief Removes recursively optionals and wraps in a single optional.
+//     */
+//    template<typename T>
+//    using NormalizedOptional = typename NormalizeOptional<T>::Type;
 }
 
 #endif // LUGIZMO_CONTAINER_CONCEPTS_H
