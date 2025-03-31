@@ -329,6 +329,30 @@ namespace lugizmo {
             return IteratorIdx(dataView.cend(), indexSpan.end());
         }
 
+        template<typename Idx>
+        auto Get(Idx const& index) -> std::optional<NullableAssignableReferenceWrapper<T> const>
+        {
+            // TODO store additionally a reference to the
+            //      index type so that we don't have linear search here
+            auto pos = std::ranges::find(indexSpan, index);
+            if(pos == indexSpan.end()) return std::nullopt;
+
+            assert(indexSpan.size() == dataView.Size());
+            return NullableAssignableReferenceWrapper<T>{&dataView[index]};
+        }
+
+        template<typename Idx>
+        auto Get(Idx const& index) const -> std::optional<NullableAssignableReferenceWrapper<T const> const>
+        {
+            // TODO store additionally a reference to the
+            //      index type so that we don't have linear search here
+            auto pos = std::ranges::find(indexSpan, index);
+            if(pos == indexSpan.end()) return std::nullopt;
+
+            assert(indexSpan.size() == dataView.Size());
+            return NullableAssignableReferenceWrapper<T>{&dataView[index]};
+        }
+
         template <typename RangeAdaptor>
         [[nodiscard]]
         friend auto operator|(DFViewIndexed& view, RangeAdaptor&& adaptor)

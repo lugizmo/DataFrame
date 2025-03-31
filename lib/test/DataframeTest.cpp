@@ -389,6 +389,32 @@ TEST(lugizmo_dataframe_test, row_major_indexed_views)
     for(auto row = 0; row < ROW_COUNT; ++row)
         ASSERT_TRUE(df.AddRecordPopulated(row, ARRAY));
 
+    // check with view.Get() field values
+    for(auto col = 0; col < COL_COUNT; ++col)
+    {
+        auto view = df.ViewFieldIndexed(col);
+        ASSERT_FALSE(view.Empty());
+
+        auto columnValue = ARRAY[col];
+        for(auto row = 0; row < ROW_COUNT; ++row)
+        {
+            ASSERT_EQ(view.Get(row), columnValue);
+        }
+    }
+
+    // check with view.Get() record values
+    for(auto row = 0; row < ROW_COUNT; ++row)
+    {
+        auto view = df.ViewRecordIndexed(row);
+        ASSERT_FALSE(view.Empty());
+
+        for(auto col = 0; col < COL_COUNT; ++col)
+        {
+            auto columnValue = ARRAY[col];
+            ASSERT_EQ(view.Get(col), columnValue);
+        }
+    }
+
     for(auto col = 0; col < COL_COUNT; ++col)
     {
         auto view = df.ViewFieldIndexed(col);
