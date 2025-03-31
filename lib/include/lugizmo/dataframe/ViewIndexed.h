@@ -15,8 +15,10 @@
 
 #include "lugizmo/memory/References.h"
 
-#include "View.h"
 #include "lugizmo/container/Concepts.h"
+#include "lugizmo/memory/OptionalRef.h"
+
+#include "View.h"
 
 namespace lugizmo {
 
@@ -331,61 +333,47 @@ namespace lugizmo {
         }
 
         template<typename Idx>
-        auto Get(Idx const& index) -> std::optional<NullableAssignableReferenceWrapper<T>>
+        auto Get(Idx const& index) -> OptionalRef<T>
         {
             // TODO store additionally a reference to the
             //      index type so that we don't have linear search here
             auto pos = std::ranges::find(indexSpan, index);
-            if(pos == indexSpan.end()) return std::nullopt;
+            if(pos == indexSpan.end()) return OptionalRef<T>{std::nullopt};
 
             assert(indexSpan.size() == dataView.Size());
-            return NullableAssignableReferenceWrapper<T>{&dataView[std::distance(indexSpan.begin(), pos)]};
+            return OptionalRef<T>{&dataView[std::distance(indexSpan.begin(), pos)]};
         }
 
         template<typename Idx>
-        auto Get(Idx const& index) const -> std::optional<NullableAssignableReferenceWrapper<T> const>
+        auto Get(Idx const& index) const -> OptionalRef<T const>
         {
             // TODO store additionally a reference to the
             //      index type so that we don't have linear search here
             auto pos = std::ranges::find(indexSpan, index);
-            if(pos == indexSpan.end()) return std::nullopt;
+            if(pos == indexSpan.end()) return OptionalRef<T const>{std::nullopt};
 
             assert(indexSpan.size() == dataView.Size());
-            return NullableAssignableReferenceWrapper<T>{&dataView[std::distance(indexSpan.begin(), pos)]};
+            return OptionalRef<T const>{&dataView[std::distance(indexSpan.begin(), pos)]};
         }
 
         template<typename Idx>
-        auto GetFlattenOpt(Idx const& index) -> std::optional<NullableAssignableReferenceWrapper<RemovedOptional<T>>>
+        auto TryVal(Idx const& index) -> OptionalRef<RemovedOptional<T>> requires OptionalType<T>
         {
-            if constexpr(not OptionalType<T>)
-            {
-                return Get(index);
-            }
-            else
-            {
-                auto ref = Get(index);
-                if(not ref.has_value())               return std::nullopt;
-                if(not ref.value().Get().has_value()) return std::nullopt;
+            auto ref = Get(index);
+            if(not ref.has_value())         return OptionalRef<RemovedOptional<T>>{std::nullopt};
+            if(not ref.value().has_value()) return OptionalRef<RemovedOptional<T>>{std::nullopt};
 
-                return NullableAssignableReferenceWrapper<RemovedOptional<T>>{&ref.value().Get().value()};
-            }
+            return OptionalRef<RemovedOptional<T>>{ref.value().value()};
         }
 
         template<typename Idx>
-        auto GetFlattenOpt(Idx const& index) const -> std::optional<NullableAssignableReferenceWrapper<RemovedOptional<T>> const>
+        auto TryVal(Idx const& index) const -> OptionalRef<RemovedOptional<T const>> requires OptionalType<T>
         {
-            if constexpr(not OptionalType<T>)
-            {
-                return Get(index);
-            }
-            else
-            {
-                auto ref = Get(index);
-                if(not ref.has_value())               return std::nullopt;
-                if(not ref.value().Get().has_value()) return std::nullopt;
+            auto ref = Get(index);
+            if(not ref.has_value())         return OptionalRef<RemovedOptional<T> const>{std::nullopt};
+            if(not ref.value().has_value()) return OptionalRef<RemovedOptional<T> const>{std::nullopt};
 
-                return NullableAssignableReferenceWrapper<RemovedOptional<T>>{&ref.value().Get().value()};
-            }
+            return OptionalRef<RemovedOptional<T const>>{ref.value().value()};
         }
 
         template <typename RangeAdaptor>

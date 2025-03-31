@@ -183,13 +183,3 @@ TEST(lugizmo_memory_optional_ref, is_optional_ref)
     static_assert(!OptionalRefType<std::nullopt_t>);
     static_assert(!OptionalRefType<std::optional<std::optional<int>>>);
 }
-
-TEST(lugizmo_memory_optional_ref, remove_optional_ref)
-{
-    using namespace lugizmo;
-
-    static_assert(std::is_same_v<RemovedOptionalRef<std::optional<int>>, std::optional<int>>);
-    static_assert(std::is_same_v<RemovedOptionalRef<int>, int>);
-    static_assert(std::is_same_v<RemovedOptionalRef<OptionalRef<int>>, int>);
-    static_assert(std::is_same_v<RemovedOptionalRef<OptionalRef<OptionalRef<int>>>, OptionalRef<int>>);
-}

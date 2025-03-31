@@ -81,19 +81,51 @@ namespace lugizmo {
 
         // ===== COMPARISONS =======================================================================================================================================================
 
-        friend bool operator==(OptionalRef const& lhs, OptionalRef const& rhs) noexcept
+        constexpr friend bool operator==(OptionalRef const& lhs, OptionalRef const& rhs) noexcept
         {
             if (!lhs && !rhs) return true;
             if (lhs && rhs) return *lhs == *rhs;
             return false;
         }
 
-        friend bool operator!=(OptionalRef const& lhs, OptionalRef const& rhs) noexcept
+        constexpr friend bool operator!=(OptionalRef const& lhs, OptionalRef const& rhs) noexcept
         {
             return !(lhs == rhs);
         }
 
-        friend auto operator<=>(OptionalRef const& lhs, OptionalRef const& rhs) noexcept
+        constexpr friend bool operator==(OptionalRef const& lhs, T const& rhs) noexcept
+        {
+            return lhs.HasValue() && *lhs == rhs;
+        }
+
+        constexpr friend bool operator==(T const& lhs, OptionalRef const& rhs) noexcept
+        {
+            return rhs.HasValue() && lhs == *rhs;
+        }
+
+        constexpr friend bool operator!=(OptionalRef const& lhs, T const& rhs) noexcept
+        {
+            return !(lhs == rhs);
+        }
+
+        constexpr friend bool operator!=(T const& lhs, OptionalRef const& rhs) noexcept
+        {
+            return !(lhs == rhs);
+        }
+
+        constexpr friend auto operator<=>(OptionalRef const& lhs, T const& rhs) noexcept
+        {
+            if (!lhs) return std::strong_ordering::less;
+            return *lhs <=> rhs;
+        }
+
+        constexpr friend auto operator<=>(T const& lhs, OptionalRef const& rhs) noexcept
+        {
+            if (!rhs) return std::strong_ordering::greater;
+            return lhs <=> *rhs;
+        }
+
+        constexpr friend auto operator<=>(OptionalRef const& lhs, OptionalRef const& rhs) noexcept
         {
             if (!lhs && !rhs) return std::strong_ordering::equal;
             if (!lhs) return std::strong_ordering::less;
@@ -283,15 +315,6 @@ namespace lugizmo {
 
     template<typename T>
     concept OptionalRefType = IsOptionalRef<std::remove_cvref_t<T>>::value;
-
-    template<typename T>
-    struct RemoveOptionalRef { using Type = T; };
-
-    template<typename T>
-    struct RemoveOptionalRef<OptionalRef<T>> { using Type = T; };
-
-    template<typename T>
-    using RemovedOptionalRef = typename RemoveOptionalRef<T>::Type;
 }
 
 namespace std {

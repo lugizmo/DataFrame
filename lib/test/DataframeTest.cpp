@@ -403,10 +403,14 @@ TEST(lugizmo_dataframe_test, row_major_indexed_views)
     {
         auto view = df.ViewFieldIndexed(col);
         ASSERT_FALSE(view.Empty());
+        ASSERT_TRUE(view.Size() == ROW_COUNT);
 
+        static_assert(std::size(ARRAY) == COL_COUNT);
         auto columnValue = ARRAY[col];
+
         for(auto row = 0; row < ROW_COUNT; ++row)
         {
+            ASSERT_TRUE(view.Get(row));
             ASSERT_EQ(view.Get(row), columnValue);
         }
     }
@@ -416,11 +420,22 @@ TEST(lugizmo_dataframe_test, row_major_indexed_views)
     {
         auto view = dfOp.ViewFieldIndexed(col);
         ASSERT_FALSE(view.Empty());
+        ASSERT_TRUE(view.Size() == ROW_COUNT);
 
+        static_assert(std::size(ARRAY_OP) == COL_COUNT);
         auto columnValue = ARRAY_OP[col];
+
         for(auto row = 0; row < ROW_COUNT; ++row)
         {
-            ASSERT_EQ(view.GetFlattenOpt(row), columnValue);
+            if(col != 2)
+            {
+                ASSERT_TRUE(view.TryVal(row));
+                ASSERT_EQ(view.TryVal(row), columnValue);
+            }
+            else
+            {
+                ASSERT_FALSE(view.TryVal(row));
+            }
         }
     }
 
@@ -429,10 +444,14 @@ TEST(lugizmo_dataframe_test, row_major_indexed_views)
     {
         auto view = df.ViewRecordIndexed(row);
         ASSERT_FALSE(view.Empty());
+        ASSERT_TRUE(view.Size() == COL_COUNT);
 
         for(auto col = 0; col < COL_COUNT; ++col)
         {
+            static_assert(std::size(ARRAY) == COL_COUNT);
             auto columnValue = ARRAY[col];
+
+            ASSERT_TRUE(view.Get(col));
             ASSERT_EQ(view.Get(col), columnValue);
         }
     }
@@ -442,11 +461,22 @@ TEST(lugizmo_dataframe_test, row_major_indexed_views)
     {
         auto view = dfOp.ViewRecordIndexed(row);
         ASSERT_FALSE(view.Empty());
+        ASSERT_TRUE(view.Size() == COL_COUNT);
 
         for(auto col = 0; col < COL_COUNT; ++col)
         {
+            static_assert(std::size(ARRAY_OP) == COL_COUNT);
             auto columnValue = ARRAY_OP[col];
-            ASSERT_EQ(view.GetFlattenOpt(col), columnValue);
+
+            if(col != 2)
+            {
+                ASSERT_TRUE(view.TryVal(col));
+                ASSERT_EQ(view.TryVal(col), columnValue);
+            }
+            else
+            {
+                ASSERT_FALSE(view.TryVal(col));
+            }
         }
     }
 
