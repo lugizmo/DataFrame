@@ -7,6 +7,7 @@
 set(LUGIZMO_DF_INCLUDES
         include/lugizmo/memory/Memory.h
         include/lugizmo/memory/References.h
+        include/lugizmo/memory/OptionalRef.h
 #        include/lugizmo/memory/DFMemory.h
 
         include/lugizmo/container/Concepts.h
@@ -47,6 +48,9 @@ add_subdirectory(bench)
 # TODO move to separate CMakeLists.txt
 if(OPT_BUILD_TESTS)
     add_executable(DataFrameTest
+
+#            test/memory/DFMemoryTest.cpp
+            test/memory/OptionalRefTest.cpp
 
             test/container/ConceptsTest.cpp
             test/container/DataFrameMapTest.cpp

@@ -117,7 +117,7 @@ namespace lugizmo {
         { t1 != t2 } -> std::convertible_to<bool>;
     };
 
-    template <typename T>
+    template <typename>
     struct IsOptional : std::false_type {};
 
     template <typename T>
