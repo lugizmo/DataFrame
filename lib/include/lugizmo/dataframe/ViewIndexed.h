@@ -355,7 +355,7 @@ namespace lugizmo {
         }
 
         template<typename Idx>
-        auto GetUnwrappedOptional(Idx const& index) -> std::optional<NullableAssignableReferenceWrapper<RemovedOptional<T>>>
+        auto GetFlattenOpt(Idx const& index) -> std::optional<NullableAssignableReferenceWrapper<RemovedOptional<T>>>
         {
             if constexpr(not OptionalType<T>)
             {
@@ -372,7 +372,7 @@ namespace lugizmo {
         }
 
         template<typename Idx>
-        auto GetUnwrappedOptional(Idx const& index) const -> std::optional<NullableAssignableReferenceWrapper<RemovedOptional<T>> const>
+        auto GetFlattenOpt(Idx const& index) const -> std::optional<NullableAssignableReferenceWrapper<RemovedOptional<T>> const>
         {
             if constexpr(not OptionalType<T>)
             {

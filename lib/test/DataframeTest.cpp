@@ -420,7 +420,7 @@ TEST(lugizmo_dataframe_test, row_major_indexed_views)
         auto columnValue = ARRAY_OP[col];
         for(auto row = 0; row < ROW_COUNT; ++row)
         {
-            ASSERT_EQ(view.GetUnwrappedOptional(row), columnValue);
+            ASSERT_EQ(view.GetFlattenOpt(row), columnValue);
         }
     }
 
@@ -446,7 +446,7 @@ TEST(lugizmo_dataframe_test, row_major_indexed_views)
         for(auto col = 0; col < COL_COUNT; ++col)
         {
             auto columnValue = ARRAY_OP[col];
-            ASSERT_EQ(view.GetUnwrappedOptional(col), columnValue);
+            ASSERT_EQ(view.GetFlattenOpt(col), columnValue);
         }
     }
 
