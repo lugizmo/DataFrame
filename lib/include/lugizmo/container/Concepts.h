@@ -105,6 +105,16 @@ namespace lugizmo {
     concept MinimalIterableOfIterable =
         MinimalIterable<T> &&
         MinimalIterable<std::ranges::range_value_t<T>>;
-    }
+
+    /**
+     *  @brief Checks if type compares with other type.
+     */
+    template<typename T1, typename T2>
+    concept ComparableType = requires(T1 t1, T2 t2)
+    {
+        { t1 == t2 } -> std::convertible_to<bool>;
+        { t1 != t2 } -> std::convertible_to<bool>;
+    };
+}
 
 #endif // LUGIZMO_CONTAINER_CONCEPTS_H

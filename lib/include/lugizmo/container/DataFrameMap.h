@@ -12,6 +12,8 @@
 #include <algorithm>
 #include <optional>
 
+#include "lugizmo/container/Concepts.h"
+
 namespace lugizmo {
 
     /**
@@ -99,8 +101,9 @@ namespace lugizmo {
          *  @param key to check if in map.
          *  @return true when key in map.
          */
+        template<typename C>
         [[nodiscard]]
-        auto Contains(Key const& key) const noexcept -> bool;
+        auto Contains(C const& key) const noexcept -> bool;
 
         /**
          * @param key to remove from map.
@@ -307,8 +310,10 @@ namespace lugizmo {
     }
 
     template<class K, class V>
-    auto DataFrameMap<K, V>::Contains(K const& key) const noexcept -> bool
+    template<typename C>
+    auto DataFrameMap<K, V>::Contains(C const& key) const noexcept -> bool
     {
+        static_assert(ComparableType<C, K>);
         return std::binary_search(keys.begin(), keys.end(), key);
     }
 

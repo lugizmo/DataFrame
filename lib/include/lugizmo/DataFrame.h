@@ -254,11 +254,11 @@ namespace lugizmo {
 
         // ======== CHECKS =========================================================================================================================================================
 
-        [[nodiscard]]
-        auto HasField(FldT const& field) const noexcept -> bool;
+        template<typename C>
+        [[nodiscard]] auto HasField(C const& field) const noexcept -> bool;
 
-        [[nodiscard]]
-        auto HasRecord(RecT const& record) const noexcept -> bool;
+        template<typename C>
+        [[nodiscard]] auto HasRecord(C const& record) const noexcept -> bool;
 
         // ======== ACCESSORS UNIQUE INDEX =========================================================================================================================================
 
@@ -959,14 +959,18 @@ namespace lugizmo {
     // ======== CHECKS =============================================================================================================================================================
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::HasField(FldT const& field) const noexcept -> bool
+    template <typename C>
+    auto DataFrame<T, F,  R, L>::HasField(C const& field) const noexcept -> bool
     {
+        static_assert(ComparableType<FldT, C>, "Given field is not comparable with type of fields!");
         return fldIndex.Has(field);
     }
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::HasRecord(RecT const& record) const noexcept -> bool
+    template<typename C>
+    auto DataFrame<T, F, R, L>::HasRecord(C const& record) const noexcept -> bool
     {
+        static_assert(ComparableType<RecT, C>, "Given record is not comparable with type of records!");
         return recIndex.Has(record);
     }
 

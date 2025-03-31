@@ -34,3 +34,12 @@ TEST(lugizmo_container_concepts_test, some_types_check)
     static_assert(IterableOfIterable<std::array<std::array<int, 1>, 1>>);
     static_assert(IterableOfIterable<std::vector<std::vector<int>>>);
 }
+
+TEST(lugizmo_container_concepts_test, comparable)
+{
+    using namespace lugizmo;
+    static_assert(ComparableType<int, int>);
+    static_assert(ComparableType<int, float>);
+    static_assert(not ComparableType<int, std::string>);
+    static_assert(not ComparableType<std::string, int>);
+}

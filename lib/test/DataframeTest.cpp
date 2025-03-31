@@ -252,6 +252,30 @@ TEST(lugizmo_dataframe_test, has_field)
         ASSERT_TRUE(df.HasField(1));
         ASSERT_FALSE(df.HasField(2));
     }
+
+    {
+        using DF = DataFrame<int, DFRangeIndex<int>, int>;
+        auto df = DF();
+
+        df.SetFieldRange(1, 3);
+        df.AddRecord(1);
+
+        ASSERT_FALSE(df.HasField(0.f));
+        ASSERT_TRUE(df.HasField(1.f));
+        ASSERT_TRUE(df.HasField(static_cast<unsigned>(2)));
+        ASSERT_FALSE(df.HasField(3.0));
+
+        using DF2 = DataFrame<int, std::string, int>;
+        auto df2 = DF2();
+
+        df2.AddFields(std::array<std::string, 3>{"a", "b", "c"});
+        df2.AddRecord(1);
+
+        ASSERT_FALSE(df2.HasField(std::string("0")));
+        ASSERT_TRUE(df2.HasField(std::string("a")));
+        ASSERT_TRUE(df2.HasField(static_cast<const char*>("b")));
+        ASSERT_TRUE(df2.HasField(std::string_view("c")));
+    }
 }
 
 TEST(lugizmo_dataframe_test, has_record)
@@ -283,6 +307,32 @@ TEST(lugizmo_dataframe_test, has_record)
         ASSERT_FALSE(df.HasRecord(0));
         ASSERT_TRUE(df.HasRecord(1));
         ASSERT_FALSE(df.HasRecord(2));
+    }
+
+    {
+        using DF = DataFrame<int, int, DFRangeIndex<int>>;
+        auto df = DF();
+
+        df.AddField(1);
+        df.SetRecordRange(1, 3);
+
+        ASSERT_FALSE(df.HasRecord(0.f));
+        ASSERT_TRUE(df.HasRecord(1.f));
+        ASSERT_TRUE(df.HasRecord(static_cast<unsigned>(2)));
+        ASSERT_FALSE(df.HasRecord(3.0));
+
+        using DF2 = DataFrame<int, int, std::string>;
+        auto df2 = DF2();
+
+        df2.AddFields(std::array{1, 2, 3});
+        df2.AddRecord("a");
+        df2.AddRecord("b");
+        df2.AddRecord("c");
+
+        ASSERT_FALSE(df2.HasRecord(std::string("0")));
+        ASSERT_TRUE(df2.HasRecord(std::string("a")));
+        ASSERT_TRUE(df2.HasRecord(static_cast<const char*>("b")));
+        ASSERT_TRUE(df2.HasRecord(std::string_view("c")));
     }
 }
 

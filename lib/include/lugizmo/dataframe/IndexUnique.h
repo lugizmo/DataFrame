@@ -40,9 +40,11 @@ namespace lugizmo {
         // constructors ...
         // destructor
 
+        template<typename C>
         [[nodiscard]]
-        auto Has(T const& key) const noexcept -> bool
+        auto Has(C const& key) const noexcept -> bool
         {
+            static_assert(ComparableType<C, T>);
             return values.Contains(key);
         }
 
