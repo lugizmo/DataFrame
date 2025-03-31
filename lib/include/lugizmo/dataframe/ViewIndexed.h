@@ -339,7 +339,7 @@ namespace lugizmo {
             if(pos == indexSpan.end()) return std::nullopt;
 
             assert(indexSpan.size() == dataView.Size());
-            return NullableAssignableReferenceWrapper<T>{&dataView[index]};
+            return NullableAssignableReferenceWrapper<T>{&dataView[std::distance(indexSpan.begin(), pos)]};
         }
 
         template<typename Idx>
@@ -351,7 +351,7 @@ namespace lugizmo {
             if(pos == indexSpan.end()) return std::nullopt;
 
             assert(indexSpan.size() == dataView.Size());
-            return NullableAssignableReferenceWrapper<T>{&dataView[index]};
+            return NullableAssignableReferenceWrapper<T>{&dataView[std::distance(indexSpan.begin(), pos)]};
         }
 
         template<typename Idx>
