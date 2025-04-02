@@ -77,8 +77,8 @@ namespace lugizmo {
 
         using DFViewFld      = DFView<T, RecI>;
         using DFViewRec      = DFView<T, FldI>;
-        using DFViewConstFld = DFView<T const, FldI>;
-        using DFViewConstRec = DFView<T const, RecI>;
+        using DFViewConstFld = DFView<T const, RecI>;
+        using DFViewConstRec = DFView<T const, FldI>;
 
     private:
 
