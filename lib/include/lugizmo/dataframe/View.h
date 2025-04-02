@@ -211,27 +211,24 @@ namespace lugizmo {
         [[nodiscard]] auto Get(typename I::KeyType const& key) noexcept -> OptionalRef<T>
         {
             if(not dfIndex) return {};
-            if(!dfIndex->InBound(key)) return {};
 
-            // Compute the translated position (e.g. for DFRangeIndex, this is key - lowerBound).
             auto posOpt = dfIndex->Position(key);
             if(!posOpt) return {};
 
-            size_t pos = posOpt.value();
-
+            size_t const pos = posOpt.value();
             if(pos >= view.extent(0)) return {};
+
             return OptionalRef<T>{&view[pos]};
         }
 
         [[nodiscard]] auto Get(typename I::KeyType const& key) const noexcept -> OptionalRef<T const>
         {
             if(not dfIndex) return {};
-            if(!dfIndex->InBound(key)) return {};
 
             auto posOpt = dfIndex->Position(key);
             if (!posOpt) return {};
 
-            size_t pos = posOpt.value();
+            size_t const pos = posOpt.value();
             if (pos >= view.extent(0)) return {};
 
             return OptionalRef<T>{&view[pos]};
