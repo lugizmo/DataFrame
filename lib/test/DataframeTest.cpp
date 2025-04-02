@@ -404,7 +404,7 @@ TEST(lugizmo_dataframe_test, row_major_set_get_field_range_views)
         count = 0;
         for(auto row = ROW_BEGIN; row < ROW_END; ++row)
         {
-            auto const valRef = view.GetValue(row);
+            auto const valRef = view.Get(row);
             ASSERT_TRUE(valRef);
             ASSERT_EQ(*valRef, count);
             ++count;
@@ -447,7 +447,7 @@ TEST(lugizmo_dataframe_test, row_major_set_get_record_range_views)
         count = 0;
         for (int col = COL_BEGIN; col < COL_END; ++col)
         {
-            auto const valOpt = view.GetValue(col);
+            auto const valOpt = view.Get(col);
             ASSERT_TRUE(valOpt.has_value());
             ASSERT_EQ(*valOpt, count);
             ++count;
