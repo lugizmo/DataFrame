@@ -263,19 +263,10 @@ namespace lugizmo {
         }
 
         [[nodiscard]]
-        auto Unwrap(typename I::KeyType const& index) -> RemovedOptional<T>* requires OptionalType<T>
-        {
-            auto* ref = UnwrapRef(index);
-            if(not ref) return nullptr;
-
-            return {*ref};
-        }
-
-        [[nodiscard]]
-        auto Unwrap(typename I::KeyType const& index) const -> RemovedOptional<T> const* requires OptionalType<T>
+        auto Unwrap(typename I::KeyType const& index) const -> std::optional<RemovedOptional<T>> requires OptionalType<T>
         {
             auto const* ref = UnwrapRef(index);
-            if(not ref) return nullptr;
+            if(not ref) return std::nullopt;
 
             return {*ref};
         }

@@ -382,19 +382,10 @@ namespace lugizmo {
             return &(*ref).value();
         }
 
-        template<typename Idx>
-        auto Unwrap(Idx const& index) -> std::optional<RemovedOptional<T>> requires OptionalType<T>
+        [[nodiscard]]
+        auto Unwrap(typename I::KeyType const& index) const -> std::optional<RemovedOptional<T>> requires OptionalType<T>
         {
-            auto* ref = GetValueRef(index);
-            if(not ref) return std::nullopt;
-
-            return {*ref};
-        }
-
-        template<typename Idx>
-        auto Unwrap(Idx const& index) const -> std::optional<RemovedOptional<T> const> requires OptionalType<T>
-        {
-            auto* ref = GetValueRef(index);
+            auto const* ref = UnwrapRef(index);
             if(not ref) return std::nullopt;
 
             return {*ref};
