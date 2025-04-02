@@ -370,8 +370,8 @@ namespace lugizmo {
         auto TryVal(Idx const& index) const -> OptionalRef<RemovedOptional<T const>> requires OptionalType<T>
         {
             auto ref = Get(index);
-            if(not ref.has_value())         return OptionalRef<RemovedOptional<T> const>{std::nullopt};
-            if(not ref.value().has_value()) return OptionalRef<RemovedOptional<T> const>{std::nullopt};
+            if(not ref.has_value())         return OptionalRef<RemovedOptional<T const>>{std::nullopt};
+            if(not ref.value().has_value()) return OptionalRef<RemovedOptional<T const>>{std::nullopt};
 
             return OptionalRef<RemovedOptional<T const>>{ref.value().value()};
         }
