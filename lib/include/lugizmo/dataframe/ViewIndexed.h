@@ -12,9 +12,10 @@
 #include <iterator>
 #include <utility>
 #include <span>
+#include <format>
 
+#include "lugizmo/Error.h"
 #include "lugizmo/memory/References.h"
-
 #include "lugizmo/container/Concepts.h"
 
 #include "View.h"
@@ -332,7 +333,7 @@ namespace lugizmo {
         }
 
         [[nodiscard]]
-        auto GetRef(IKeyType const& index) -> T*
+        auto Find(IKeyType const& index) -> T*
         {
             // TODO store additionally a reference to the
             //      index type so that we don't have linear search here
@@ -344,7 +345,7 @@ namespace lugizmo {
         }
 
         [[nodiscard]]
-        auto GetRef(IKeyType const& index) const -> T const*
+        auto Find(IKeyType const& index) const -> T const*
         {
             // TODO store additionally a reference to the
             //      index type so that we don't have linear search here
@@ -355,17 +356,26 @@ namespace lugizmo {
             return &dataView[std::distance(indexSpan.begin(), pos)];
         }
 
+//        [[nodiscard]]
+//        auto Get(IKeyType const& key) const noexcept -> T
+//        {
+//            auto* ref = GetRef(key);
+//
+//            if(ref == nullptr) Crash(std::format("Cannot find key {} in dataframe via unsafe get. Use TryGet()", key).c_str());
+//            else return *ref;
+//        }
+
         [[nodiscard]]
-        auto Get(IKeyType const& key) const noexcept -> std::optional<T>
+        auto TryGet(IKeyType const& key) const noexcept -> std::optional<T>
         {
-            auto* ref = GetRef(key);
+            auto* ref = Find(key);
             return std::optional<T>(ref != nullptr ? std::optional<T>(*ref) : std::optional<T>());
         }
 
         template<typename Idx>
-        auto UnwrapRef(Idx const& index) -> RemovedOptional<T>* requires OptionalType<T>
+        auto FindUnwrap(Idx const& index) -> RemovedOptional<T>* requires OptionalType<T>
         {
-            auto* ref = GetRef(index);
+            auto* ref = Find(index);
             if(not ref)              return nullptr;
             if(not ref->has_value()) return nullptr;
 
@@ -373,7 +383,7 @@ namespace lugizmo {
         }
 
         template<typename Idx>
-        auto UnwrapRef(Idx const& index) const -> RemovedOptional<T> const* requires OptionalType<T>
+        auto FindUnwrap(Idx const& index) const -> RemovedOptional<T> const* requires OptionalType<T>
         {
             auto* ref = GetRef(index);
             if(not ref)              return nullptr;
@@ -383,9 +393,9 @@ namespace lugizmo {
         }
 
         [[nodiscard]]
-        auto Unwrap(typename I::KeyType const& index) const -> std::optional<RemovedOptional<T>> requires OptionalType<T>
+        auto TryUnwrap(typename I::KeyType const& index) const -> std::optional<RemovedOptional<T>> requires OptionalType<T>
         {
-            auto const* ref = UnwrapRef(index);
+            auto const* ref = FindUnwrap(index);
             if(not ref) return std::nullopt;
 
             return {*ref};

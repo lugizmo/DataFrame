@@ -21,11 +21,12 @@ set(LUGIZMO_DF_INCLUDES
         include/lugizmo/dataframe/View.h
         include/lugizmo/dataframe/ViewIndexed.h
 
+        include/lugizmo/Error.h
         include/lugizmo/DataFrame.h
 )
 
 set(LUGIZMO_DF_SOURCES
-        src/DataFrame.cpp
+        src/Error.cpp
 )
 
 add_library(DataFrame ${LUGIZMO_DF_SOURCES})

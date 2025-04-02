@@ -404,7 +404,7 @@ TEST(lugizmo_dataframe_test, row_major_set_get_field_range_views)
         count = 0;
         for(auto row = ROW_BEGIN; row < ROW_END; ++row)
         {
-            auto const valRef = view.GetRef(row);
+            auto const valRef = view.Find(row);
             ASSERT_TRUE(valRef);
             ASSERT_EQ(*valRef, count);
             ++count;
@@ -447,7 +447,7 @@ TEST(lugizmo_dataframe_test, row_major_set_get_record_range_views)
         count = 0;
         for (int col = COL_BEGIN; col < COL_END; ++col)
         {
-            auto const valOpt = view.GetRef(col);
+            auto const valOpt = view.Find(col);
             ASSERT_TRUE(valOpt);
             ASSERT_EQ(*valOpt, count);
             ++count;
@@ -505,8 +505,8 @@ TEST(lugizmo_dataframe_test, row_major_indexed_views)
 
         for(auto row = 0; row < ROW_COUNT; ++row)
         {
-            ASSERT_TRUE(view.Get(row));
-            ASSERT_EQ(view.Get(row), columnValue);
+            ASSERT_TRUE(view.TryGet(row));
+            ASSERT_EQ(view.TryGet(row), columnValue);
         }
     }
 
@@ -524,12 +524,12 @@ TEST(lugizmo_dataframe_test, row_major_indexed_views)
         {
             if(col != 2)
             {
-                ASSERT_TRUE(view.UnwrapRef(row));
-                ASSERT_EQ(*view.UnwrapRef(row), columnValue);
+                ASSERT_TRUE(view.FindUnwrap(row));
+                ASSERT_EQ(*view.FindUnwrap(row), columnValue);
             }
             else
             {
-                ASSERT_FALSE(view.UnwrapRef(row));
+                ASSERT_FALSE(view.FindUnwrap(row));
             }
         }
     }
@@ -546,8 +546,8 @@ TEST(lugizmo_dataframe_test, row_major_indexed_views)
             static_assert(std::size(ARRAY) == COL_COUNT);
             auto columnValue = ARRAY[col];
 
-            ASSERT_TRUE(view.GetRef(col));
-            ASSERT_EQ(*view.GetRef(col), columnValue);
+            ASSERT_TRUE(view.Find(col));
+            ASSERT_EQ(*view.Find(col), columnValue);
         }
     }
 
@@ -565,12 +565,12 @@ TEST(lugizmo_dataframe_test, row_major_indexed_views)
 
             if(col != 2)
             {
-                ASSERT_TRUE(view.UnwrapRef(col));
-                ASSERT_EQ(*view.UnwrapRef(col), columnValue);
+                ASSERT_TRUE(view.FindUnwrap(col));
+                ASSERT_EQ(*view.FindUnwrap(col), columnValue);
             }
             else
             {
-                ASSERT_FALSE(view.UnwrapRef(col));
+                ASSERT_FALSE(view.FindUnwrap(col));
             }
         }
     }

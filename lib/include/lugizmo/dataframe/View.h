@@ -208,7 +208,7 @@ namespace lugizmo {
         [[nodiscard]] constexpr auto operator()(size_t i) const noexcept -> std::optional<T const*> { return i < view.extent(0) ? &view[i] : std::nullopt; }
 
         [[nodiscard]]
-        auto GetRef(typename I::KeyType const& key) noexcept -> T*
+        auto Find(typename I::KeyType const& key) noexcept -> T*
         {
             if(not dfIndex) return {};
 
@@ -222,7 +222,7 @@ namespace lugizmo {
         }
 
         [[nodiscard]]
-        auto GetRef(typename I::KeyType const& key) const noexcept -> T const*
+        auto Find(typename I::KeyType const& key) const noexcept -> T const*
         {
             if(not dfIndex) return {};
 
@@ -236,14 +236,14 @@ namespace lugizmo {
         }
 
         [[nodiscard]]
-        auto Get(typename I::KeyType const& key) const noexcept -> std::optional<T>
+        auto TryGet(typename I::KeyType const& key) const noexcept -> std::optional<T>
         {
             auto* ref = GetRef(key);
             return std::optional<T>(ref ? *ref : std::nullopt);
         }
 
         [[nodiscard]]
-        auto UnwrapRef(typename I::KeyType const& index) -> RemovedOptional<T>* requires OptionalType<T>
+        auto FindUnwrap(typename I::KeyType const& index) -> RemovedOptional<T>* requires OptionalType<T>
         {
             auto* ref = GetRef(index);
             if(not ref)              return nullptr;
@@ -253,7 +253,7 @@ namespace lugizmo {
         }
 
         [[nodiscard]]
-        auto UnwrapRef(typename I::KeyType const& index) const -> RemovedOptional<T> const* requires OptionalType<T>
+        auto FindUnwrap(typename I::KeyType const& index) const -> RemovedOptional<T> const* requires OptionalType<T>
         {
             auto const* ref = GetRef(index);
             if(not ref)              return nullptr;
@@ -263,9 +263,9 @@ namespace lugizmo {
         }
 
         [[nodiscard]]
-        auto Unwrap(typename I::KeyType const& index) const -> std::optional<RemovedOptional<T>> requires OptionalType<T>
+        auto TryUnwrap(typename I::KeyType const& index) const -> std::optional<RemovedOptional<T>> requires OptionalType<T>
         {
-            auto const* ref = UnwrapRef(index);
+            auto const* ref = FindUnwrap(index);
             if(not ref) return std::nullopt;
 
             return {*ref};
