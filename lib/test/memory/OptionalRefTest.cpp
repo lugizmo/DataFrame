@@ -100,8 +100,8 @@ TEST(lugizmo_memory_optional_ref, monadic)
     using namespace lugizmo;
 
     int val = 10, fallback = 99;
-    OptionalRef const opt(val);
-    constexpr OptionalRef<int> none;
+    OptionalRef opt(val);
+    OptionalRef<int> none;
 
     auto const andThen = opt.and_then([](int& x) { return OptionalRef(x); });
     EXPECT_TRUE(andThen.has_value());

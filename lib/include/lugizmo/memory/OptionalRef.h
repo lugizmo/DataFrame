@@ -40,11 +40,15 @@ namespace lugizmo {
         constexpr auto operator=(T& other) noexcept -> OptionalRef&;
         constexpr auto operator=(T* other) noexcept -> OptionalRef&;
 
-        [[nodiscard]] constexpr auto Value() const noexcept -> T&;
+        [[nodiscard]] constexpr auto Value() const noexcept -> T const&;
+        [[nodiscard]] constexpr auto value() const noexcept -> T const&;
+        [[nodiscard]] constexpr auto operator->() const noexcept -> T const*;
+        [[nodiscard]] constexpr auto operator*() const noexcept -> T const&;
 
-        [[nodiscard]] constexpr auto value() const noexcept -> T&;
-        [[nodiscard]] constexpr auto operator->() const noexcept -> T*;
-        [[nodiscard]] constexpr auto operator*() const noexcept -> T&;
+        [[nodiscard]] constexpr auto Value() noexcept -> T&;
+        [[nodiscard]] constexpr auto value() noexcept -> T&;
+        [[nodiscard]] constexpr auto operator->() noexcept -> T*;
+        [[nodiscard]] constexpr auto operator*() noexcept -> T&;
 
         template<typename U>
         [[nodiscard]] constexpr auto ValueOr(U&& fallback) const -> T;
@@ -72,12 +76,12 @@ namespace lugizmo {
 
         // ===== MONADIC OPERATORS =================================================================================================================================================
 
-        template<typename F> constexpr auto AndThen(F&& f) const -> decltype(f(**this));
-        template<typename F> constexpr auto and_then(F&& f) const -> decltype(f(**this));
-        template<typename F> constexpr auto Transform(F&& f) const -> OptionalRef<std::remove_reference_t<decltype(f(**this))>>;
-        template<typename F> constexpr auto transform(F&& f) const -> OptionalRef<std::remove_reference_t<decltype(f(**this))>>;
-        template<typename F> constexpr auto OrElse(F&& f) const -> OptionalRef;
-        template<typename F> constexpr auto or_else(F&& f) const -> OptionalRef;
+        template<typename F> constexpr auto AndThen(F&& f) -> decltype(f(**this));
+        template<typename F> constexpr auto and_then(F&& f) -> decltype(f(**this));
+        template<typename F> constexpr auto Transform(F&& f) -> OptionalRef<std::remove_reference_t<decltype(f(**this))>>;
+        template<typename F> constexpr auto transform(F&& f) -> OptionalRef<std::remove_reference_t<decltype(f(**this))>>;
+        template<typename F> constexpr auto OrElse(F&& f) -> OptionalRef;
+        template<typename F> constexpr auto or_else(F&& f) -> OptionalRef;
 
         // ===== COMPARISONS =======================================================================================================================================================
 
@@ -153,26 +157,51 @@ namespace lugizmo {
     }
 
     template<typename T>
-    constexpr auto OptionalRef<T>::Value() const noexcept -> T&
+   constexpr auto OptionalRef<T>::Value() const noexcept -> T const&
     {
         assert(ptr && "Dereferencing null OptionalRef");
         return *ptr;
     }
 
     template<typename T>
-    constexpr auto OptionalRef<T>::value() const noexcept -> T&
+    constexpr auto OptionalRef<T>::value() const noexcept -> T const&
     {
         return Value();
     }
 
     template<typename T>
-    constexpr auto OptionalRef<T>::operator->() const noexcept -> T*
+    constexpr auto OptionalRef<T>::operator->() const noexcept -> T const*
     {
         return ptr;
     }
 
     template<typename T>
-    constexpr auto OptionalRef<T>::operator*() const noexcept -> T&
+    constexpr auto OptionalRef<T>::operator*() const noexcept -> T const&
+    {
+        return Value();
+    }
+
+    template<typename T>
+    constexpr auto OptionalRef<T>::Value() noexcept -> T&
+    {
+        assert(ptr && "Dereferencing null OptionalRef");
+        return *ptr;
+    }
+
+    template<typename T>
+    constexpr auto OptionalRef<T>::value() noexcept -> T&
+    {
+        return Value();
+    }
+
+    template<typename T>
+    constexpr auto OptionalRef<T>::operator->() noexcept -> T*
+    {
+        return ptr;
+    }
+
+    template<typename T>
+    constexpr auto OptionalRef<T>::operator*() noexcept -> T&
     {
         return Value();
     }
@@ -259,7 +288,7 @@ namespace lugizmo {
 
     template <typename T>
     template<typename F>
-    constexpr auto OptionalRef<T>::AndThen(F&& f) const -> decltype(f(**this))
+    constexpr auto OptionalRef<T>::AndThen(F&& f) -> decltype(f(**this))
     {
         using R = decltype(f(**this));
 
@@ -269,14 +298,14 @@ namespace lugizmo {
 
     template<typename T>
     template<typename F>
-    constexpr auto OptionalRef<T>::and_then(F&& f) const -> decltype(f(**this))
+    constexpr auto OptionalRef<T>::and_then(F&& f) -> decltype(f(**this))
     {
         return AndThen(std::forward<F>(f));
     }
 
     template<typename T>
     template<typename F>
-    constexpr auto OptionalRef<T>::Transform(F&& f) const -> OptionalRef<std::remove_reference_t<decltype(f(**this))>>
+    constexpr auto OptionalRef<T>::Transform(F&& f) -> OptionalRef<std::remove_reference_t<decltype(f(**this))>>
     {
         using U = std::remove_reference_t<decltype(f(**this))>;
 
@@ -286,14 +315,14 @@ namespace lugizmo {
 
     template<typename T>
     template<typename F>
-    constexpr auto OptionalRef<T>::transform(F&& f) const -> OptionalRef<std::remove_reference_t<decltype(f(**this))>>
+    constexpr auto OptionalRef<T>::transform(F&& f) -> OptionalRef<std::remove_reference_t<decltype(f(**this))>>
     {
         return Transform(std::forward<F>(f));
     }
 
     template<typename T>
     template<typename F>
-    constexpr auto OptionalRef<T>::OrElse(F&& f) const -> OptionalRef
+    constexpr auto OptionalRef<T>::OrElse(F&& f) -> OptionalRef
     {
         if (*this) return *this;
         return std::forward<F>(f)();
@@ -301,7 +330,7 @@ namespace lugizmo {
 
     template<typename T>
     template<typename F>
-    constexpr auto OptionalRef<T>::or_else(F&& f) const -> OptionalRef
+    constexpr auto OptionalRef<T>::or_else(F&& f) -> OptionalRef
     {
         if (*this) return *this;
         return std::forward<F>(f)();
