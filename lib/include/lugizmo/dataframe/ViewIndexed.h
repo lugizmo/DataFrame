@@ -385,7 +385,7 @@ namespace lugizmo {
         template<typename Idx>
         auto FindUnwrap(Idx const& index) const -> RemovedOptional<T> const* requires OptionalType<T>
         {
-            auto* ref = GetRef(index);
+            auto* ref = Find(index);
             if(not ref)              return nullptr;
             if(not ref->has_value()) return nullptr;
 

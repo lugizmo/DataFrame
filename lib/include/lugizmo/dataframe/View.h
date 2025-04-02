@@ -238,14 +238,14 @@ namespace lugizmo {
         [[nodiscard]]
         auto TryGet(typename I::KeyType const& key) const noexcept -> std::optional<T>
         {
-            auto* ref = GetRef(key);
+            auto* ref = Find(key);
             return std::optional<T>(ref ? *ref : std::nullopt);
         }
 
         [[nodiscard]]
         auto FindUnwrap(typename I::KeyType const& index) -> RemovedOptional<T>* requires OptionalType<T>
         {
-            auto* ref = GetRef(index);
+            auto* ref = Find(index);
             if(not ref)              return nullptr;
             if(not ref->has_value()) return nullptr;
 
@@ -255,7 +255,7 @@ namespace lugizmo {
         [[nodiscard]]
         auto FindUnwrap(typename I::KeyType const& index) const -> RemovedOptional<T> const* requires OptionalType<T>
         {
-            auto const* ref = GetRef(index);
+            auto const* ref = Find(index);
             if(not ref)              return nullptr;
             if(not ref->has_value()) return nullptr;
 
