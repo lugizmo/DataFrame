@@ -127,9 +127,27 @@ namespace lugizmo {
          * TODO doc + idea
          */
         [[nodiscard]]
+        auto LowerBoundPosition() const noexcept -> size_t
+        {
+            return static_cast<Derived*>(this)->LowerBoundPosition();
+        }
+
+        /**
+         * TODO doc + idea
+         */
+        [[nodiscard]]
         auto UpperBound() const noexcept -> KeyType
         {
             return static_cast<Derived*>(this)->UpperBound();
+        }
+
+        /**
+         * TODO doc + idea
+         */
+        [[nodiscard]]
+        auto UpperBoundPosition() const noexcept -> size_t
+        {
+            return static_cast<Derived*>(this)->UpperBoundPosition();
         }
 
         /**

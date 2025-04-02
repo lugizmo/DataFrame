@@ -27,17 +27,18 @@ namespace lugizmo {
      * TODO make view not eagerly create view so that it can be used
      *      lazy with ranges.
     */
-    template <typename T, typename I>
+    template<typename T, typename I>
     class DFViewIndexed
     {
         static constexpr bool IsConstView = std::is_const_v<T>;
+        using IKeyType = std::conditional_t<std::is_const_v<typename I::KeyType>, typename I::KeyType, const typename I::KeyType>;
 
-        static_assert(not std::is_pointer_v<T>   && not std::is_pointer_v<I>);
-        static_assert(not std::is_reference_v<T> && not std::is_reference_v<I>);
-        static_assert(std::is_const_v<I>, "The index should not be able to be mutated by this view.");
+        static_assert(not std::is_pointer_v<T>   && not std::is_pointer_v<IKeyType>);
+        static_assert(not std::is_reference_v<T> && not std::is_reference_v<IKeyType>);
+        static_assert(std::is_const_v<IKeyType>, "The index should not be able to be mutated by this view.");
 
-        using View    = DFView<T>;
-        using Indices = std::span<I>;
+        using View    = DFView<T, I>;
+        using Indices = std::span<IKeyType>;
         using Extents = typename View::Extents;
         using MDSpan  = typename View::MDSpan;
 
@@ -50,9 +51,8 @@ namespace lugizmo {
         View    dataView;
         Indices indexSpan;
 
-        template<typename Layout>
-        explicit DFViewIndexed(DFView<Layout>&& view, Indices const indices) noexcept :
-            dataView(std::forward<DFView<Layout>>(view)),
+        explicit DFViewIndexed(View&& view, Indices const indices) noexcept :
+            dataView(std::forward<View>(view)),
             indexSpan(indices)
         {
         }
@@ -70,10 +70,10 @@ namespace lugizmo {
          */
         struct IteratorValue
         {
-            NullableAssignableReferenceWrapper<T> val;
-            NullableAssignableReferenceWrapper<I> idx;
+            NullableAssignableReferenceWrapper<T>        val;
+            NullableAssignableReferenceWrapper<IKeyType> idx;
 
-            constexpr IteratorValue(T* v, I* i) noexcept : val(v), idx(i) { assert(v != nullptr && i != nullptr); }
+            constexpr IteratorValue(T* v, IKeyType* i) noexcept : val(v), idx(i) { assert(v != nullptr && i != nullptr); }
             constexpr ~IteratorValue() noexcept = default;
 
             constexpr IteratorValue(IteratorValue const& other) noexcept                    = default;
@@ -81,13 +81,13 @@ namespace lugizmo {
             constexpr auto operator=(IteratorValue&& other) noexcept -> IteratorValue&      = default;
             constexpr auto operator=(IteratorValue const& other) noexcept -> IteratorValue& = default;
 
-            constexpr auto first()        noexcept -> T*       { return val; }
-            constexpr auto first()  const noexcept -> T const* { return val; }
-            constexpr auto second() const noexcept -> I const* { return idx; }
+            constexpr auto first()        noexcept -> T*              { return val; }
+            constexpr auto first()  const noexcept -> T const*        { return val; }
+            constexpr auto second() const noexcept -> IKeyType const* { return idx; }
 
-            constexpr auto First()        noexcept -> T*       { return val; }
-            constexpr auto First()  const noexcept -> T const* { return val; }
-            constexpr auto Second() const noexcept -> I const* { return idx; }
+            constexpr auto First()        noexcept -> T*              { return val; }
+            constexpr auto First()  const noexcept -> T const*        { return val; }
+            constexpr auto Second() const noexcept -> IKeyType const* { return idx; }
         };
 
         static_assert(std::is_trivially_copyable_v<IteratorValue>, "Iterator value should just point/reference to the actual value.");
@@ -97,7 +97,7 @@ namespace lugizmo {
          */
         class IteratorIdx
         {
-            using DIt    = typename DFView<T>::Iterator;                                    // Referenced Data Iterator
+            using DIt    = typename View::Iterator;                                         // Referenced Data Iterator
             using IIt    = typename Indices::iterator;                                      // Referenced Index Iterator
 
             using Val    = std::conditional_t<IsConstView, IteratorValue const, IteratorValue>;   // Current value of the Iterator
@@ -122,7 +122,7 @@ namespace lugizmo {
             using reference         = Val&;
 
             static_assert(std::is_same_v<decltype(std::declval<DIt>().operator->()), T*>);
-            static_assert(std::is_same_v<decltype(std::declval<IIt>().operator->()), I const*>);
+            static_assert(std::is_same_v<decltype(std::declval<IIt>().operator->()), IKeyType const*>);
 
             IteratorIdx() noexcept :
                 ptr(),
@@ -257,17 +257,17 @@ namespace lugizmo {
 
         template <typename Layout>
         [[nodiscard]]
-        static auto RecordView(MDSpanDF<Layout> original, size_t const recIndex, Indices const fldIndices) noexcept -> DFViewIndexed
+        static auto RecordView(MDSpanDF<Layout> original, I const* index, size_t const recIndex, Indices const fldIndices) noexcept -> DFViewIndexed
         {
-            auto dfView = View::RecordView(original, recIndex);
+            auto dfView = View::RecordView(original, index, recIndex);
             return DFViewIndexed(std::move(dfView), fldIndices);
         }
 
         template <typename Layout>
         [[nodiscard]]
-        static auto FieldView(MDSpanDF<Layout> original, size_t const fldIndex, Indices const recIndices) noexcept -> DFViewIndexed
+        static auto FieldView(MDSpanDF<Layout> original, I const* index, size_t const fldIndex, Indices const recIndices) noexcept -> DFViewIndexed
         {
-            auto dfView = View::FieldView(original, fldIndex);
+            auto dfView = View::FieldView(original, index, fldIndex);
             return DFViewIndexed(std::move(dfView), recIndices);
         }
 
@@ -391,8 +391,8 @@ namespace lugizmo {
         }
     };
 
-    static_assert(std::ranges::range<DFViewIndexed<int, int const>>, "Validation for range requirement failed.");
-    static_assert(std::ranges::range<DFViewIndexed<int const, int const>>, "Validation for range requirement failed.");
+    static_assert(std::ranges::range<DFViewIndexed<int, DFUniqueIndex<int const>>>, "Validation for range requirement failed.");
+    static_assert(std::ranges::range<DFViewIndexed<int const, DFUniqueIndex<int const>>>, "Validation for range requirement failed.");
 }
 
 #endif // LUGIZMO_DF_VIEW_INDEXED_H

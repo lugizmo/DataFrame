@@ -34,6 +34,7 @@ namespace lugizmo {
     struct DFRangeIndex final : DFBaseSequenceIndex<DFRangeIndex<T>, T>
     {
         static_assert(std::is_integral_v<T>, "DFRangeIndex must be an integral type.");
+        static_assert(std::is_convertible_v<T, ssize_t>, "DFRangeIndex must be convertable to ssize_t.");
 
         using KeyType = T;
         using KeyView = DFRangeIndexBounds<T>;
@@ -81,9 +82,24 @@ namespace lugizmo {
          * TODO doc + idea
          */
         [[nodiscard]]
+        constexpr auto LowerBoundPosition() const noexcept -> size_t
+        {
+            return 0;
+        }
+
+        /**
+         * TODO doc + idea
+         */
+        [[nodiscard]]
         constexpr auto UpperBound() const noexcept -> KeyType
         {
             return upperBound;
+        }
+
+        [[nodiscard]]
+        constexpr auto UpperBoundPosition() const noexcept -> size_t
+        {
+            return static_cast<size_t>(upperBound - lowerBound);
         }
 
         /**

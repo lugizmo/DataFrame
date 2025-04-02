@@ -371,6 +371,101 @@ TEST(lugizmo_dataframe_test, row_major_set_get_record_views)
             ASSERT_EQ(df.GetValue(col, row), 42);
 }
 
+TEST(lugizmo_dataframe_test, row_major_set_get_field_range_views)
+{
+    using namespace lugizmo;
+    using DF = DataFrame<int, std::string, DFRangeIndex<int>>;
+
+    constexpr int COL_COUNT = 5;
+    constexpr int ROW_COUNT = 10;
+    constexpr int ROW_BEGIN = ROW_COUNT / 2 * -1;
+    constexpr int ROW_END   = ROW_COUNT / 2;
+    constexpr auto ARRAY        = std::array{1, 2, 3, 4, 5};
+
+    static_assert(ARRAY.size() == COL_COUNT);
+    static_assert(ROW_COUNT % 2 == 0);
+
+    auto df = DF();
+
+    for(auto col = 0; col < COL_COUNT; ++col)
+        ASSERT_TRUE(df.AddField(std::to_string(col)));
+
+    ASSERT_TRUE(df.SetRecordRange(ROW_BEGIN, ROW_END, ARRAY));
+
+    for(auto col = 0; col < COL_COUNT; ++col)
+    {
+        auto view = df.ViewField(std::to_string(col));
+        ASSERT_FALSE(view.Empty());
+
+        // transpose
+        auto count = 0;
+        for(auto& val : view) { val = count++; }
+
+        count = 0;
+        for(auto row = ROW_BEGIN; row < ROW_END; ++row)
+        {
+            auto const valRef = view.GetValue(row);
+            ASSERT_TRUE(valRef);
+            ASSERT_EQ(*valRef, count);
+            ++count;
+        }
+    }
+
+    for(auto col = 0; col < COL_COUNT; ++col)
+    {
+        auto count = 0;
+        for(auto row = ROW_BEGIN; row < ROW_END; ++row)
+            ASSERT_EQ(df.GetValue(std::to_string(col), row), count++);
+    }
+}
+
+TEST(lugizmo_dataframe_test, row_major_set_get_record_range_views)
+{
+    using namespace lugizmo;
+    using DF = DataFrame<int, DFRangeIndex<int>, std::string>;
+
+    constexpr int ROW_COUNT = 10;
+    constexpr int COL_BEGIN = -2;
+    constexpr int COL_END   = 3;
+
+    DF df;
+
+    ASSERT_TRUE(df.SetFieldRange(COL_BEGIN, COL_END, 1));
+    for (int row = 0; row < ROW_COUNT; ++row) ASSERT_TRUE(df.AddRecord(std::to_string(row)));
+
+    for(int row = 0; row < ROW_COUNT; ++row)
+    {
+        auto view = df.ViewRecord(std::to_string(row));
+        ASSERT_FALSE(view.Empty());
+
+        int count = 0;
+        for (auto& val : view)
+        {
+            val = count++;
+        }
+
+        count = 0;
+        for (int col = COL_BEGIN; col < COL_END; ++col)
+        {
+            auto const valOpt = view.GetValue(col);
+            ASSERT_TRUE(valOpt.has_value());
+            ASSERT_EQ(*valOpt, count);
+            ++count;
+        }
+    }
+
+    for (int row = 0; row < ROW_COUNT; ++row)
+    {
+        int count = 0;
+        for (int col = COL_BEGIN; col < COL_END; ++col)
+        {
+            ASSERT_EQ(df.GetValue(col, std::to_string(row)), count);
+            ++count;
+        }
+    }
+}
+
+
 TEST(lugizmo_dataframe_test, row_major_indexed_views)
 {
     using namespace lugizmo;
