@@ -524,12 +524,12 @@ TEST(lugizmo_dataframe_test, row_major_indexed_views)
         {
             if(col != 2)
             {
-                ASSERT_TRUE(view.GetValueRef(row));
-                ASSERT_EQ(*view.GetValueRef(row), columnValue);
+                ASSERT_TRUE(view.UnwrapRef(row));
+                ASSERT_EQ(*view.UnwrapRef(row), columnValue);
             }
             else
             {
-                ASSERT_FALSE(view.GetValueRef(row));
+                ASSERT_FALSE(view.UnwrapRef(row));
             }
         }
     }
@@ -565,12 +565,12 @@ TEST(lugizmo_dataframe_test, row_major_indexed_views)
 
             if(col != 2)
             {
-                ASSERT_TRUE(view.GetValueRef(col));
-                ASSERT_EQ(*view.GetValueRef(col), columnValue);
+                ASSERT_TRUE(view.UnwrapRef(col));
+                ASSERT_EQ(*view.UnwrapRef(col), columnValue);
             }
             else
             {
-                ASSERT_FALSE(view.GetValueRef(col));
+                ASSERT_FALSE(view.UnwrapRef(col));
             }
         }
     }

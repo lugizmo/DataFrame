@@ -363,7 +363,7 @@ namespace lugizmo {
         }
 
         template<typename Idx>
-        auto GetValueRef(Idx const& index) -> RemovedOptional<T>* requires OptionalType<T>
+        auto UnwrapRef(Idx const& index) -> RemovedOptional<T>* requires OptionalType<T>
         {
             auto* ref = GetRef(index);
             if(not ref)              return nullptr;
@@ -373,13 +373,31 @@ namespace lugizmo {
         }
 
         template<typename Idx>
-        auto GetValueRef(Idx const& index) const -> RemovedOptional<T> const* requires OptionalType<T>
+        auto UnwrapRef(Idx const& index) const -> RemovedOptional<T> const* requires OptionalType<T>
         {
             auto* ref = GetRef(index);
             if(not ref)              return nullptr;
             if(not ref->has_value()) return nullptr;
 
             return &(*ref).value();
+        }
+
+        template<typename Idx>
+        auto Unwrap(Idx const& index) -> std::optional<RemovedOptional<T>> requires OptionalType<T>
+        {
+            auto* ref = GetValueRef(index);
+            if(not ref) return std::nullopt;
+
+            return {*ref};
+        }
+
+        template<typename Idx>
+        auto Unwrap(Idx const& index) const -> std::optional<RemovedOptional<T> const> requires OptionalType<T>
+        {
+            auto* ref = GetValueRef(index);
+            if(not ref) return std::nullopt;
+
+            return {*ref};
         }
 
         template <typename RangeAdaptor>

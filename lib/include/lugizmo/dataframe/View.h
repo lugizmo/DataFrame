@@ -207,7 +207,8 @@ namespace lugizmo {
         [[nodiscard]] constexpr auto operator()(size_t i) noexcept -> std::optional<T*> { return i < view.extent(0) ? &view[i] : std::nullopt; }
         [[nodiscard]] constexpr auto operator()(size_t i) const noexcept -> std::optional<T const*> { return i < view.extent(0) ? &view[i] : std::nullopt; }
 
-        [[nodiscard]] auto GetRef(typename I::KeyType const& key) noexcept -> T*
+        [[nodiscard]]
+        auto GetRef(typename I::KeyType const& key) noexcept -> T*
         {
             if(not dfIndex) return {};
 
@@ -220,7 +221,8 @@ namespace lugizmo {
             return &view[pos];
         }
 
-        [[nodiscard]] auto GetRef(typename I::KeyType const& key) const noexcept -> T const*
+        [[nodiscard]]
+        auto GetRef(typename I::KeyType const& key) const noexcept -> T const*
         {
             if(not dfIndex) return {};
 
@@ -233,14 +235,15 @@ namespace lugizmo {
             return &view[pos];
         }
 
-        [[nodiscard]] auto Get(typename I::KeyType const& key) const noexcept -> std::optional<T>
+        [[nodiscard]]
+        auto Get(typename I::KeyType const& key) const noexcept -> std::optional<T>
         {
             auto* ref = GetRef(key);
             return std::optional<T>(ref ? *ref : std::nullopt);
         }
 
         [[nodiscard]]
-        auto GetValueRef(typename I::KeyType const& index) -> RemovedOptional<T>* requires OptionalType<T>
+        auto UnwrapRef(typename I::KeyType const& index) -> RemovedOptional<T>* requires OptionalType<T>
         {
             auto* ref = GetRef(index);
             if(not ref)              return nullptr;
@@ -250,13 +253,31 @@ namespace lugizmo {
         }
 
         [[nodiscard]]
-        auto GetValueRef(typename I::KeyType const& index) const -> RemovedOptional<T> const* requires OptionalType<T>
+        auto UnwrapRef(typename I::KeyType const& index) const -> RemovedOptional<T> const* requires OptionalType<T>
         {
             auto const* ref = GetRef(index);
             if(not ref)              return nullptr;
             if(not ref->has_value()) return nullptr;
 
             return &(*ref).value();
+        }
+
+        [[nodiscard]]
+        auto Unwrap(typename I::KeyType const& index) -> RemovedOptional<T>* requires OptionalType<T>
+        {
+            auto* ref = UnwrapRef(index);
+            if(not ref) return nullptr;
+
+            return {*ref};
+        }
+
+        [[nodiscard]]
+        auto Unwrap(typename I::KeyType const& index) const -> RemovedOptional<T> const* requires OptionalType<T>
+        {
+            auto const* ref = UnwrapRef(index);
+            if(not ref) return nullptr;
+
+            return {*ref};
         }
 
         [[nodiscard]]
