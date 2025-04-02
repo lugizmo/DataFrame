@@ -72,10 +72,15 @@ namespace lugizmo {
         using Flds = typename FldI::KeyView;                                            // stored view into field indices
         using Recs = typename RecI::KeyView;                                            // stored view into record indices
 
+    public:
+        // returned types should be public
+
         using DFViewFld      = DFView<T, RecI>;
         using DFViewRec      = DFView<T, FldI>;
         using DFViewConstFld = DFView<T const, FldI>;
         using DFViewConstRec = DFView<T const, RecI>;
+
+    private:
 
         template<typename MDT>
         using RecsData = std::mdspan<MDT, std::dextents<size_t, 2>, LayoutPolicy>;      // stored view into data;
