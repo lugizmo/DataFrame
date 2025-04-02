@@ -404,7 +404,7 @@ TEST(lugizmo_dataframe_test, row_major_set_get_field_range_views)
         count = 0;
         for(auto row = ROW_BEGIN; row < ROW_END; ++row)
         {
-            auto const valRef = view.Get(row);
+            auto const valRef = view.GetRef(row);
             ASSERT_TRUE(valRef);
             ASSERT_EQ(*valRef, count);
             ++count;
@@ -447,8 +447,8 @@ TEST(lugizmo_dataframe_test, row_major_set_get_record_range_views)
         count = 0;
         for (int col = COL_BEGIN; col < COL_END; ++col)
         {
-            auto const valOpt = view.Get(col);
-            ASSERT_TRUE(valOpt.has_value());
+            auto const valOpt = view.GetRef(col);
+            ASSERT_TRUE(valOpt);
             ASSERT_EQ(*valOpt, count);
             ++count;
         }
@@ -524,12 +524,12 @@ TEST(lugizmo_dataframe_test, row_major_indexed_views)
         {
             if(col != 2)
             {
-                ASSERT_TRUE(view.TryVal(row));
-                ASSERT_EQ(view.TryVal(row), columnValue);
+                ASSERT_TRUE(view.GetValueRef(row));
+                ASSERT_EQ(*view.GetValueRef(row), columnValue);
             }
             else
             {
-                ASSERT_FALSE(view.TryVal(row));
+                ASSERT_FALSE(view.GetValueRef(row));
             }
         }
     }
@@ -546,8 +546,8 @@ TEST(lugizmo_dataframe_test, row_major_indexed_views)
             static_assert(std::size(ARRAY) == COL_COUNT);
             auto columnValue = ARRAY[col];
 
-            ASSERT_TRUE(view.Get(col));
-            ASSERT_EQ(view.Get(col), columnValue);
+            ASSERT_TRUE(view.GetRef(col));
+            ASSERT_EQ(*view.GetRef(col), columnValue);
         }
     }
 
@@ -565,12 +565,12 @@ TEST(lugizmo_dataframe_test, row_major_indexed_views)
 
             if(col != 2)
             {
-                ASSERT_TRUE(view.TryVal(col));
-                ASSERT_EQ(view.TryVal(col), columnValue);
+                ASSERT_TRUE(view.GetValueRef(col));
+                ASSERT_EQ(*view.GetValueRef(col), columnValue);
             }
             else
             {
-                ASSERT_FALSE(view.TryVal(col));
+                ASSERT_FALSE(view.GetValueRef(col));
             }
         }
     }

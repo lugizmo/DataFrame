@@ -12,7 +12,6 @@
 #include <mdspan>
 #include <optional>
 
-#include "lugizmo/memory/OptionalRef.h"
 #include "IndexUnique.h"
 
 namespace lugizmo {
@@ -208,7 +207,7 @@ namespace lugizmo {
         [[nodiscard]] constexpr auto operator()(size_t i) noexcept -> std::optional<T*> { return i < view.extent(0) ? &view[i] : std::nullopt; }
         [[nodiscard]] constexpr auto operator()(size_t i) const noexcept -> std::optional<T const*> { return i < view.extent(0) ? &view[i] : std::nullopt; }
 
-        [[nodiscard]] auto Get(typename I::KeyType const& key) noexcept -> OptionalRef<T>
+        [[nodiscard]] auto GetRef(typename I::KeyType const& key) noexcept -> T*
         {
             if(not dfIndex) return {};
 
@@ -218,10 +217,10 @@ namespace lugizmo {
             size_t const pos = posOpt.value();
             if(pos >= view.extent(0)) return {};
 
-            return OptionalRef<T>{&view[pos]};
+            return &view[pos];
         }
 
-        [[nodiscard]] auto Get(typename I::KeyType const& key) const noexcept -> OptionalRef<T const>
+        [[nodiscard]] auto GetRef(typename I::KeyType const& key) const noexcept -> T const*
         {
             if(not dfIndex) return {};
 
@@ -231,27 +230,33 @@ namespace lugizmo {
             size_t const pos = posOpt.value();
             if (pos >= view.extent(0)) return {};
 
-            return OptionalRef<T>{&view[pos]};
+            return &view[pos];
         }
 
-        template<typename Idx>
-        auto TryVal(Idx const& index) -> OptionalRef<RemovedOptional<T>> requires OptionalType<T>
+        [[nodiscard]] auto Get(typename I::KeyType const& key) const noexcept -> std::optional<T>
         {
-            auto ref = Get(index);
-            if(not ref.has_value())         return OptionalRef<RemovedOptional<T>>{std::nullopt};
-            if(not ref.value().has_value()) return OptionalRef<RemovedOptional<T>>{std::nullopt};
-
-            return OptionalRef<RemovedOptional<T>>{ref.value().value()};
+            auto* ref = GetRef(key);
+            return std::optional<T>(ref ? *ref : std::nullopt);
         }
 
-        template<typename Idx>
-        auto TryVal(Idx const& index) const -> OptionalRef<RemovedOptional<T const>> requires OptionalType<T>
+        [[nodiscard]]
+        auto GetValueRef(typename I::KeyType const& index) -> RemovedOptional<T>* requires OptionalType<T>
         {
-            auto ref = Get(index);
-            if(not ref.has_value())         return OptionalRef<RemovedOptional<T const>>{std::nullopt};
-            if(not ref.value().has_value()) return OptionalRef<RemovedOptional<T const>>{std::nullopt};
+            auto* ref = GetRef(index);
+            if(not ref)              return nullptr;
+            if(not ref->has_value()) return nullptr;
 
-            return OptionalRef<RemovedOptional<T const>>{ref.value().value()};
+            return &(*ref).value();
+        }
+
+        [[nodiscard]]
+        auto GetValueRef(typename I::KeyType const& index) const -> RemovedOptional<T> const* requires OptionalType<T>
+        {
+            auto const* ref = GetRef(index);
+            if(not ref)              return nullptr;
+            if(not ref->has_value()) return nullptr;
+
+            return &(*ref).value();
         }
 
         [[nodiscard]]
