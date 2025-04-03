@@ -31,14 +31,14 @@ namespace lugizmo {
     class DFViewIndexed
     {
         static constexpr bool IsConstView = std::is_const_v<T>;
-        using IKeyType = std::conditional_t<std::is_const_v<typename I::KeyType>, typename I::KeyType, const typename I::KeyType>;
+        using KeyType = std::conditional_t<std::is_const_v<typename I::KeyType>, typename I::KeyType, const typename I::KeyType>;
 
-        static_assert(not std::is_pointer_v<T>   && not std::is_pointer_v<IKeyType>);
-        static_assert(not std::is_reference_v<T> && not std::is_reference_v<IKeyType>);
-        static_assert(std::is_const_v<IKeyType>, "The index should not be able to be mutated by this view.");
+        static_assert(not std::is_pointer_v<T>   && not std::is_pointer_v<KeyType>);
+        static_assert(not std::is_reference_v<T> && not std::is_reference_v<KeyType>);
+        static_assert(std::is_const_v<KeyType>, "The index should not be able to be mutated by this view.");
 
         using View    = DFView<T, I>;
-        using Indices = std::span<IKeyType>;
+        using Indices = std::span<KeyType>;
         using Extents = typename View::Extents;
         using MDSpan  = typename View::MDSpan;
 
@@ -71,9 +71,9 @@ namespace lugizmo {
         struct IteratorValue
         {
             NullableAssignableReferenceWrapper<T>        val;
-            NullableAssignableReferenceWrapper<IKeyType> idx;
+            NullableAssignableReferenceWrapper<KeyType> idx;
 
-            constexpr IteratorValue(T* v, IKeyType* i) noexcept : val(v), idx(i) { assert(v != nullptr && i != nullptr); }
+            constexpr IteratorValue(T* v, KeyType* i) noexcept : val(v), idx(i) { assert(v != nullptr && i != nullptr); }
             constexpr ~IteratorValue() noexcept = default;
 
             constexpr IteratorValue(IteratorValue const& other) noexcept                    = default;
@@ -83,11 +83,11 @@ namespace lugizmo {
 
             constexpr auto first()        noexcept -> T*              { return val; }
             constexpr auto first()  const noexcept -> T const*        { return val; }
-            constexpr auto second() const noexcept -> IKeyType const* { return idx; }
+            constexpr auto second() const noexcept -> KeyType const* { return idx; }
 
             constexpr auto First()        noexcept -> T*              { return val; }
             constexpr auto First()  const noexcept -> T const*        { return val; }
-            constexpr auto Second() const noexcept -> IKeyType const* { return idx; }
+            constexpr auto Second() const noexcept -> KeyType const* { return idx; }
         };
 
         static_assert(std::is_trivially_copyable_v<IteratorValue>, "Iterator value should just point/reference to the actual value.");
@@ -122,7 +122,7 @@ namespace lugizmo {
             using reference         = Val&;
 
             static_assert(std::is_same_v<decltype(std::declval<DIt>().operator->()), T*>);
-            static_assert(std::is_same_v<decltype(std::declval<IIt>().operator->()), IKeyType const*>);
+            static_assert(std::is_same_v<decltype(std::declval<IIt>().operator->()), KeyType const*>);
 
             IteratorIdx() noexcept :
                 ptr(),
@@ -332,74 +332,20 @@ namespace lugizmo {
             return IteratorIdx(dataView.cend(), indexSpan.end());
         }
 
-        [[nodiscard]]
-        auto Find(IKeyType const& index) -> T*
-        {
-            // TODO store additionally a reference to the
-            //      index type so that we don't have linear search here
-            auto pos = std::ranges::find(indexSpan, index);
-            if(pos == indexSpan.end()) return nullptr;
+        [[nodiscard]] auto Contains(KeyType const& key) noexcept -> bool;
 
-            assert(indexSpan.size() == dataView.Size());
-            return &dataView[std::distance(indexSpan.begin(), pos)];
-        }
+        [[nodiscard]] auto At(KeyType const& key) noexcept -> T*;
+        [[nodiscard]] auto At(KeyType const& key) const noexcept -> T const*;
+        [[nodiscard]] auto TryAt(KeyType const& key) const noexcept -> std::optional<T>;
 
-        [[nodiscard]]
-        auto Find(IKeyType const& index) const -> T const*
-        {
-            // TODO store additionally a reference to the
-            //      index type so that we don't have linear search here
-            auto pos = std::ranges::find(indexSpan, index);
-            if(pos == indexSpan.end()) return nullptr;
+        [[nodiscard]] auto Unwrap(KeyType const& key) noexcept -> RemovedOptional<T>* requires OptionalType<T>;
+        [[nodiscard]] auto Unwrap(KeyType const& key) const noexcept -> RemovedOptional<T> const* requires OptionalType<T>;
+        [[nodiscard]] auto TryUnwrap(KeyType const& key) const noexcept -> std::optional<RemovedOptional<T>> requires OptionalType<T>;
 
-            assert(indexSpan.size() == dataView.Size());
-            return &dataView[std::distance(indexSpan.begin(), pos)];
-        }
-
-//        [[nodiscard]]
-//        auto Get(IKeyType const& key) const noexcept -> T
-//        {
-//            auto* ref = GetRef(key);
-//
-//            if(ref == nullptr) Crash(std::format("Cannot find key {} in dataframe via unsafe get. Use TryGet()", key).c_str());
-//            else return *ref;
-//        }
-
-        [[nodiscard]]
-        auto TryGet(IKeyType const& key) const noexcept -> std::optional<T>
-        {
-            auto* ref = Find(key);
-            return std::optional<T>(ref != nullptr ? std::optional<T>(*ref) : std::optional<T>());
-        }
-
-        template<typename Idx>
-        auto FindUnwrap(Idx const& index) -> RemovedOptional<T>* requires OptionalType<T>
-        {
-            auto* ref = Find(index);
-            if(not ref)              return nullptr;
-            if(not ref->has_value()) return nullptr;
-
-            return &(*ref).value();
-        }
-
-        template<typename Idx>
-        auto FindUnwrap(Idx const& index) const -> RemovedOptional<T> const* requires OptionalType<T>
-        {
-            auto* ref = Find(index);
-            if(not ref)              return nullptr;
-            if(not ref->has_value()) return nullptr;
-
-            return &(*ref).value();
-        }
-
-        [[nodiscard]]
-        auto TryUnwrap(typename I::KeyType const& index) const -> std::optional<RemovedOptional<T>> requires OptionalType<T>
-        {
-            auto const* ref = FindUnwrap(index);
-            if(not ref) return std::nullopt;
-
-            return {*ref};
-        }
+        //[[nodiscard]] auto Front() noexcept -> T*;
+        //[[nodiscard]] auto Front() const noexcept -> T const*;
+        //[[nodiscard]] auto Back() noexcept -> T*;
+        //[[nodiscard]] auto Back() const noexcept -> T const*;
 
         template <typename RangeAdaptor>
         [[nodiscard]]
@@ -418,6 +364,79 @@ namespace lugizmo {
 
     static_assert(std::ranges::range<DFViewIndexed<int, DFUniqueIndex<int const>>>, "Validation for range requirement failed.");
     static_assert(std::ranges::range<DFViewIndexed<int const, DFUniqueIndex<int const>>>, "Validation for range requirement failed.");
+
+    template<typename T, typename  I>
+    auto DFViewIndexed<T, I>::Contains(KeyType const& key) noexcept -> bool
+    {
+        // TODO store additionally a reference to the
+        //      index type so that we don't have linear search here
+        return std::ranges::find(indexSpan, key) != indexSpan.end();
+    }
+
+        template<typename T, typename  I>
+        auto DFViewIndexed<T, I>::At(KeyType const& key) noexcept -> T*
+        {
+            // TODO store additionally a reference to the
+            //      index type so that we don't have linear search here
+            auto pos = std::ranges::find(indexSpan, key);
+            if(pos == indexSpan.end()) return nullptr;
+
+            assert(indexSpan.size() == dataView.Size());
+            return &dataView[std::distance(indexSpan.begin(), pos)];
+        }
+
+        template<typename T, typename  I>
+        auto DFViewIndexed<T, I>::At(KeyType const& key) const noexcept -> T const*
+        {
+            // TODO store additionally a reference to the
+            //      index type so that we don't have linear search here
+            auto pos = std::ranges::find(indexSpan, key);
+            if(pos == indexSpan.end()) return nullptr;
+
+            assert(indexSpan.size() == dataView.Size());
+            return &dataView[std::distance(indexSpan.begin(), pos)];
+        }
+
+        template<typename T, typename  I>
+        auto DFViewIndexed<T, I>::TryAt(KeyType const& key) const noexcept -> std::optional<T>
+        {
+            auto* ref = At(key);
+            return std::optional<T>(ref != nullptr ? std::optional<T>(*ref) : std::optional<T>());
+        }
+
+        template<typename T, typename  I>
+        auto DFViewIndexed<T, I>::Unwrap(KeyType const& key) noexcept -> RemovedOptional<T>* requires OptionalType<T>
+        {
+            auto* ref = At(key);
+            if(not ref)              return nullptr;
+            if(not ref->has_value()) return nullptr;
+
+            return &(*ref).value();
+        }
+
+        template<typename T, typename  I>
+        auto DFViewIndexed<T, I>::Unwrap(KeyType const& key) const noexcept -> RemovedOptional<T> const* requires OptionalType<T>
+        {
+            auto* ref = At(key);
+            if(not ref)              return nullptr;
+            if(not ref->has_value()) return nullptr;
+
+            return &(*ref).value();
+        }
+
+        template<typename T, typename  I>
+        auto DFViewIndexed<T, I>::TryUnwrap(KeyType const& key) const noexcept -> std::optional<RemovedOptional<T>> requires OptionalType<T>
+        {
+            auto const* ref = Unwrap(key);
+            if(not ref) return std::nullopt;
+
+            return {*ref};
+        }
+
+        //[[nodiscard]] auto Front() noexcept -> T*;
+        //[[nodiscard]] auto Front() const noexcept -> T const*;
+        //[[nodiscard]] auto Back() noexcept -> T*;
+        //[[nodiscard]] auto Back() const noexcept -> T const*;
 }
 
 #endif // LUGIZMO_DF_VIEW_INDEXED_H

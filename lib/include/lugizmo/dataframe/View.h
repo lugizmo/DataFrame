@@ -33,6 +33,7 @@ namespace lugizmo {
         using Extents = std::dextents<size_t, 1>;
         using Strides = std::layout_stride::mapping<Extents>;
         using IndexT  = I const*;
+        using KeyType = typename I::KeyType;
         using MDSpan  = std::mdspan<T, Extents, std::layout_stride>;
 
         template<typename Layout>
@@ -207,69 +208,21 @@ namespace lugizmo {
         [[nodiscard]] constexpr auto operator()(size_t i) noexcept -> std::optional<T*> { return i < view.extent(0) ? &view[i] : std::nullopt; }
         [[nodiscard]] constexpr auto operator()(size_t i) const noexcept -> std::optional<T const*> { return i < view.extent(0) ? &view[i] : std::nullopt; }
 
-        [[nodiscard]]
-        auto Find(typename I::KeyType const& key) noexcept -> T*
-        {
-            if(not dfIndex) return {};
+        [[nodiscard]] auto Contains(KeyType const& key) -> bool;
 
-            auto posOpt = dfIndex->Position(key);
-            if(!posOpt) return {};
+        [[nodiscard]] auto At(KeyType const& key) noexcept -> T*;
+        [[nodiscard]] auto At(KeyType const& key) const noexcept -> T const*;
 
-            size_t const pos = posOpt.value();
-            if(pos >= view.extent(0)) return {};
+        [[nodiscard]] auto TryAt(KeyType const& key) const noexcept -> std::optional<T>;
 
-            return &view[pos];
-        }
+        [[nodiscard]] auto Unwrap(KeyType const& key) noexcept -> RemovedOptional<T>* requires OptionalType<T>;
+        [[nodiscard]] auto Unwrap(KeyType const& key) const noexcept -> RemovedOptional<T> const* requires OptionalType<T>;
+        [[nodiscard]] auto TryUnwrap(KeyType const& key) const noexcept -> std::optional<RemovedOptional<T>> requires OptionalType<T>;
 
-        [[nodiscard]]
-        auto Find(typename I::KeyType const& key) const noexcept -> T const*
-        {
-            if(not dfIndex) return {};
-
-            auto posOpt = dfIndex->Position(key);
-            if (!posOpt) return {};
-
-            size_t const pos = posOpt.value();
-            if (pos >= view.extent(0)) return {};
-
-            return &view[pos];
-        }
-
-        [[nodiscard]]
-        auto TryGet(typename I::KeyType const& key) const noexcept -> std::optional<T>
-        {
-            auto* ref = Find(key);
-            return std::optional<T>(ref ? *ref : std::nullopt);
-        }
-
-        [[nodiscard]]
-        auto FindUnwrap(typename I::KeyType const& index) -> RemovedOptional<T>* requires OptionalType<T>
-        {
-            auto* ref = Find(index);
-            if(not ref)              return nullptr;
-            if(not ref->has_value()) return nullptr;
-
-            return &(*ref).value();
-        }
-
-        [[nodiscard]]
-        auto FindUnwrap(typename I::KeyType const& index) const -> RemovedOptional<T> const* requires OptionalType<T>
-        {
-            auto const* ref = Find(index);
-            if(not ref)              return nullptr;
-            if(not ref->has_value()) return nullptr;
-
-            return &(*ref).value();
-        }
-
-        [[nodiscard]]
-        auto TryUnwrap(typename I::KeyType const& index) const -> std::optional<RemovedOptional<T>> requires OptionalType<T>
-        {
-            auto const* ref = FindUnwrap(index);
-            if(not ref) return std::nullopt;
-
-            return {*ref};
-        }
+        [[nodiscard]] auto Front() noexcept -> T*;
+        [[nodiscard]] auto Front() const noexcept -> T const*;
+        [[nodiscard]] auto Back() noexcept -> T*;
+        [[nodiscard]] auto Back() const noexcept -> T const*;
 
         [[nodiscard]]
         constexpr auto begin() noexcept -> Iterator
@@ -315,6 +268,107 @@ namespace lugizmo {
 
     static_assert(std::ranges::range<DFView<int, DFUniqueIndex<int>>>, "Validation for range requirement failed.");
     static_assert(std::ranges::range<DFView<int const, DFUniqueIndex<int>>>, "Validation for range requirement failed.");
-}
+
+    template<typename T, typename I>
+    auto DFView<T, I>::Contains(KeyType const& key) -> bool
+    {
+        if(not dfIndex) return false;
+        return dfIndex->Contains(key);
+    }
+
+    template <typename T, typename I>
+    auto DFView<T, I>::At(KeyType const& key) noexcept -> T*
+    {
+        if(not dfIndex) return nullptr;
+
+        auto posOpt = dfIndex->Position(key);
+        if(!posOpt) return {};
+
+        size_t const pos = posOpt.value();
+        if(pos >= view.extent(0)) return nullptr;
+
+        return &view[pos];
+    }
+
+    template<typename T, typename I>
+    auto DFView<T, I>::At(KeyType const& key) const noexcept -> T const*
+    {
+        if(not dfIndex) return nullptr;
+
+        auto posOpt = dfIndex->Position(key);
+        if (!posOpt) return {};
+
+        size_t const pos = posOpt.value();
+        if (pos >= view.extent(0)) return nullptr;
+
+        return &view[pos];
+    }
+
+    template<typename T, typename I>
+    auto DFView<T, I>::TryAt(KeyType const& key) const noexcept -> std::optional<T>
+    {
+        auto* ref = At(key);
+        return std::optional<T>(ref ? *ref : std::nullopt);
+    }
+
+    template<typename T, typename I>
+    auto DFView<T, I>::Unwrap(KeyType const& key) noexcept -> RemovedOptional<T>* requires OptionalType<T>
+    {
+        auto* ref = At(key);
+        if(not ref)              return nullptr;
+        if(not ref->has_value()) return nullptr;
+
+        return &(*ref).value();
+    }
+
+    template<typename T, typename I>
+    auto DFView<T, I>::Unwrap(KeyType const& key) const noexcept -> RemovedOptional<T> const* requires OptionalType<T>
+    {
+        auto const* ref = At(key);
+        if(not ref)              return nullptr;
+        if(not ref->has_value()) return nullptr;
+
+        return &(*ref).value();
+    }
+
+    template <typename T, typename I>
+    auto DFView<T, I>::TryUnwrap(KeyType const &key) const noexcept -> std::optional<RemovedOptional<T>>
+        requires OptionalType<T>
+    {
+        auto const *ref = Unwrap(key);
+        if (not ref) return std::nullopt;
+
+        return {*ref};
+    }
+
+    template<typename T, typename I>
+    auto DFView<T, I>::Front() noexcept -> T*
+    {
+        if(Empty()) return nullptr;
+        return &view[0];
+    }
+
+    template<typename T, typename I>
+    auto DFView<T, I>::Front() const noexcept -> T const*
+    {
+        if(Empty()) return nullptr;
+        return &view[0];
+    }
+
+    template<typename T, typename I>
+    auto DFView<T, I>::Back() noexcept -> T*
+    {
+        if(Empty()) return nullptr;
+        return &view[Size() - 1];
+    }
+
+    template<typename T, typename I>
+    auto DFView<T, I>::Back() const noexcept -> T const*
+    {
+        if(Empty()) return nullptr;
+        return &view[Size() - 1];
+    }
+
+} // namespace lugizmo
 
 #endif // LUGIZMO_DF_VIEW_H
