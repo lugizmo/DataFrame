@@ -129,8 +129,8 @@ namespace lugizmo {
     template<typename T>
     struct RemoveOptional { using Type = T; };
 
-    template<typename T>
-    struct RemoveOptional<std::optional<T>> { using Type = T; };
+    template<typename T> requires OptionalType<T>
+    struct RemoveOptional<T> { using Type = typename std::remove_cvref_t<T>::value_type; };
 
     template<typename T>
     using RemovedOptional = typename RemoveOptional<T>::Type;

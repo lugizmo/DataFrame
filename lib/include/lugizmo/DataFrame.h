@@ -372,11 +372,21 @@ namespace lugizmo {
         [[nodiscard]]
         auto ViewField(FldIndex const& index) const noexcept -> DFViewConstFld requires DFValIndex<RecI>;
 
+        /**
+         * TODO doc
+         * @param index
+         * @return
+         */
         [[nodiscard]]
         auto ViewField(FldIndex const& index) noexcept -> DFViewFld requires DFSeqIndex<RecI>;
 
+        /**
+         * TODO doc
+         * @param index
+         * @return
+         */
         [[nodiscard]]
-       auto ViewField(FldIndex const& index) const noexcept -> DFViewConstFld requires DFSeqIndex<RecI>;
+        auto ViewField(FldIndex const& index) const noexcept -> DFViewConstFld requires DFSeqIndex<RecI>;
 
         /**
          * @return      View into a field (handling layout) if field found in dataframe.
