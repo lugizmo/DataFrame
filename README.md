@@ -12,6 +12,75 @@ This library uses **C++23** constructs (like mdspan). At moment of writing this 
 - Project Options (gets fetched for you)
 - GTest/Googletest (gets fetched for you, when using tests)
 
+### Dataframes
+
+Dataframes can store every c++ type as values that are default constructable. The records and field indices must
+conform to: TODO add rule
+
+Data is stored as a consecutive block of memory. This is a decision to optimize iterations over memory and having less 
+indirection when working with the data. That also means you should try to define the shape of your data at the beginning
+if possible. And then optimizing by choosing a appropriate memory layout as described next. 
+
+You can choose between layout_right (row major, default) or layout_left (column major) as the underlying storage memory
+order. The interface of the dataframe does not change. Choose layout_right when adding records/rows more frequently, and
+layout_left when adding fields/columns is more frequent.
+
+Dataframes use raw memory in the background, and a std::memory_resource is used for allocations. All constructors and
+constructor functions optionally accept a shared_memory resource and a capacity that can be used for memory management.
+
+### Examples
+
+## Creating
+
+The following lists functions on how to create/initialize a Dataframe. The simplest method is to create an empty 
+DataFrame (best with pre-allocated memory) and add fields and records afterward. But you can also initialize all 
+at once for optimal initialization and when you know what you're going to add. As mentioned before, capacity and 
+memory_resource can be passed to the dataframe on construction.
+
+Default construction of a dataframe. 
+```
+// both with optionally passed memory_resource
+auto default  = lugizmo::DataFrame<int, int, int>{};
+auto reserved = lugizmo::DataFrame<int, int, int>{50}; 
+```
+
+You can create a DataFrame from known fields and records using a span or initializer list of fields and records. 
+Again, memory can also be reserved in advance and a memory_resource can be passed.
+(TODO add example for FromRecords)
+```
+// create empty dataframe with known fields:
+auto dfFromAr = lugizmo::DataFrame<int, int, int>::FromFields(std::array{1, 2, 3, 4});
+auto dfFromIn = lugizmo::DataFrame<int, int, int>::FromFields({1, 2, 3, 4});
+
+// also possible to pass values to fill records with:
+auto df = lugizmo::DataFrame<int, int, int>::FromFieldsAndRecord({1, 2, 3, 4}, {1, 2, 3, 4}, {10, 20, 30, 40});
+// Fields  :   1    2    3    4
+// Records :---------------------
+//     1   |   10   20   30   40
+//     2   |   10   20   30   40
+//     3   |   10   20   30   40
+//     4   |   10   20   30   40
+
+
+// you can also create a dataframe with explicitly setting all values:
+auto df = lugizmo::DataFrame<int, int, int>::FromFieldsAndRecords({1, 2, 3, 4}, {1, 2, 3, 4}, {
+                                                                  {1.0f, 2.0f, 3.0f, 4.0f}, 
+                                                                  {1.0f, 2.0f, 3.0f, 4.0f},
+                                                                  {1.0f, 2.0f, 3.0f, 4.0f}});
+// Fields  :   1    2    3    4
+// Records :---------------------
+//     1   |   1    2    3    4
+//     2   |   1    2    3    4
+//     3   |   1    2    3    4
+//     4   |   1    2    3    4
+
+
+```
+
+## Accessing Values
+
+## Iterating Fields and Records
+
 ### DataFrame targeted features
 
 - Storage is consecutive in memory

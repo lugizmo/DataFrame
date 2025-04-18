@@ -102,7 +102,7 @@ namespace lugizmo {
          *           (except for the essentials).
          *  @details Uses the default memory resource of the system.
          */
-        explicit DataFrame() noexcept;
+        explicit DataFrame(MemRsc res = BackingResDefault()) noexcept;
 
         /**
          * @brief Empty Dataframe optionally reserving memory and using a backing
@@ -573,8 +573,8 @@ namespace lugizmo {
     // ======== CONSTRUCTION ===============================================================================================================
 
     template <typename T, typename F, typename R, typename L>
-    DataFrame<T, F, R, L>::DataFrame() noexcept :
-        backingRes(BackingResDefault()),
+    DataFrame<T, F, R, L>::DataFrame(MemRsc res) noexcept :
+        backingRes(std::move(res)),
         capacity(0),
         data(nullptr),
         recsData(data, 0, 0)
