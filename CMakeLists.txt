@@ -4,64 +4,47 @@
 # See the LICENSE file in the project root or at
 # http://www.apache.org/licenses/LICENSE-2.0 for full license information.
 
-cmake_minimum_required(VERSION 3.29)
+cmake_minimum_required(VERSION 3.27)
 set(LUGIZMO_DF_PROJECT_NAME DataFrame)
-
 set(CMAKE_CXX_STANDARD 23)
-set(CMAKE_C_STANDARD 99)
 
-# ====== OPTIONS ===========================================================================================================================
-
-option(OPT_BUILD_TESTS "Build tests." ON)
-option(OPT_BUILD_BENCH "Build benchmarks." ON)
-
-# ====== DEPENDENCIES ======================================================================================================================
-
-include(vendor/fetch_project_options.cmake)
-include(vendor/fetch_gtest.cmake)
-include(vendor/fetch_benchmark.cmake)
-
-# ====== SOURCE ============================================================================================================================
 project(${LUGIZMO_DF_PROJECT_NAME}
         VERSION 0.0.1
         DESCRIPTION "DataFrame type to store tabular data."
         LANGUAGES CXX)
 
-if(CMAKE_GENERATOR STREQUAL "Xcode")
-    message(STATUS "Finalize in Xcode")
-    project_options(PREFIX ${LUGIZMO_DF_PROJECT_NAME}
-            DISABLE_EXCEPTIONS
-            DISABLE_RTTI
-            #ENABLE_CLANG_TIDY
-            ENABLE_COVERAGE
-            WARNINGS_AS_ERRORS
-            #ENABLE_INCLUDE_WHAT_YOU_USE
-            ENABLE_SANITIZER_ADDRESS
-            ENABLE_SANITIZER_UNDEFINED)
+# ====== OPTIONS ===========================================================================================================================
 
-elseif(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
-    message(STATUS "Finalize in Debug")
-    project_options(PREFIX ${LUGIZMO_DF_PROJECT_NAME}
-            DISABLE_EXCEPTIONS
-            DISABLE_RTTI
-            #ENABLE_CLANG_TIDY
-            #ENABLE_COVERAGE
-            WARNINGS_AS_ERRORS
-            #ENABLE_INCLUDE_WHAT_YOU_USE
-            #ENABLE_SANITIZER_ADDRESS
-            #ENABLE_SANITIZER_UNDEFINED
-    )
+option(BUILD_TESTING    "Build tests."      ON)
+option(BUILD_BENCHMARKS "Build benchmarks." OFF)
 
-else()
-    project_options(PREFIX ${LUGIZMO_DF_PROJECT_NAME}
-            DISABLE_EXCEPTIONS
-            DISABLE_RTTI
-            #ENABLE_CLANG_TIDY
-            ENABLE_COVERAGE
-            WARNINGS_AS_ERRORS
-            #ENABLE_INCLUDE_WHAT_YOU_USE
-            ENABLE_INTERPROCEDURAL_OPTIMIZATION
-            ENABLE_NATIVE_OPTIMIZATION)
-endif()
+option(LUGIZMO_DOWNLOAD_GTEST     "Download GTest regardless of local installation."     OFF)
+option(LUGIZMO_DOWNLOAD_BENCHMARK "Download Benchmark regardless of local installation." OFF)
+
+option(LUGIZMO_USE_CLANG_TIDY "Enable Clang-Tidy analysis during builds." OFF)
+
+set(LUGIZMO_BUILD_TESTING ${BUILD_TESTING})
+set(LUGIZMO_BUILD_BENCH ${BUILD_BENCHMARKS})
+
+# apply build flags based on options
+include(cmake/BuildOptions.cmake)
+include(cmake/ClangTidy.cmake)
+
+set_lugizmo_global_build_flags()
+
+message(STATUS "Lugizmo DF - Building tests: ${BUILD_TESTING}")
+message(STATUS "Lugizmo DF - Building benchmarks: ${BUILD_BENCHMARKS}")
+message(STATUS "Lugizmo DF - Using Clang-Tidy: ${LUGIZMO_USE_CLANG_TIDY}")
+
+# ====== DEPENDENCIES ======================================================================================================================
+
+# Fetch dependencies: Ensures that gtest and benchmark are downloaded automatically
+# System-installed dependencies can also be used if required.
+include(vendor/fetch_gtest.cmake)
+include(vendor/fetch_benchmark.cmake)
+
+# ====== SOURCE ============================================================================================================================
 
 add_subdirectory(lib)
+add_subdirectory(lib/test)
+add_subdirectory(lib/bench)

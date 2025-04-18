@@ -36,32 +36,4 @@ set_target_properties(DataFrame PROPERTIES
         CXX_STANDARD 23
         CXX_STANDARD_REQUIRED ON)
 
-target_link_libraries(DataFrame
-        PRIVATE
-        ${LUGIZMO_DF_PROJECT_NAME}_project_options
-        ${LUGIZMO_DF_PROJECT_NAME}_project_warnings)
-
-target_include_interface_directories(DataFrame "${CMAKE_CURRENT_SOURCE_DIR}/include/")
-
-add_subdirectory(bench)
-
-# TODO move to separate CMakeLists.txt
-if(OPT_BUILD_TESTS)
-    add_executable(DataFrameTest
-
-#            test/memory/DFMemoryTest.cpp
-
-            test/container/ConceptsTest.cpp
-            test/container/DataFrameMapTest.cpp
-
-            test/dataframe/IndexBaseTest.cpp
-            test/dataframe/IndexRangeTest.cpp
-            test/dataframe/IndexUniqueTest.cpp
-            test/dataframe/LayoutRowMajorTest.cpp
-
-            test/DataframeTest.cpp
-            test/DataframeRangeIndexTest.cpp
-            test/main.cpp
-    )
-    target_link_libraries(DataFrameTest PUBLIC DataFrame gtest)
-endif(OPT_BUILD_TESTS)
+#target_include_interface_directories(DataFrame "${CMAKE_CURRENT_SOURCE_DIR}/include/")

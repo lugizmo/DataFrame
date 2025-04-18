@@ -11,11 +11,11 @@
 
 namespace lugizmo {
 
-/**
- * TODO doc
- * @param msg
- * @param threadId
- */
+    /**
+     * TODO doc
+     * @param msg
+     * @param threadId
+     */
     [[noreturn]] void Crash(char const* msg, std::thread::id threadId = std::this_thread::get_id()) noexcept;
 
     /**

@@ -1,0 +1,30 @@
+Checks: >
+  -*,                                 # Start by disabling all checks.
+  bugprone-*,                         # Enable bug-prone code checks.
+  clang-analyzer-*,                   # Static analyzer checks.
+  modernize-*,                        # Enforce modern C++ practices.
+  cppcoreguidelines-*,                # Adhere to C++ Core Guidelines.
+  readability-*,                      # Enforce readability improvements.
+  performance-*,                      # Performance optimizations.
+  portability-*,                      # Code portability enhancements.
+  misc-*                              # Enable miscellaneous checks.
+WarningsAsErrors: '*'                 # Treat all warnings as errors.
+HeaderFilterRegex: '.*'               # Apply checks to all headers.
+AnalyzeTemporaryDtors: true           # Analyze destructors of temporaries.
+FormatStyle: file                     # Use style from the `.clang-format` file.
+CheckOptions:
+  # Enforce CamelCase for classes, structs, and functions
+  - key: readability-identifier-naming.ClassCase
+    value: CamelCase
+  - key: readability-identifier-naming.StructCase
+    value: CamelCase
+  - key: readability-identifier-naming.FunctionCase
+    value: CamelCase
+  # Enforce PascalCase for member variables
+  - key: readability-identifier-naming.MemberCase
+    value: camelBack
+  # Enforce official naming for enums, constants, and variables
+  - key: readability-identifier-naming.EnumCase
+    value: CamelCase
+  - key: readability-identifier-naming.VariableCase
+    value: camelBack

@@ -2,15 +2,11 @@ Third-Party Licenses
 
 This project makes use of the following third-party libraries:
 
-1. project_options
-   Licensed under MIT License.
-   See vendor/LICENSE_project_options for the full text.
-
-2. GoogleTest (GTest)
+1. GoogleTest (GTest)
    Licensed under the BSD 3-Clause License.
    See vendor/LICENSE_gtest for the full text.
 
-3. benchmark
+2. benchmark
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
    You may obtain a copy of the License at

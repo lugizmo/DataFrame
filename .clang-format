@@ -1,12 +1,134 @@
+# Language and Standard
 Language: Cpp
 Standard: Latest
 DisableFormat: false
 
-ColumnLimit: 180
-IndentWidth: 4
-PPIndentWidth: -1
-UseTab: Never
-TabWidth: 4
-DeriveLineEnding: true
-DerivePointerAlignment: false
-UseCRLF: false
+# Line Length and Indentation
+ColumnLimit: 180                                            # Lines limit
+IndentWidth: 4                                              # 4 spaces for indentation
+TabWidth: 4                                                 # Spaces equivalent to 4 spaces for tabs
+UseTab: Never                                               # Use spaces instead of tabs
+ContinuationIndentWidth: 8                                  # Indent wrapped lines by 8 spaces for better distinction
+AccessModifierOffset: -4                                    # Dedent access modifiers (e.g., public/private)
+PPIndentWidth: 1                                            # Preprocessor indent
+LineEnding: DeriveLF                                        # Line ending style
+NamespaceIndentation: All                                   # Indent namespaces
+
+# Includes
+IncludeBlocks: Regroup                                      # Group includes in blocks
+SortIncludes: Never                                         # Don't Sort include files
+IncludeCategories:                                          # Header order convention
+  - Regex: '^<.*>'                                          # System headers
+    Priority: 1
+  - Regex: '^"lugizmo/.*"'                                  # Project headers
+    Priority: 2
+  - Regex: '^".*"'                                          # Other headers
+    Priority: 3
+
+# Braces and Style
+BreakBeforeBraces: Custom                                   # Attach opening braces to the control statement
+BraceWrapping:
+  AfterCaseLabel: true                                      # Switch cases
+  AfterClass: true                                          # Leave a newline after opening a class brace
+  AfterControlStatement: Always                             # if, for, ...
+  AfterEnum: true                                           # enum (classes)
+  AfterFunction: true                                       # Functions
+  AfterStruct: true                                         # Should be the same as for classes
+  AfterUnion: true                                          # Should be the same as for classes
+  AfterNamespace: false                                     # Leave a newline after opening a namespace brace
+  AfterExternBlock: true                                    # Extern ("C") blocks
+  BeforeCatch: true                                         # Leave space before catch
+  BeforeElse: true
+  BeforeLambdaBody: false
+  BeforeWhile: false
+  IndentBraces: false                                       # Do not indent braces internally
+  SplitEmptyFunction: true                                  # Write opening and closing braces after functions on separate lines
+  SplitEmptyRecord: true                                    # Write opening and closing braces after records on separate lines
+  SplitEmptyNamespace: true                                 # Write opening and closing braces after namespaces on separate lines
+AllowShortFunctionsOnASingleLine: InlineOnly                # Allow small functions on a single line
+
+# Pointer and Reference Alignment
+PointerAlignment: Left                                      # Align pointers to the type
+ReferenceAlignment: Left                                    # Align references to the type
+QualifierAlignment: Right                                   # Align qualifiers (e.g. const) to the right
+
+# Declaration and Comments Alignment
+AlignTrailingComments:
+  Kind: Always
+  OverEmptyLines: 1
+AlignArrayOfStructures: Left
+AlignConsecutiveAssignments:
+  Enabled: true
+  AcrossEmptyLines: false
+  AcrossComments: true
+  AlignCompound: true
+  #AlignFunctionDeclarations: true
+  AlignFunctionPointers: true
+  PadOperators: true
+AlignConsecutiveBitFields: AcrossComments
+AlignConsecutiveMacros: AcrossComments
+AlignOperands: Align
+AlignAfterOpenBracket: Align
+AlignConsecutiveDeclarations:
+  Enabled: true
+  AcrossEmptyLines: false
+  AcrossComments: true
+  AlignCompound: true
+  #AlignFunctionDeclarations: true
+  AlignFunctionPointers: true
+  PadOperators: true
+AlignConsecutiveShortCaseStatements:
+  Enabled: true
+  AcrossEmptyLines: true
+  AcrossComments: true
+  #AlignCaseArrows: true
+  AlignCaseColons: false
+AllowShortIfStatementsOnASingleLine: AllIfsAndElse
+AllowAllParametersOfDeclarationOnNextLine: false
+AllowShortBlocksOnASingleLine: Always
+AllowShortCaseLabelsOnASingleLine: true
+AllowShortCompoundRequirementOnASingleLine: true
+AllowShortEnumsOnASingleLine: false
+AllowShortLoopsOnASingleLine: true
+
+# Spaces
+SpaceAfterLogicalNot: false
+SpaceAfterTemplateKeyword: false
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeCaseColon: false
+SpaceBeforeCpp11BracedList: false
+SpaceBeforeCtorInitializerColon: true
+SpaceBeforeInheritanceColon: false
+SpaceAroundPointerQualifiers: Default
+SpaceInEmptyBlock: false
+SpaceBeforeSquareBrackets: false
+SpacesInParens: Never
+FixNamespaceComments: false
+
+# Function Calls and Definitions
+SpaceAfterCStyleCast: false                                 # No space after C-style cast (e.g., `(int)x`)
+
+# Templates and Generics
+SpacesInAngles: Never                                       # No spaces inside template angles (e.g., `std::vector<int>`)
+
+# Operators
+SpaceBeforeParens: Custom                                   # Don't add unnecessary spaces
+SpaceBeforeParensOptions:
+  AfterControlStatements: false
+  AfterForeachMacros: false
+  AfterFunctionDeclarationName: false
+  AfterFunctionDefinitionName: false
+  AfterIfMacros: false
+  AfterOverloadedOperator: false
+  AfterPlacementOperator: false
+  AfterRequiresInClause: false
+  AfterRequiresInExpression: false
+  BeforeNonEmptyParentheses: false
+
+# Formatting for Lambdas
+SpacesInContainerLiterals: false                            # Disable spaces in container literals
+
+# Macro Definitions
+AlignEscapedNewlines: Right                                 # Align escaped newlines in macros to the left edge
+AllowShortLambdasOnASingleLine: All                         # Allow lambdas on a single line
+CompactNamespaces: false                                    # Don't pack namespaces into single-lines

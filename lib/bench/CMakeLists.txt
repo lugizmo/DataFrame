@@ -4,15 +4,13 @@
 # See the LICENSE file in the project root or at
 # http://www.apache.org/licenses/LICENSE-2.0 for full license information.
 
-if(OPT_BUILD_BENCH)
+if(LUGIZMO_BUILD_BENCH)
 
     add_executable(DataFrameBenchmarks
-
             concepts/ViewTypesBenchmark.cpp
-
             main.cpp
     )
 
-    target_link_libraries(DataFrameBenchmarks PRIVATE benchmark::benchmark DataFrame)
+    target_link_libraries(DataFrameBenchmarks PRIVATE DataFrame benchmark::benchmark)
 
-endif(OPT_BUILD_BENCH)
+endif(LUGIZMO_BUILD_BENCH)
