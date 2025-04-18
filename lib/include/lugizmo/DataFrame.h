@@ -593,7 +593,7 @@ namespace lugizmo {
     DataFrame<T, F, R, L>::DataFrame(size_t const reservedValues, MemRsc res) noexcept :
         backingRes(std::move(res)),
         capacity(reservedValues),
-        data(static_cast<T*>(backingRes->allocate(reservedValues * sizeof(T), alignof(T)))),
+        data(reservedValues == 0 ? nullptr : static_cast<T*>(backingRes->allocate(reservedValues * sizeof(T), alignof(T)))),
         recsData(data, 0, 0)
     {
         if constexpr (DFValIndex<FldI>) fldIndex = FldI{backingRes.get(), 0};
@@ -610,9 +610,7 @@ namespace lugizmo {
     {
         // TODO change this to Use function X with default value
         static_assert(std::is_default_constructible_v<T>, "Currently only default_constructible is supported");
-
-        auto reserve = std::max<size_t>(fields.size(), reservedValues);
-        auto df = DataFrame(reserve, std::move(res));
+        auto df = DataFrame{reservedValues, std::move(res)};
 
         // add new fields to empty df
         if constexpr(IsFldSeq) df.SetFieldRange(fields.lower, fields.upper, T());

@@ -33,6 +33,14 @@ add_library(DataFrame ${LUGIZMO_DF_SOURCES})
 target_sources(DataFrame PUBLIC ${LUGIZMO_DF_INCLUDES})
 target_include_directories(DataFrame PUBLIC include/)
 
+# TODO add include what you use
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang" OR
+   CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    target_compile_options(DataFrame PUBLIC -fno-exceptions)
+else()
+    message(FATAL_ERROR "Unsupported compiler - Only Clang and GCC are supported!")
+endif()
+
 set_target_properties(DataFrame PROPERTIES
         CXX_STANDARD 23
         CXX_STANDARD_REQUIRED ON)

@@ -46,6 +46,8 @@ Functional:
 - handling user types that might throw in any of it's constructors
 - when looking at a view of record or field enable not just iterate but also doing lookups by using operator[] or .Get or something like this
 - shrink memory to current capacity
+- allow moving in data via a pointer T* (user is responsible the data is of field x record size)
+  - adding a overload taking fields and records + std::container were I shrink it or use it's capacity so that there is no leak
 - add more todo's
 
 ### TODO Code

@@ -15,6 +15,7 @@ if(LUGIZMO_BUILD_TESTING)
             dataframe/LayoutRowMajorTest.cpp
             DataframeTest.cpp
             DataframeRangeIndexTest.cpp
+            DataFrameConstructRowMajorTest.cpp
             main.cpp
     )
 

@@ -68,26 +68,35 @@ function(set_lugizmo_global_build_flags)
     # === Platform-Specific: Apple Hardening for libc++ ===
     if(APPLE)
         if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-            # Mild hardening always in Debug mode
-            list(APPEND CXX_FLAGS
-                    -fstack-protector-strong
-                    -D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_NORMAL
-                    -stdlib=libc++
-            )
-            # Enable hardcore checks if strict mode is active
-            if(LUGIZMO_STRICT_MODE)
+            if(NOT LUGIZMO_STRICT_MODE)
+                # Mild hardening always in Debug mode
+                list(APPEND CXX_FLAGS
+                        -fstack-protector-strong
+                        -D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_FAST
+                        -stdlib=libc++
+                )
+            else()
+                # Enable hardcore checks if strict mode is active
                 list(APPEND CXX_FLAGS
                         -fstrict-enums
                         -fstack-protector-all
-                        -D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE
+                        -D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_DEBUG
                 )
             endif()
-        elseif() # Release/RelWithDebInfo usually
+        elseif(CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+            if(LUGIZMO_STRICT_MODE)
+                list(APPEND CXX_FLAGS
+                        -fstack-protector-strong
+                        -D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE
+                        -stdlib=libc++
+                )
+            endif()
+        else()
             # Mild hardening only in strict mode for Release/RelWithDebInfo
             if(LUGIZMO_STRICT_MODE)
                 list(APPEND CXX_FLAGS
                         -fstack-protector-strong
-                        -D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_NORMAL
+                        -D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_FAST
                         -stdlib=libc++
                 )
             endif()
