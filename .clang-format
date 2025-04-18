@@ -110,6 +110,7 @@ SpaceAfterCStyleCast: false                                 # No space after C-s
 
 # Templates and Generics
 SpacesInAngles: Never                                       # No spaces inside template angles (e.g., `std::vector<int>`)
+BreakTemplateDeclarations: Yes                              # Always a new line after templates
 
 # Operators
 SpaceBeforeParens: Custom                                   # Don't add unnecessary spaces
