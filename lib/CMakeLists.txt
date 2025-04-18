@@ -31,6 +31,7 @@ set(LUGIZMO_DF_SOURCES
 
 add_library(DataFrame ${LUGIZMO_DF_SOURCES})
 target_sources(DataFrame PUBLIC ${LUGIZMO_DF_INCLUDES})
+target_include_directories(DataFrame PUBLIC include/)
 
 set_target_properties(DataFrame PROPERTIES
         CXX_STANDARD 23
