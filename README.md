@@ -38,7 +38,7 @@ at once for optimal initialization and when you know what you're going to add. A
 memory_resource can be passed to the dataframe on construction.
 
 Default construction of a dataframe. 
-```
+```c++
 // both with optionally passed memory_resource
 auto default  = lugizmo::DataFrame<int, int, int>{};
 auto reserved = lugizmo::DataFrame<int, int, int>{50}; 
@@ -47,7 +47,7 @@ auto reserved = lugizmo::DataFrame<int, int, int>{50};
 You can create a DataFrame from known fields and records using a span or initializer list of fields and records. 
 Again, memory can also be reserved in advance and a memory_resource can be passed.
 (TODO add example for FromRecords)
-```
+```c++
 // create empty dataframe with known fields:
 auto dfFromAr = lugizmo::DataFrame<int, int, int>::FromFields(std::array{1, 2, 3, 4});
 auto dfFromIn = lugizmo::DataFrame<int, int, int>::FromFields({1, 2, 3, 4});
@@ -73,8 +73,6 @@ auto df = lugizmo::DataFrame<int, int, int>::FromFieldsAndRecords({1, 2, 3, 4}, 
 //     2   |   1    2    3    4
 //     3   |   1    2    3    4
 //     4   |   1    2    3    4
-
-
 ```
 
 ## Accessing Values

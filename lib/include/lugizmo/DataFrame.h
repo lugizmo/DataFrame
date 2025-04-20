@@ -267,73 +267,56 @@ namespace lugizmo {
         template<typename C>
         [[nodiscard]] auto HasRecord(C const& record) const noexcept -> bool;
 
-        // ======== ACCESSORS UNIQUE INDEX =========================================================================================================================================
+        // ======== GETTERS ========================================================================================================================================================
 
+        /**
+         * TODO doc
+         * @param field
+         * @param record
+         * @return
+         */
         [[nodiscard]]
-        auto GetValue(FldT const& field, RecT const& record) const -> std::optional<std::reference_wrapper<T const>>
-        {
-            auto const fldPos = fldIndex.Position(field);
-            auto const recPos = recIndex.Position(record);
+        auto GetValue(FldT const& field, RecT const& record) const -> std::optional<std::reference_wrapper<T const>>;
 
-            if(fldPos && recPos)
-            {
-                // TODO does this work with column major?
-                return recsData[*recPos, *fldPos];
-                //return data[flds.size() * *recordIndex + *fieldIndex];
-            }
-
-            return std::nullopt;
-        }
-
+        /**
+         * TODO doc
+         * @param field
+         * @param record
+         * @return
+         */
         [[nodiscard]]
-        auto GetValue(FldT const& field, RecT const& record) -> std::optional<std::reference_wrapper<T>>
-        {
-            auto const fldPos = fldIndex.Position(field);
-            auto const recPos = recIndex.Position(record);
+        auto GetValue(FldT const& field, RecT const& record) -> std::optional<std::reference_wrapper<T>>;
 
-            if(fldPos && recPos)
-            {
-                // TODO does this work with column major?
-                return recsData[*recPos, *fldPos];
-                //return data[flds.size() * *recordIndex + *fieldIndex];
-            }
-
-            return std::nullopt;
-        }
-
+        /**
+         * TODO doc
+         * @param field
+         * @param record
+         * @return
+         */
         [[nodiscard]]
-        auto operator[](FldT const& field, RecT const& record) -> T&
-        {
-            auto const fldPos = fldIndex.Position(field);
-            auto const recPos = recIndex.Position(record);
+        auto operator[](FldT const& field, RecT const& record) -> T&;
 
-            assert(fldPos.has_value() && recPos.has_value());
-            return recsData[*recPos, *fldPos];
-        }
-
+        /**
+         * TODO doc
+         * @param field
+         * @param record
+         * @return
+         */
         [[nodiscard]]
-        auto operator[](FldT const& field, RecT const& record) const -> T const&
-        {
-            auto const fldPos = fldIndex.Position(field);
-            auto const recPos = recIndex.Position(record);
+        auto operator[](FldT const& field, RecT const& record) const -> T const&;
 
-            assert(fldPos.has_value() && recPos.has_value());
-            return recsData[*recPos, *fldPos];
-        }
+        // ======== SETTERS ========================================================================================================================================================
 
-        auto SetValue(FldT const& field, RecT const& record, T const& value) -> bool
-        {
-            if(auto get = GetValue(field, record); get.has_value())
-            {
-                T& g = *get;
-                g = value;
-                return true;
-            }
+        /**
+         * TODO doc
+         * @param field
+         * @param record
+         * @param value
+         * @return
+         */
+        auto SetValue(FldT const& field, RecT const& record, T const& value) -> bool;
 
-            return false;
-        }
-
-        // ======== DROP ===================================================================================================================
+        // ======== DROP ===========================================================================================================================================================
 
         /**
          *  @brief Drop a field index from the dataframe.
@@ -990,12 +973,64 @@ namespace lugizmo {
         return fldIndex.Has(field);
     }
 
-    template <typename T, typename F, typename R, typename L>
+    template<typename T, typename F, typename R, typename L>
     template<typename C>
     auto DataFrame<T, F, R, L>::HasRecord(C const& record) const noexcept -> bool
     {
         static_assert(ComparableType<RecT, C>, "Given record is not comparable with type of records!");
         return recIndex.Has(record);
+    }
+
+    // ======== GETTERS ============================================================================================================================================================
+
+    template<typename T, typename F, typename R, typename L>
+    auto DataFrame<T, F, R, L>::GetValue(FldT const& field, RecT const& record) const -> std::optional<std::reference_wrapper<T const>>
+    {
+        auto const fldPos = fldIndex.Position(field);
+        auto const recPos = recIndex.Position(record);
+
+        return fldPos && recPos ? std::optional<std::reference_wrapper<T const>>{recsData[*recPos, *fldPos]} : std::nullopt;
+    }
+    template<typename T, typename F, typename R, typename L>
+    auto DataFrame<T, F, R, L>::GetValue(FldT const& field, RecT const& record) -> std::optional<std::reference_wrapper<T>>
+    {
+        auto const fldPos = fldIndex.Position(field);
+        auto const recPos = recIndex.Position(record);
+
+        return fldPos && recPos ? std::optional<std::reference_wrapper<T>>{recsData[*recPos, *fldPos]} : std::nullopt;
+    }
+    template<typename T, typename F, typename R, typename L>
+    auto DataFrame<T, F, R, L>::operator[](FldT const& field, RecT const& record) -> T&
+    {
+        auto const fldPos = fldIndex.Position(field);
+        auto const recPos = recIndex.Position(record);
+
+        assert(fldPos.has_value() && recPos.has_value());
+        return recsData[*recPos, *fldPos];
+    }
+    template<typename T, typename F, typename R, typename L>
+    auto DataFrame<T, F, R, L>::operator[](FldT const& field, RecT const& record) const -> T const&
+    {
+        auto const fldPos = fldIndex.Position(field);
+        auto const recPos = recIndex.Position(record);
+
+        assert(fldPos.has_value() && recPos.has_value());
+        return recsData[*recPos, *fldPos];
+    }
+
+    // ======== SETTERS ============================================================================================================================================================
+
+    template<typename T, typename F, typename R, typename L>
+    auto DataFrame<T, F, R, L>::SetValue(FldT const& field, RecT const& record, T const& value) -> bool
+    {
+        if(auto get = GetValue(field, record); get.has_value())
+        {
+            T& g = *get;
+            g    = value;
+            return true;
+        }
+
+        return false;
     }
 
     // ======== DROP ===============================================================================================================================================================
