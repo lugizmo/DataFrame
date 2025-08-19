@@ -83,17 +83,32 @@ namespace lugizmo {
 
         auto AddMultiple(std::span<KeyType const> keys) noexcept -> bool
         {
-            auto const startIndex = nextIndex;
-            auto positions = std::pmr::vector<size_t>(keys.size(), values.Allocator());
+            constexpr size_t SmallThreshold = 5; // after this we create a temporary list of positions
 
-            size_t vectorPos = 0;
-            for(size_t i = startIndex; vectorPos < keys.size(); i = ++nextIndex)
+            if(keys.size() <= SmallThreshold)
             {
-                positions[vectorPos] = i;
-                ++vectorPos;
+                for(auto key : keys) Add(std::move(key));
+            }
+            else
+            {
+                // TODO find way to not create a temporary newKeys vector.
+                //      maybe create a mask if the KeyType is big and not just and int etc.
+                auto positions = std::pmr::vector<size_t>(values.Allocator());
+                auto newKeys   = std::pmr::vector<KeyType>(values.Allocator());
+                positions.reserve(keys.size());
+                newKeys.reserve(keys.size());
+
+                for(auto const& key : keys)
+                {
+                    if(values.Contains(key)) continue;
+                    positions.emplace_back(nextIndex++);
+                    newKeys.emplace_back(key);
+                }
+
+                if(newKeys.empty()) return false;
+                values.Insert(keys, positions);
             }
 
-            values.Insert(keys, positions);
             return true;
         }
 

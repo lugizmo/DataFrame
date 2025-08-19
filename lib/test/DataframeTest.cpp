@@ -178,7 +178,8 @@ TEST(lugizmo_dataframe_test, has_field)
         using DF2 = DataFrame<int, std::string, int>;
         auto df2 = DF2();
 
-        df2.AddFields(std::array<std::string, 3>{"a", "b", "c"});
+        df2.AddFields(std::array<std::string, 6>{"a", "b", "c", "d", "e", "f"});
+        df2.AddFields(std::array<std::string, 6>{"a", "b", "c", "d", "e", "f"});
         df2.AddRecord(1);
 
         ASSERT_FALSE(df2.HasField(std::string("0")));
