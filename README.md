@@ -99,6 +99,10 @@ Functional:
 
 - thread safe mutation/access
 
+### TODO Crucial
+
+- check for gtest version if gtest is already present does not work!
+
 ### TODO General
 
 - rework dependency management to allow local versions

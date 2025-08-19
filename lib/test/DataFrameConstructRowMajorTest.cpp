@@ -48,6 +48,36 @@ TEST(lugizmo_dataframe_construct_row_major, default_constructor)
 }
 
 /**
+ *  @brief Test if deallocating empty dataframe (but fields or records).
+ *  @see lugizmo::DataFrame::DataFrame(size_t, std::shared_ptr<std::pmr::memory_resource>)
+ */
+TEST(lugizmo_dataframe_construct_row_major, no_content)
+{
+    using DFInt   = lugizmo::DataFrame<int, int, int>;
+
+    {
+        auto df = DFInt{};
+        df.AddField(1);
+
+        // TODO rework Size and Empty a bit confusing
+        ASSERT_TRUE(df.Size() == 0);
+        ASSERT_TRUE(df.FieldSize() == 1);
+        ASSERT_TRUE(df.RecordSize() == 0);
+        ASSERT_TRUE(df.Empty());
+    }
+
+    {
+        auto df = DFInt{};
+        df.AddRecord(1);
+
+        ASSERT_TRUE(df.Size() == 0);
+        ASSERT_TRUE(df.FieldSize() == 0);
+        ASSERT_TRUE(df.RecordSize() == 1);
+        ASSERT_FALSE(df.Empty());
+    }
+}
+
+/**
  *  @brief Test the default constructor that reserved memory upfront
  *         so memory got allocated but no content got populated yet.
  *
@@ -90,7 +120,7 @@ TEST(lugizmo_dataframe_construct_row_major, from_fields)
         ASSERT_EQ(df.RecordSize(), 0);
         // TODO why not nullptr? ASSERT_EQ(df.Data(), nullptr);
 
-        auto countFld = 0;
+        size_t countFld = 0;
         for(auto fld : df.Fields())
         {
             ASSERT_TRUE(countFld < df.FieldSize());
@@ -111,7 +141,7 @@ TEST(lugizmo_dataframe_construct_row_major, from_fields)
         ASSERT_EQ(df.RecordSize(), 0);
         ASSERT_NE(df.Data(), nullptr);
 
-        auto countFld = 0;
+        size_t countFld = 0;
         for(auto fld : df.Fields())
         {
             ASSERT_TRUE(countFld < df.FieldSize());
@@ -149,8 +179,8 @@ TEST(lugizmo_dataframe_construct_row_major, one_by_on_fields)
     constexpr std::size_t REC_COUNT = 10;
 
     auto df = TestDF(FLD_COUNT * REC_COUNT);
-    for(auto fld = 0; fld < FLD_COUNT; ++fld) df.AddField(std::to_string(fld));
-    for(auto rec = 0; rec < REC_COUNT; ++rec) df.AddRecord(rec, 42.f);
+    for(size_t fld = 0; fld < FLD_COUNT; ++fld) df.AddField(std::to_string(fld));
+    for(size_t rec = 0; rec < REC_COUNT; ++rec) df.AddRecord(static_cast<int>(rec), 42.f);
 
     ASSERT_TRUE(df.Size() == FLD_COUNT * REC_COUNT);
     ASSERT_TRUE(df.FieldSize() == FLD_COUNT);
@@ -219,7 +249,7 @@ TEST(lugizmo_dataframe_construct_row_major, from_fields_and_record_defaulted)
     ASSERT_TRUE(dfFromFldAndRecDef.FieldSize() == 3);
     ASSERT_TRUE(dfFromFldAndRecDef.RecordSize() == 3);
 
-    auto countFld = 0;
+    size_t countFld = 0;
     for(auto const& field : dfFromFldAndRecDef.Fields())
     {
         ASSERT_TRUE(countFld < dfFromFldAndRecDef.FieldSize());
@@ -227,7 +257,7 @@ TEST(lugizmo_dataframe_construct_row_major, from_fields_and_record_defaulted)
         ++countFld;
     }
 
-    auto countRec = 0;
+    size_t countRec = 0;
     for(auto const& record : dfFromFldAndRecDef.Records())
     {
         ASSERT_TRUE(countRec < dfFromFldAndRecDef.RecordSize());
@@ -259,7 +289,7 @@ TEST(lugizmo_dataframe_construct_row_major, from_fields_and_record_set)
     ASSERT_TRUE(dfFromFldAndRec.Fields().size() == 3);
     ASSERT_TRUE(dfFromFldAndRec.Records().size() == 3);
 
-    auto countFld = 0;
+    size_t countFld = 0;
     for(auto const& field : dfFromFldAndRec.Fields())
     {
         ASSERT_TRUE(countFld < dfFromFldAndRec.FieldSize());
@@ -267,7 +297,7 @@ TEST(lugizmo_dataframe_construct_row_major, from_fields_and_record_set)
         ++countFld;
     }
 
-    auto countRec = 0;
+    size_t countRec = 0;
     for(auto const& record : dfFromFldAndRec.Records())
     {
         ASSERT_TRUE(countRec < dfFromFldAndRec.RecordSize());
@@ -313,8 +343,8 @@ TEST(lugizmo_dataframe_construct_row_major, from_fields_and_records_iterable)
     ASSERT_TRUE(dfFromFldAndRecs.Fields().size() == 3);
     ASSERT_TRUE(dfFromFldAndRecs.Records().size() == 3);
 
-    auto countRec = 0;
-    auto countFld = 0;
+    size_t countRec = 0;
+    size_t countFld = 0;
     for(auto const record : dfFromFldAndRecs.Records())
     {
         ASSERT_EQ(Recs[countRec], record);
@@ -370,8 +400,8 @@ TEST(lugizmo_dataframe_construct_row_major, from_fields_and_records_initializer_
     ASSERT_TRUE(dfFromInitList.Fields().size() == 3);
     ASSERT_TRUE(dfFromInitList.Records().size() == 3);
 
-    auto countRec = 0;
-    auto countFld = 0;
+    size_t countRec = 0;
+    size_t countFld = 0;
     for(auto const record : dfFromInitList.Records())
     {
         ASSERT_EQ(Recs[countRec], record);

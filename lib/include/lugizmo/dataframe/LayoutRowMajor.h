@@ -54,7 +54,7 @@ namespace lugizmo {
          * @param defaultValue  the default value to set in the new columns.
          */ // TODO this function should also take ssize_t to remove columns. It might already work.
         static void ResizeCols(T*& data, size_t& capacity, Memory& res, MDSpan& dataView,
-                               size_t const adjCountByBeg, size_t const adjCountByEnd,
+                               ssize_t const adjCountByBeg, ssize_t const adjCountByEnd,
                                T const& defaultValue) noexcept
         {
             if(adjCountByBeg == 0 && adjCountByEnd == 0) return;
@@ -62,7 +62,7 @@ namespace lugizmo {
             auto const colCount = dataView.extent(1);
             auto const rowCount = dataView.extent(0);
 
-            auto const newColCount = colCount + adjCountByBeg + adjCountByEnd;
+            auto const newColCount = static_cast<ssize_t>(colCount) + adjCountByBeg + adjCountByEnd;
 
             // This is considered an error.
             if(newColCount < 0) return;
@@ -80,16 +80,17 @@ namespace lugizmo {
                 return;
             }
 
-            if(rowCount * newColCount > capacity || capacity == 0)
+            auto uNewColCount = static_cast<size_t>(newColCount);
+            if(rowCount * uNewColCount> capacity || capacity == 0)
             {
                 // Expand storage and shift data
-                auto const newCapacity = std::max<size_t>(2 * capacity, newColCount * (rowCount + 1));  // TODO better strategy
+                auto const newCapacity = std::max<size_t>(2 * capacity, uNewColCount * (rowCount + 1));  // TODO better strategy
                 auto* const newData    = static_cast<T*>(res.allocate(newCapacity * sizeof(T)));
 
                 for(size_t row = 0; row < rowCount; ++row)
                 {
                     // New row starting position
-                    T* newRowStart = newData + row * newColCount;
+                    T* newRowStart = newData + row * uNewColCount;
 
                     // Fill new columns at the beginning
                     std::uninitialized_fill_n(newRowStart, adjCountByBeg, defaultValue);
@@ -115,7 +116,7 @@ namespace lugizmo {
                 {
                     // Old row start and new row start
                     T* oldRowStart = data + (row - 1) * colCount;
-                    T* newRowStart = data + (row - 1) * newColCount;
+                    T* newRowStart = data + (row - 1) * uNewColCount;
 
                     // Move existing data to the new position
                     std::move_backward(oldRowStart, oldRowStart + colCount, newRowStart + adjCountByBeg + colCount);
@@ -124,12 +125,12 @@ namespace lugizmo {
                     std::fill(newRowStart, newRowStart + adjCountByBeg, defaultValue);
 
                     // Fill new columns at the end
-                    std::fill(newRowStart + adjCountByBeg + colCount, newRowStart + newColCount, defaultValue);
+                    std::fill(newRowStart + adjCountByBeg + colCount, newRowStart + uNewColCount, defaultValue);
                 }
             }
 
             // Update the view to reflect the new column count
-            dataView = std::mdspan<T, std::dextents<size_t, 2>, Layout>(data, rowCount, newColCount);
+            dataView = std::mdspan<T, std::dextents<size_t, 2>, Layout>(data, rowCount, uNewColCount);
         }
 
 
@@ -163,7 +164,7 @@ namespace lugizmo {
             // store current and compute change size
             auto const colCount    = dataView.extent(1);
             auto const rowCount    = dataView.extent(0);
-            auto const newRowCount = rowCount + adjCountByBeg + adjCountByEnd;
+            auto const newRowCount = static_cast<ssize_t>(rowCount) + adjCountByBeg + adjCountByEnd;
 
             // free memory when empty data
             if(newRowCount == 0)
@@ -180,16 +181,27 @@ namespace lugizmo {
                 return;
             }
 
+            // row count cannot be negative here anymore
+            auto const newRowCountPos = static_cast<size_t>(newRowCount);
+
             // 1. allocate & expand memory if needed
             // 2. shift data as needed to accommodate new data
-            ReallocAndShift(data, res, capacity, colCount, rowCount, newRowCount, adjCountByBeg);
+            ReallocAndShift(data, res, capacity, colCount, rowCount, newRowCountPos, adjCountByBeg);
 
             // fill data at beginning and/or end
-            if(adjCountByBeg > 0) FillRows(data, 0, adjCountByBeg, colCount, defaultValue);
-            if(adjCountByEnd > 0) FillRows(data, adjCountByBeg + rowCount, adjCountByEnd, colCount, defaultValue);
+            if(rowCount == 0)
+            {
+                // fill all with default value as nothing was in previously
+                FillRows(data, 0, newRowCountPos, colCount, defaultValue);
+            }
+            else
+            {
+                if(adjCountByBeg > 0) FillRows(data, 0, static_cast<size_t>(adjCountByBeg), colCount, defaultValue);
+                if(adjCountByEnd > 0) FillRows(data, newRowCountPos - static_cast<size_t>(adjCountByEnd), static_cast<size_t>(adjCountByEnd), colCount, defaultValue);
+            }
 
             // update the view
-            dataView = std::mdspan<T, std::dextents<size_t, 2>, Layout>(data, newRowCount, colCount);
+            dataView = std::mdspan<T, std::dextents<size_t, 2>, Layout>(data, newRowCountPos, colCount);
         }
 
         /**
@@ -226,13 +238,16 @@ namespace lugizmo {
             // nothing to change
             if(adjCountByBeg == 0 && adjCountByEnd == 0) return;
 
-            // store current and compute change size
+            // store current extends
             auto const colCount    = dataView.extent(1);
             auto const rowCount    = dataView.extent(0);
-            auto const newRowCount = rowCount + adjCountByBeg + adjCountByEnd;
+
+            // row count (signed)
+            auto const rowCountS    = static_cast<ssize_t>(rowCount);
+            auto const newRowCountS = rowCountS + adjCountByBeg + adjCountByEnd;
 
             // free memory when empty data
-            if(newRowCount == 0)
+            if(newRowCountS == 0)
             {
                 Free(data, capacity, dataView, res);
                 return;
@@ -240,40 +255,39 @@ namespace lugizmo {
 
             // non-empty size
             // check inputs first
-            if(newRowCount < 0)
+            if(newRowCountS < 0)
             {
-                assert(newRowCount >= 0 && "Record count is negative!");
                 return;
             }
 
             if constexpr(isItOfIt)
             {
                 if(std::ranges::distance(values) == 0) return;
-                if(std::ranges::distance(*std::begin(values)) != colCount) return;
+                if(std::ranges::distance(*std::begin(values)) != static_cast<std::ptrdiff_t>(colCount)) return;
                 if(!std::ranges::all_of(values, [&](auto const& row) { return row.size() == colCount; })) return;
             }
             else if(values.size() != colCount) return;
 
-            // 1. allocate & expand memory if needed
+            // 1. allocate and expand memory if needed
             // 2. shift data as needed to accommodate new data
-            ReallocAndShift(data, res, capacity, colCount, rowCount, newRowCount, adjCountByBeg);
+            ReallocAndShift(data, res, capacity, colCount, rowCount, static_cast<size_t>(newRowCountS), adjCountByBeg);
 
             if constexpr(isItOfIt)
             {
-                // fill each row individually with a different row of values
+                // fill each row individually with a different row of values .
                 auto inputRowIt = std::begin(values);
-                if(adjCountByBeg > 0) FillRowByRow(data, 0, adjCountByBeg, colCount, inputRowIt, std::end(values));
-                if(adjCountByEnd > 0) FillRowByRow(data, adjCountByBeg + rowCount, adjCountByEnd, colCount, inputRowIt, std::end(values));
+                if(adjCountByBeg > 0) FillRowByRow(data, 0, static_cast<size_t>(adjCountByBeg), colCount, inputRowIt, std::end(values));
+                if(adjCountByEnd > 0) FillRowByRow(data, static_cast<size_t>(newRowCountS - adjCountByEnd), static_cast<size_t>(adjCountByEnd), colCount, inputRowIt, std::end(values));
             }
             else
             {
-                // fill entire row with a single set of values
-                if(adjCountByBeg > 0) FillRows(data, 0, adjCountByBeg, colCount, values.begin(), values.end());
-                if(adjCountByEnd > 0) FillRows(data, adjCountByBeg + rowCount, adjCountByEnd, colCount, values.begin(), values.end());
+                // fill the entire row with a single set of values
+                if(adjCountByBeg > 0) FillRows(data, 0, static_cast<size_t>(adjCountByBeg), colCount, values.begin(), values.end());
+                if(adjCountByEnd > 0) FillRows(data, static_cast<size_t>(newRowCountS - adjCountByEnd), static_cast<size_t>(adjCountByEnd), colCount, values.begin(), values.end());
             }
 
             // update the view
-            dataView = std::mdspan<T, std::dextents<size_t, 2>, Layout>(data, newRowCount, colCount);
+            dataView = std::mdspan<T, std::dextents<size_t, 2>, Layout>(data, static_cast<size_t>(newRowCountS), colCount);
         }
 
         // ======= DROP COLUMNS/ROWS =======================================================================================================
@@ -362,16 +376,18 @@ namespace lugizmo {
                 return current + 32 * 1024 * 1024;
             };
 
-            auto const  newCapacity = GrowthFactor(capacity + colCount * (newRowCount + 1));
-            auto* const newData     = static_cast<T*>(res.allocate(newCapacity * sizeof(T)));
+            auto const newCapacity = GrowthFactor(capacity + colCount * (newRowCount + 1));
+            if(newCapacity == 0) return;
+
+            auto* const newData = static_cast<T*>(res.allocate(newCapacity * sizeof(T)));
 
             assert(newCapacity > capacity || colCount == 0);
             assert(newData != nullptr && "Memory allocation failed");
 
             // move existing data to the new buffer at the correct offset
-            if (rowCount > 0)
+            if(rowCount > 0)
             {
-                auto* const destBeg = newData + std::max<ssize_t>(0, adjCountByBeg) * colCount;
+                auto* const destBeg = newData + std::max<ssize_t>(0, adjCountByBeg) * static_cast<ssize_t>(colCount);
                 auto* const destEnd = destBeg + rowCount * colCount;
 
                 assert(destEnd <= newData + newCapacity && "Destination out of bounds for copying existing rows");
@@ -420,20 +436,32 @@ namespace lugizmo {
                 // expanding at the beginning: Shift existing rows backward to make space for new rows
                 auto const begin  = data;
                 auto const end    = data + rowCount * colCount;
-                auto const newEnd = data + (rowCount + adjCountByBeg) * colCount;
+                auto const newEnd = data + (rowCount + static_cast<size_t>(adjCountByBeg)) * colCount;
 
                 assert(newEnd > end && begin <= end && "Move backward memory in undefined range");
                 std::move_backward(begin, end, newEnd);
             }
-            else if (adjCountByBeg < 0 && rowCount + adjCountByBeg > 0)
+            else if(adjCountByBeg < 0 && static_cast<ssize_t>(rowCount) + adjCountByBeg > 0)
             {
-                // shrinking at the beginning: Shift existing rows forward, removing the first 'adjCountByBeg' rows
-                auto* const src    = data + (-adjCountByBeg) * colCount;
-                auto* const dst    = data;
-                auto* const dstEnd = dst + (rowCount + adjCountByBeg) * colCount;
+                // shrinking at the beginning: compute remaining rows in signed domain
+                const ssize_t remSigned = static_cast<ssize_t>(rowCount) + adjCountByBeg;
+                if (remSigned <= 0) {
+                    // nothing to move (all rows removed or invalid); caller handles zeroing if needed
+                    return;
+                }
+
+                auto const remainRows    = static_cast<size_t>(remSigned);           // rows to keep
+                auto const shrinkRows    = static_cast<size_t>(-adjCountByBeg);      // rows removed at begin
+                auto const elemsPerRow   = colCount;
+                auto const moveElemCount = remainRows * elemsPerRow;
+
+                T* const src    = data + shrinkRows * elemsPerRow;
+                T* const dst    = data;
+                T* const dstEnd = dst + moveElemCount;
 
                 assert(dstEnd >= dst && "Shrinking rows caused invalid range");
-                std::move(src, src + (rowCount + adjCountByBeg) * colCount, dst);
+                std::move(src, src + moveElemCount, dst);
+
             }
         }
 

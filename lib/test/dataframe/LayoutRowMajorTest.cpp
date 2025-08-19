@@ -320,26 +320,26 @@ protected:
 
     void ExpandColumns(size_t const additionalCols, T const defaultValue = 0)
     {
-        size_t const rowCount    = dataView.extent(0);
-        size_t const colCount    = dataView.extent(1);
-        size_t const newColCount = colCount + additionalCols;
+        size_t const rowC    = dataView.extent(0);
+        size_t const colC    = dataView.extent(1);
+        size_t const newColC = colC + additionalCols;
 
-        if (newColCount == colCount) return;
-        auto const newCapacity = rowCount * newColCount;
+        if (newColC == colC) return;
+        auto const newCapacity = rowC * newColC;
 
         auto* newData = static_cast<T*>(memory->allocate(newCapacity * sizeof(T), alignof(T)));
 
-        for(size_t row = 0; row < rowCount; ++row)
+        for(size_t row = 0; row < rowC; ++row)
         {
-            std::copy(data + row * colCount, data + row * colCount + colCount, newData + row * newColCount);
-            std::fill(newData + row * newColCount + colCount, newData + (row + 1) * newColCount, defaultValue);
+            std::copy(data + row * colC, data + row * colC + colC, newData + row * newColC);
+            std::fill(newData + row * newColC + colC, newData + (row + 1) * newColC, defaultValue);
         }
 
         if(data) memory->deallocate(data, capacity * sizeof(T));
 
         data     = newData;
         capacity = newCapacity;
-        dataView = MDSpan{data, rowCount, newColCount};
+        dataView = MDSpan{data, rowC, newColC};
     }
 
     void SetUp() override

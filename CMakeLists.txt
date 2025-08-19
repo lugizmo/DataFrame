@@ -36,6 +36,12 @@ message(STATUS "Lugizmo DF - Building tests: ${BUILD_TESTING}")
 message(STATUS "Lugizmo DF - Building benchmarks: ${BUILD_BENCHMARKS}")
 message(STATUS "Lugizmo DF - Using Clang-Tidy: ${LUGIZMO_USE_CLANG_TIDY}")
 
+# ====== CONDITIONS ===========================================================================================================================
+
+if(NOT (CMAKE_SIZEOF_VOID_P GREATER_EQUAL 8))
+    message(FATAL_ERROR "Currently dataframe does only support >= 64bit systems.")
+endif()
+
 # ====== DEPENDENCIES ======================================================================================================================
 
 # Fetch dependencies: Ensures that gtest and benchmark are downloaded automatically

@@ -168,7 +168,7 @@ namespace lugizmo {
         if (it != keys.end() && *it == key)
         {
             // update the value if the key exists
-            values[std::distance(keys.begin(), it)] = value;
+            values[static_cast<size_t>(std::distance(keys.begin(), it))] = value;
         }
         else
         {
@@ -267,7 +267,7 @@ namespace lugizmo {
 
         if (it != keys.end() && *it == key)
         {
-            return values[std::distance(keys.begin(), it)];
+            return values[static_cast<size_t>(std::distance(keys.begin(), it))];
         }
 
         return std::nullopt;

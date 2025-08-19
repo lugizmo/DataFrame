@@ -13,6 +13,8 @@
 
 #include "IndexBase.h"
 
+#include "lugizmo/container/Concepts.h"
+
 namespace lugizmo {
 
     template<typename T = size_t>
@@ -54,10 +56,29 @@ namespace lugizmo {
         /**
          * TODO doc + test
          */
+        template<typename C>
         [[nodiscard]]
-        auto Has(T const& key) const noexcept -> bool
+        auto Has(C const& key) const noexcept -> bool
         {
-            return key >= lowerBound && key < upperBound;
+            static_assert(ComparableType<C, T>);
+
+            // TODO put compare logic somewhere else
+            if constexpr (std::is_integral_v<C> && std::is_integral_v<T>)
+            {
+                return std::cmp_greater_equal(key, lowerBound) && std::cmp_less(key, upperBound);
+            }
+            else if constexpr(std::is_arithmetic_v<C> && std::is_arithmetic_v<T>)
+            {
+                using CT    = std::common_type_t<C, T>;
+                const CT k  = static_cast<CT>(key);
+                const CT lo = static_cast<CT>(lowerBound);
+                const CT hi = static_cast<CT>(upperBound);
+                return k >= lo && k < hi;
+            }
+            else
+            {
+                return key >= lowerBound && key < upperBound;
+            }
         }
 
         /**
@@ -154,13 +175,15 @@ namespace lugizmo {
 
             if(newLower != lowerBound)
             {
-                lowerDiff = (newLower - lowerBound) * static_cast<ssize_t>(-1);
+                auto const dLower = static_cast<ssize_t>(lowerBound) - static_cast<ssize_t>(newLower);
+                lowerDiff  = dLower;
                 lowerBound = newLower;
             }
 
             if(newUpper != upperBound)
             {
-                upperDiff = newUpper - upperBound;
+                auto const dUpper = static_cast<ssize_t>(newUpper) - static_cast<ssize_t>(upperBound);
+                upperDiff  = dUpper;
                 upperBound = newUpper;
             }
 
@@ -178,6 +201,7 @@ namespace lugizmo {
         [[nodiscard]]
         constexpr auto Size() const noexcept -> KeyType
         {
+            // TODO ensure this is never < 0
             return upperBound - lowerBound;
         }
 

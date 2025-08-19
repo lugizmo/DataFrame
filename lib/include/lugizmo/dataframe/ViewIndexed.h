@@ -231,7 +231,8 @@ namespace lugizmo {
                 return *this;
             }
 
-            auto operator[](difference_type const n) const -> reference
+            // TODO: check why argument is not used
+            auto operator[](difference_type const) const -> reference
             {
                 return {.val = *current.val, .idx = *current.idx};
             }
@@ -382,7 +383,7 @@ namespace lugizmo {
             if(pos == indexSpan.end()) return nullptr;
 
             assert(indexSpan.size() == dataView.Size());
-            return &dataView[std::distance(indexSpan.begin(), pos)];
+            return &dataView[static_cast<size_t>(std::distance(indexSpan.begin(), pos))];
         }
 
         template<typename T, typename  I>
@@ -394,7 +395,7 @@ namespace lugizmo {
             if(pos == indexSpan.end()) return nullptr;
 
             assert(indexSpan.size() == dataView.Size());
-            return &dataView[std::distance(indexSpan.begin(), pos)];
+            return &dataView[static_cast<size_t>(std::distance(indexSpan.begin(), pos))];
         }
 
         template<typename T, typename  I>

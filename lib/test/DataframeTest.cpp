@@ -93,11 +93,11 @@ TEST(lugizmo_dataframe_test, row_major_set_get_records)
 
     for(auto col = 0; col < COL_COUNT; ++col)
         for(auto row = 0; row < ROW_COUNT; ++row)
-            ASSERT_TRUE(df.SetValue(col + 2, row, ARRAY[col] + 2));
+            ASSERT_TRUE(df.SetValue(col + 2, row, ARRAY[static_cast<size_t>(col)] + 2));
 
     for(auto col = 0; col < COL_COUNT; ++col)
         for(auto row = 0; row < ROW_COUNT; ++row)
-            ASSERT_EQ(df.GetValue(col + 2, row), ARRAY[col] + 2);
+            ASSERT_EQ(df.GetValue(col + 2, row), ARRAY[static_cast<size_t>(col)] + 2);
 }
 
 TEST(lugizmo_dataframe_test, row_major_set_get_field_views)
@@ -124,7 +124,7 @@ TEST(lugizmo_dataframe_test, row_major_set_get_field_views)
         ASSERT_FALSE(view.Empty());
 
         for(auto const& val : view)
-            ASSERT_EQ(val, ARRAY[col]);
+            ASSERT_EQ(val, ARRAY[static_cast<size_t>(col)]);
 
         for(auto& val : view)
             val = 42;
@@ -269,7 +269,7 @@ TEST(lugizmo_dataframe_test, row_major_set_get_record_views)
         auto view = df.ViewRecord(row);
         ASSERT_FALSE(view.Empty());
 
-        for(auto col = 0; col < COL_COUNT; ++col)
+        for(size_t col = 0; col < COL_COUNT; ++col)
             ASSERT_EQ(view[col], ARRAY[col]);
 
         for(auto& val : view)
@@ -404,9 +404,9 @@ TEST(lugizmo_dataframe_test, row_major_indexed_views)
     }
 
     // check with view.Get() field values
-    for(auto col = 0; col < COL_COUNT; ++col)
+    for(size_t col = 0; col < COL_COUNT; ++col)
     {
-        auto view = df.ViewFieldIndexed(col);
+        auto view = df.ViewFieldIndexed(static_cast<int>(col));
         ASSERT_FALSE(view.Empty());
         ASSERT_TRUE(view.Size() == ROW_COUNT);
 
@@ -428,7 +428,7 @@ TEST(lugizmo_dataframe_test, row_major_indexed_views)
         ASSERT_TRUE(view.Size() == ROW_COUNT);
 
         static_assert(std::size(ARRAY_OP) == COL_COUNT);
-        auto columnValue = ARRAY_OP[col];
+        auto columnValue = ARRAY_OP[static_cast<size_t>(col)];
 
         for(auto row = 0; row < ROW_COUNT; ++row)
         {
@@ -454,7 +454,7 @@ TEST(lugizmo_dataframe_test, row_major_indexed_views)
         for(auto col = 0; col < COL_COUNT; ++col)
         {
             static_assert(std::size(ARRAY) == COL_COUNT);
-            auto columnValue = ARRAY[col];
+            auto columnValue = ARRAY[static_cast<size_t>(col)];
 
             ASSERT_TRUE(view.At(col));
             ASSERT_EQ(*view.At(col), columnValue);
@@ -471,7 +471,7 @@ TEST(lugizmo_dataframe_test, row_major_indexed_views)
         for(auto col = 0; col < COL_COUNT; ++col)
         {
             static_assert(std::size(ARRAY_OP) == COL_COUNT);
-            auto columnValue = ARRAY_OP[col];
+            auto columnValue = ARRAY_OP[static_cast<size_t>(col)];
 
             if(col != 2)
             {
@@ -494,7 +494,7 @@ TEST(lugizmo_dataframe_test, row_major_indexed_views)
         for(auto& [val, idx] : view)
         {
             ASSERT_EQ(idx, currentRow);
-            ASSERT_EQ(val, ARRAY[col]);
+            ASSERT_EQ(val, ARRAY[static_cast<size_t>(col)]);
 
             val = 42;
             currentRow++;
@@ -556,7 +556,7 @@ TEST(lugizmo_dataframe_test, row_major_for_each)
 
         std::ranges::for_each(record, [](auto& val) { val += 1; });
 
-        auto count = 0;
+        size_t count = 0;
         ASSERT_TRUE(std::ranges::all_of(record, [&](auto& val) {
             if(count == 0) {
                 count++;
@@ -887,7 +887,7 @@ TEST(lugizmo_dataframe_test, dev)
         ASSERT_FALSE(fld.Empty());
 
         auto count = 0;
-        for(auto const& fldValue: fld)
+        for([[maybe_unused]] auto const& fldValue: fld)
         {
             //std::cout << fldValue << ' ';
             count++;

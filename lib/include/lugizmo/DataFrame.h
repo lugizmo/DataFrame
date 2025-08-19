@@ -225,7 +225,7 @@ namespace lugizmo {
             auto const added = fldIndex.AddMultiple(indices);
             if(not added) return false; // TODO see TODO at last return of this function
 
-            Layout::ResizeCols(data, capacity, *backingRes.get(), recsData, 0, indices.size(), defaultValue);
+            Layout::ResizeCols(data, capacity, *backingRes.get(), recsData, 0, static_cast<ssize_t>(indices.size()), defaultValue);
 
             // TODO this return is bad, better to switch returning an iterator to fields added? Then user can check on != end
             return true;
@@ -622,10 +622,18 @@ namespace lugizmo {
         // TODO this should not be required because records are passed
         static_assert(std::is_default_constructible_v<T>, "Currently only default_constructible is supported");
 
-        assert(fldIndices.size() == recIndices.size());
-        assert(recIndices.size() == recValues.size() || recValues.empty());
+        size_t fldIndicesSize;
+        size_t recIndicesSize;
 
-        auto reserve = std::max<size_t>(fldIndices.size() * recIndices.size(), capacity);
+        // TODO this should not be needed as DFRangeIndexBounds should not allow negative sizes
+        if constexpr(IsFISeq) fldIndicesSize = static_cast<size_t>(std::clamp(fldIndices.size(), 0, fldIndices.size()));
+        else                  fldIndicesSize = fldIndices.size();
+        if constexpr(IsRISeq) recIndicesSize = static_cast<size_t>(std::clamp(recIndices.size(), 0, recIndices.size()));
+        else                  recIndicesSize = recIndices.size();
+
+        assert(recIndicesSize == recValues.size() || recValues.empty());
+
+        auto reserve = std::max<size_t>(fldIndicesSize * recIndicesSize, capacity);
         auto df      = DataFrame(reserve, std::move(res));
 
         // add fields to dataframe
@@ -657,10 +665,18 @@ namespace lugizmo {
         // TODO this should not be required because records are passed
         static_assert(std::is_default_constructible_v<T>, "Currently only default_constructible is supported");
 
-        assert(fldIndices.size() == recIndices.size());
-        assert(recIndices.size() == recValues.size() || recValues.empty());
+        size_t fldIndicesSize;
+        size_t recIndicesSize;
 
-        auto reserve = std::max<size_t>(fldIndices.size() * recIndices.size(), capacity);
+        // TODO this should not be needed as DFRangeIndexBounds should not allow negative sizes
+        if constexpr(IsFISeq) fldIndicesSize = static_cast<size_t>(std::clamp(fldIndices.size(), 0, fldIndices.size()));
+        else                  fldIndicesSize = fldIndices.size();
+        if constexpr(IsRISeq) recIndicesSize = static_cast<size_t>(std::clamp(recIndices.size(), 0, recIndices.size()));
+        else                  recIndicesSize = recIndices.size();
+
+        assert(recIndicesSize == recIndicesSize || recValues.empty());
+
+        auto reserve = std::max<size_t>(fldIndicesSize *recIndicesSize, capacity);
         auto df      = DataFrame(reserve, std::move(res));
 
         // add fields to dataframe
@@ -668,7 +684,7 @@ namespace lugizmo {
         else                   df.AddFields(fldIndices);
 
         // populate records in dataframe
-        auto valueIndex = 0;
+        size_t valueIndex = 0;
         if constexpr(IsRISeq) df.SetRecordRange(recIndices.lower, recIndices.upper, recValues);
         else                   for(auto rec : recIndices) df.AddRecordPopulated(rec, recValues[valueIndex++]); // TODO add function to init. in "one go"
 
@@ -685,10 +701,17 @@ namespace lugizmo {
         // TODO this should not be required because records are passed
         static_assert(std::is_default_constructible_v<T>, "Currently only default_constructible is supported");
 
-        assert(fldIndices.size() == recIndices.size());
-        assert(recIndices.size() == recValues.size() || recValues.size() == 0);
+        size_t fldIndicesSize;
+        size_t recIndicesSize;
 
-        auto reserve = std::max<size_t>(fldIndices.size() * recIndices.size(), capacity);
+        if constexpr(IsFISeq) fldIndicesSize = static_cast<size_t>(std::clamp(fldIndices.size(), 0, fldIndices.size()));
+        else                  fldIndicesSize = fldIndices.size();
+        if constexpr(IsRISeq) recIndicesSize = static_cast<size_t>(std::clamp(recIndices.size(), 0, recIndices.size()));
+        else                  recIndicesSize = recIndices.size();
+
+        assert(recIndicesSize == recIndicesSize || recValues.size() == 0);
+
+        auto reserve = std::max<size_t>(fldIndicesSize * recIndicesSize, capacity);
         auto df      = DataFrame(reserve, std::move(res));
 
         // add fields to dataframe
@@ -877,7 +900,7 @@ namespace lugizmo {
 
         // check if one of new bounds is not valid
         // and restore previous state
-        if(records.size() != fldIndex.Size())
+        if(records.size() != static_cast<size_t>(fldIndex.Size())) // TODO this should not be needed as DFRangeIndexBounds should not allow negative sizes
         {
             recIndex.SetLowerBound(currentLower);
             recIndex.SetUpperBound(currentUpper);
@@ -911,7 +934,7 @@ namespace lugizmo {
 
         // check if one of new bounds is not valid
         // and restore previous state
-        if(records.size() != fldIndex.Size())
+        if(records.size() != static_cast<size_t>(fldIndex.Size())) // TODO this should not be needed as DFRangeIndexBounds should not allow negative sizes
         {
             recIndex.SetLowerBound(currentLower);
             recIndex.SetUpperBound(currentUpper);
@@ -945,7 +968,7 @@ namespace lugizmo {
 
         // check if one of new bounds is not valid
         // and restore previous state
-        if(records.size() != recIndex.Size())
+        if(records.size() != static_cast<size_t>(recIndex.Size())) // TODO this should not be needed as DFRangeIndexBounds should not allow negative sizes
         {
             recIndex.SetLowerBound(currentLower);
             recIndex.SetUpperBound(currentUpper);

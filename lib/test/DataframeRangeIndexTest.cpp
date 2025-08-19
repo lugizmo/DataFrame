@@ -36,8 +36,8 @@ TEST(lugizmo_dataframe_range_index_test, row_major_initializations_range_only)
         auto df = DF(FLD_COUNT * REC_COUNT);
 
         // TODO add test where adding cols/rows in different order so first records then fields (some fields must be present for that).
-        for(auto fld = 0; fld <= FLD_COUNT; ++fld) df.SetFieldRange(-1 * fld, fld, 42.f);
-        for(auto rec = 0; rec <= REC_COUNT; ++rec) df.SetRecordRange(-1 * rec, rec, 42.f);
+        for(size_t fld = 0; fld <= FLD_COUNT; ++fld) df.SetFieldRange(-1 * static_cast<int>(fld), fld, 42.f);
+        for(size_t rec = 0; rec <= REC_COUNT; ++rec) df.SetRecordRange(-1 * static_cast<int>(rec), rec, 42.f);
 
         auto const dfFlds = df.Fields();
         auto const dfRecs = df.Records();

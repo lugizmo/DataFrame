@@ -85,7 +85,7 @@ TEST(lugizmo_container_dataframe_map_test, get_set)
 
     // mutate all values
     auto values = defaultMap.Values();
-    std::ranges::for_each(values, [](auto& v) { v.front() = std::toupper(v.front()); });
+    std::ranges::for_each(values, [](auto& v) { v.front() = static_cast<char>(std::toupper(v.front())); });
 
     ASSERT_EQ(defaultMap.Get(1), "First");
     ASSERT_EQ(defaultMap.Get(2), "Second");

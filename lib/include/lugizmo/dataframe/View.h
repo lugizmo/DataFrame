@@ -253,16 +253,16 @@ namespace lugizmo {
 
         template <typename RangeAdaptor>
         [[nodiscard]]
-        friend auto operator|(DFView& view, RangeAdaptor&& adaptor)
+        friend auto operator|(DFView& v, RangeAdaptor&& adaptor)
         {
-            return std::forward<RangeAdaptor>(adaptor)(std::ranges::subrange(view.begin(), view.end()));
+            return std::forward<RangeAdaptor>(adaptor)(std::ranges::subrange(v.begin(), v.end()));
         }
 
         template <typename RangeAdaptor>
         [[nodiscard]]
-        friend auto operator|(DFView const& view, RangeAdaptor&& adaptor)
+        friend auto operator|(DFView const& v, RangeAdaptor&& adaptor)
         {
-            return std::forward<RangeAdaptor>(adaptor)(std::ranges::subrange(view.cbegin(), view.cend()));
+            return std::forward<RangeAdaptor>(adaptor)(std::ranges::subrange(v.cbegin(), v.cend()));
         }
     };
 

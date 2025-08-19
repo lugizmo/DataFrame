@@ -65,7 +65,7 @@ namespace lugizmo {
             auto const opos = std::find(poss.begin(), poss.end(), position);
             if(opos == poss.end()) return std::nullopt;
 
-            auto const dist = std::distance(poss.begin(), opos);
+            auto const dist = static_cast<size_t>(std::distance(poss.begin(), opos));
             auto const keys = values.Keys();
 
             return keys[dist];
@@ -86,7 +86,7 @@ namespace lugizmo {
             auto const startIndex = nextIndex;
             auto positions = std::pmr::vector<size_t>(keys.size(), values.Allocator());
 
-            auto vectorPos = 0;
+            size_t vectorPos = 0;
             for(size_t i = startIndex; vectorPos < keys.size(); i = ++nextIndex)
             {
                 positions[vectorPos] = i;

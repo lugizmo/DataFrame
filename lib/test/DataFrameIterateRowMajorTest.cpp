@@ -56,7 +56,7 @@ TEST(lugizmo_dataframe_iterate_row_major, fields)
 
     ASSERT_EQ(flds.size(), DFFldCount);
 
-    auto count = 0;
+    size_t count = 0;
     for(auto const fld : flds) ASSERT_EQ(fld, DFFields[count++]);
 }
 
@@ -74,7 +74,7 @@ TEST(lugizmo_dataframe_iterate_row_major, records)
 
     ASSERT_EQ(recs.size(), DFRecCount);
 
-    auto count = 0;
+    size_t count = 0;
     for(auto const rec : recs) ASSERT_EQ(rec, DFRecords[count++]);
 }
 
@@ -93,8 +93,8 @@ TEST(lugizmo_dataframe_iterate_row_major, values_data)
     auto const df = DefaultDataframe();
     auto const dp = df.Data();
 
-    auto   rI = 0;
-    auto   fI = 0;
+    size_t rI = 0;
+    size_t fI = 0;
     size_t i  = 0;
     for(auto const val : df.ValuesSpan())
     {
