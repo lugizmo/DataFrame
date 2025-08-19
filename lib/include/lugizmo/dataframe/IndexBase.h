@@ -50,7 +50,7 @@ namespace lugizmo {
         /**
          * TODO doc + idea
          */
-        auto AddMultiple(std::span<KeyType const> keys) noexcept -> bool
+        auto AddMultiple(std::span<KeyType const> keys) noexcept -> size_t
         {
             return static_cast<Derived*>(this)->AddMultiple(keys);
         }

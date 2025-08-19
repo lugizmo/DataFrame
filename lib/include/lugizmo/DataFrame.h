@@ -225,7 +225,7 @@ namespace lugizmo {
             auto const added = fldIndex.AddMultiple(indices);
             if(not added) return false; // TODO see TODO at last return of this function
 
-            Layout::ResizeCols(data, capacity, *backingRes.get(), recsData, 0, static_cast<ssize_t>(indices.size()), defaultValue);
+            Layout::ResizeCols(data, capacity, *backingRes.get(), recsData, 0, static_cast<ssize_t>(added), defaultValue);
 
             // TODO this return is bad, better to switch returning an iterator to fields added? Then user can check on != end
             return true;

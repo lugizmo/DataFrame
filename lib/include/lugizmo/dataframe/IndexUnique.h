@@ -81,13 +81,14 @@ namespace lugizmo {
             return index;
         }
 
-        auto AddMultiple(std::span<KeyType const> keys) noexcept -> bool
+        auto AddMultiple(std::span<KeyType const> keys) noexcept -> size_t
         {
             constexpr size_t SmallThreshold = 5; // after this we create a temporary list of positions
 
+            size_t count = 0;
             if(keys.size() <= SmallThreshold)
             {
-                for(auto key : keys) Add(std::move(key));
+                for(auto key : keys) count += Add(std::move(key)) != std::nullopt;
             }
             else
             {
@@ -106,10 +107,12 @@ namespace lugizmo {
                 }
 
                 if(newKeys.empty()) return false;
+
+                count = newKeys.size();
                 values.Insert(keys, positions);
             }
 
-            return true;
+            return count;
         }
 
         auto Drop(T const& key) noexcept -> std::optional<size_t>

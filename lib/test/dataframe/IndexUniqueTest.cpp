@@ -42,6 +42,13 @@ TEST(lugizmo_dataframe_index_unqiue_test, add_string)
     ASSERT_EQ(index.Position("fourth"), 3);
     ASSERT_EQ(index.Position("fifth"), 4);
     ASSERT_EQ(index.Position("sixth"), 5);
+
+    auto const positionsMore = std::array<std::string, 6>{"a", "b", "c", "d", "f", "g"};
+    index.AddMultiple(positionsMore);
+    auto const sizeMore = index.Size();
+
+    index.AddMultiple(positionsMore);
+    ASSERT_EQ(index.Size(), sizeMore);
 }
 
 TEST(lugizmo_dataframe_index_unqiue_test, get_string)
