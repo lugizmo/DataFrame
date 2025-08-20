@@ -181,7 +181,7 @@ namespace lugizmo {
          * TODO doc + idea
          */
         [[nodiscard]]
-        auto Size() const noexcept -> KeyType
+        auto Size() const noexcept -> size_t
         {
             return static_cast<Derived const*>(this)->Size();
         }

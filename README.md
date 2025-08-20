@@ -19,7 +19,7 @@ conform to: TODO add rule
 
 Data is stored as a consecutive block of memory. This is a decision to optimize iterations over memory and having less 
 indirection when working with the data. That also means you should try to define the shape of your data at the beginning
-if possible. And then optimizing by choosing a appropriate memory layout as described next. 
+if possible. And then optimizing by choosing an appropriate memory layout as described next. 
 
 You can choose between layout_right (row major, default) or layout_left (column major) as the underlying storage memory
 order. The interface of the dataframe does not change. Choose layout_right when adding records/rows more frequently, and
@@ -27,6 +27,14 @@ layout_left when adding fields/columns is more frequent.
 
 Dataframes use raw memory in the background, and a std::memory_resource is used for allocations. All constructors and
 constructor functions optionally accept a shared_memory resource and a capacity that can be used for memory management.
+
+### Design Decisions
+
+- not thread safe
+- no exceptions
+- iterators/pointers/references are invalidated by mutation of the dataframe
+- consecutive memory for storage
+- dataframes use field and record lookup but allow for range versions for instant lookup (see examples)
 
 ### Examples
 

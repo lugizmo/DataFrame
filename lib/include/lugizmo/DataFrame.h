@@ -38,6 +38,9 @@
 
 namespace lugizmo {
 
+    using RowMajor = std::layout_right;
+    using ColMajor = std::layout_left;
+
     /**
      *  TODO extend/update documentation.
      *  @brief Dataframe of a single type using indices to access individual values
@@ -48,14 +51,14 @@ namespace lugizmo {
      *  @tparam R Index type of record (row)
      *  @tparam L Underlying layout of storage to use.
      */
-    template<typename T, typename F, typename R, typename L = std::layout_right>
+    template<typename T, typename F, typename R, typename L = RowMajor>
     struct DataFrame
     {
         // dataframe basic options and types
-        static_assert(std::is_same_v<L, std::layout_right>, "Currently only layout_right is supported");
+        static_assert(std::is_same_v<L, RowMajor>, "Currently only layout_right is supported");
         static_assert(std::is_default_constructible_v<T>, "Currently only default constructable values are supported");
 
-        using Layout = std::conditional_t<std::is_same_v<L, std::layout_right>, DFRowMajor<T>, void>;
+        using Layout = std::conditional_t<std::is_same_v<L, RowMajor>, DFRowMajor<T>, void>;
 
     private:
 
@@ -72,10 +75,10 @@ namespace lugizmo {
     public:
 
         // public types
-        using FldT = typename FldI::KeyType; // underlying type of field index
-        using RecT = typename RecI::KeyType; // underlying type of record index
-        using Flds = typename FldI::KeyView; // stored view into field indices
-        using Recs = typename RecI::KeyView; // stored view into record indices
+        using FldT = FldI::KeyType;     // underlying type of field index
+        using RecT = RecI::KeyType;     // underlying type of record index
+        using Flds = FldI::KeyView;     // stored view into field indices
+        using Recs = RecI::KeyView;     // stored view into record indices
 
     private:
 
@@ -354,19 +357,21 @@ namespace lugizmo {
 
         /**
          * TODO doc
+         * TODO check FldT should be trivial copyable for seq indices?
          * @param index
          * @return
          */
         [[nodiscard]]
-        auto ViewField(F const& index) noexcept -> DFView<T, RecI> requires DFSeqIndex<RecI>;
+        auto ViewField(FldT const& index) noexcept -> DFView<T, RecI> requires DFSeqIndex<RecI>;
 
         /**
          * TODO doc
+         * TODO check FldT should be trivial copyable for seq indices?
          * @param index
          * @return
          */
         [[nodiscard]]
-        auto ViewField(F const& index) const noexcept -> DFView<T const, RecI> requires DFSeqIndex<RecI>;
+        auto ViewField(FldT const& index) const noexcept -> DFView<T const, RecI> requires DFSeqIndex<RecI>;
 
         /**
          * @return      View into a field (handling layout) if field found in dataframe.
@@ -540,12 +545,8 @@ namespace lugizmo {
         [[nodiscard]] auto Data() const noexcept -> T const* { return data; }
 
         /// @attention It's a view so can be invalidated when adding/removing fields/records.
-        /// @return    A span over the values as natural 2D view
-        [[nodiscard]] [[deprecated("No Test")]] auto Values() const noexcept -> RecsData<T> { return recsData; }
-
-        /// @attention It's a view so can be invalidated when adding/removing fields/records.
         /// @return    A view into the current records (indices) stored in the dataframe.
-        [[nodiscard]] auto ValuesSpan() const noexcept -> std::span<T> { return std::span(data, recsData.size()); }
+        [[nodiscard]] auto Values() const noexcept -> std::span<T> { return std::span(data, recsData.size()); }
 
         /// @return True when no values (no records) are stored in the dataframe.
         [[nodiscard]] auto Empty() const noexcept -> bool { return recIndex.Empty(); }
@@ -622,15 +623,8 @@ namespace lugizmo {
         // TODO this should not be required because records are passed
         static_assert(std::is_default_constructible_v<T>, "Currently only default_constructible is supported");
 
-        size_t fldIndicesSize;
-        size_t recIndicesSize;
-
-        // TODO this should not be needed as DFRangeIndexBounds should not allow negative sizes
-        if constexpr(IsFISeq) fldIndicesSize = static_cast<size_t>(std::clamp(fldIndices.size(), 0, fldIndices.size()));
-        else                  fldIndicesSize = fldIndices.size();
-        if constexpr(IsRISeq) recIndicesSize = static_cast<size_t>(std::clamp(recIndices.size(), 0, recIndices.size()));
-        else                  recIndicesSize = recIndices.size();
-
+        size_t const fldIndicesSize = fldIndices.size();
+        size_t const recIndicesSize = recIndices.size();
         assert(recIndicesSize == recValues.size() || recValues.empty());
 
         auto reserve = std::max<size_t>(fldIndicesSize * recIndicesSize, capacity);
@@ -665,15 +659,8 @@ namespace lugizmo {
         // TODO this should not be required because records are passed
         static_assert(std::is_default_constructible_v<T>, "Currently only default_constructible is supported");
 
-        size_t fldIndicesSize;
-        size_t recIndicesSize;
-
-        // TODO this should not be needed as DFRangeIndexBounds should not allow negative sizes
-        if constexpr(IsFISeq) fldIndicesSize = static_cast<size_t>(std::clamp(fldIndices.size(), 0, fldIndices.size()));
-        else                  fldIndicesSize = fldIndices.size();
-        if constexpr(IsRISeq) recIndicesSize = static_cast<size_t>(std::clamp(recIndices.size(), 0, recIndices.size()));
-        else                  recIndicesSize = recIndices.size();
-
+        size_t const fldIndicesSize = fldIndices.size();
+        size_t const recIndicesSize = recIndices.size();
         assert(recIndicesSize == recIndicesSize || recValues.empty());
 
         auto reserve = std::max<size_t>(fldIndicesSize *recIndicesSize, capacity);
@@ -681,12 +668,12 @@ namespace lugizmo {
 
         // add fields to dataframe
         if constexpr(IsFISeq) df.SetFieldRange(fldIndices.lower, fldIndices.upper);
-        else                   df.AddFields(fldIndices);
+        else                  df.AddFields(fldIndices);
 
         // populate records in dataframe
         size_t valueIndex = 0;
         if constexpr(IsRISeq) df.SetRecordRange(recIndices.lower, recIndices.upper, recValues);
-        else                   for(auto rec : recIndices) df.AddRecordPopulated(rec, recValues[valueIndex++]); // TODO add function to init. in "one go"
+        else                  for(auto rec : recIndices) df.AddRecordPopulated(rec, recValues[valueIndex++]); // TODO add function to init. in "one go"
 
         return df;
     }
@@ -701,14 +688,8 @@ namespace lugizmo {
         // TODO this should not be required because records are passed
         static_assert(std::is_default_constructible_v<T>, "Currently only default_constructible is supported");
 
-        size_t fldIndicesSize;
-        size_t recIndicesSize;
-
-        if constexpr(IsFISeq) fldIndicesSize = static_cast<size_t>(std::clamp(fldIndices.size(), 0, fldIndices.size()));
-        else                  fldIndicesSize = fldIndices.size();
-        if constexpr(IsRISeq) recIndicesSize = static_cast<size_t>(std::clamp(recIndices.size(), 0, recIndices.size()));
-        else                  recIndicesSize = recIndices.size();
-
+        size_t const fldIndicesSize = fldIndices.size();
+        size_t const recIndicesSize = recIndices.size();
         assert(recIndicesSize == recIndicesSize || recValues.size() == 0);
 
         auto reserve = std::max<size_t>(fldIndicesSize * recIndicesSize, capacity);
@@ -934,7 +915,7 @@ namespace lugizmo {
 
         // check if one of new bounds is not valid
         // and restore previous state
-        if(records.size() != static_cast<size_t>(fldIndex.Size())) // TODO this should not be needed as DFRangeIndexBounds should not allow negative sizes
+        if(records.size() != static_cast<size_t>(recIndex.Size())) // TODO this should not be needed as DFRangeIndexBounds should not allow negative sizes
         {
             recIndex.SetLowerBound(currentLower);
             recIndex.SetUpperBound(currentUpper);
@@ -1103,7 +1084,7 @@ namespace lugizmo {
     }
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::ViewField(F const& index) noexcept -> DFView<T, RecI> requires DFSeqIndex<RecI>
+    auto DataFrame<T, F, R, L>::ViewField(FldT const& index) noexcept -> DFView<T, RecI> requires DFSeqIndex<RecI>
     {
         auto const pos = fldIndex.Position(index);
         if(!pos.has_value()) { return DFView<T, RecI>(); }
@@ -1112,7 +1093,7 @@ namespace lugizmo {
     }
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::ViewField(F const& index) const noexcept -> DFView<T const, RecI> requires DFSeqIndex<RecI>
+    auto DataFrame<T, F, R, L>::ViewField(FldT const& index) const noexcept -> DFView<T const, RecI> requires DFSeqIndex<RecI>
     {
         auto const pos = fldIndex.Position(index);
         if(!pos.has_value()) { return DFView<T const, RecI>(); }

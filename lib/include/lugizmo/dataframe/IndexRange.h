@@ -10,6 +10,7 @@
 #include <type_traits>
 #include <utility>
 #include <optional>
+#include <cassert>
 
 #include "IndexBase.h"
 
@@ -25,11 +26,12 @@ namespace lugizmo {
         T lower;
         T upper;
 
-        [[nodiscard]] auto Size() const noexcept { return upper - lower; }  // TODO support other types like chrono, here should be fine but what about dataframe
-        [[nodiscard]] auto size() const noexcept { return Size(); }         // TODO support other types like chrono, here should be fine but what about dataframe
+        // TODO support other types like chrono, here should be fine but what about dataframe + use std::abs when constexpr
+        [[nodiscard]] constexpr auto Size() const noexcept -> size_t { assert(lower <= upper); return static_cast<size_t>(upper - lower); }
+        [[nodiscard]] constexpr auto size() const noexcept -> size_t { assert(lower <= upper); return Size(); }         // TODO support other types like chrono, here should be fine but what about dataframe
 
-        [[nodiscard]] auto Empty() const noexcept { return Size() == T(0); }  // TODO support other types like chrono, here should be fine but what about dataframe
-        [[nodiscard]] auto empty() const noexcept { return Empty(); }         // TODO support other types like chrono, here should be fine but what about dataframe
+        [[nodiscard]] constexpr auto Empty() const noexcept -> bool { return Size() == T(0); }  // TODO support other types like chrono, here should be fine but what about dataframe
+        [[nodiscard]] constexpr auto empty() const noexcept -> bool { return Empty(); }         // TODO support other types like chrono, here should be fine but what about dataframe
     };
 
     template<typename T = size_t>
@@ -199,10 +201,11 @@ namespace lugizmo {
         }
 
         [[nodiscard]]
-        constexpr auto Size() const noexcept -> KeyType
+        constexpr auto Size() const noexcept -> size_t
         {
             // TODO ensure this is never < 0
-            return upperBound - lowerBound;
+            assert(lowerBound <= upperBound);
+            return static_cast<size_t>(upperBound - lowerBound);
         }
 
         [[nodiscard]]

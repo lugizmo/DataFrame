@@ -185,9 +185,9 @@ TEST(lugizmo_dataframe_construct_row_major, one_by_on_fields)
     ASSERT_TRUE(df.Size() == FLD_COUNT * REC_COUNT);
     ASSERT_TRUE(df.FieldSize() == FLD_COUNT);
     ASSERT_TRUE(df.RecordSize() == REC_COUNT);
-    ASSERT_TRUE(std::ranges::all_of(df.ValuesSpan(), [](auto const val) { return val == 42.f; }));
+    ASSERT_TRUE(std::ranges::all_of(df.Values(), [](auto const val) { return val == 42.f; }));
 
-    for(auto const& val : df.ValuesSpan()) ASSERT_FLOAT_EQ(42.f, val);
+    for(auto const& val : df.Values()) ASSERT_FLOAT_EQ(42.f, val);
 
     auto count = 0;
     for(auto const& fld : df.Fields()) ASSERT_EQ(fld, std::to_string(count++));
@@ -265,7 +265,7 @@ TEST(lugizmo_dataframe_construct_row_major, from_fields_and_record_defaulted)
         ++countRec;
     }
 
-    for(auto const val : dfFromFldAndRecDef.ValuesSpan()) ASSERT_EQ(float(), val);
+    for(auto const val : dfFromFldAndRecDef.Values()) ASSERT_EQ(float(), val);
 }
 
 /**

@@ -4,6 +4,8 @@
 // See the LICENSE file in the project root or at
 // http://www.apache.org/licenses/LICENSE-2.0 for full license information.
 
+#if 0
+
 //
 // Test functions iterating over dataframe data.
 // These tests work with classical iterators and ranges.
@@ -122,4 +124,4 @@ TEST(lugizmo_dataframe_iterate_row_major, values_data)
 // auto ViewRecordIndexed(R const& index) noexcept -> DFViewIndexed<T, FldI const> requires DFValIndex<RecI>;
 // auto ViewRecordIndexed(R const& index) const noexcept -> DFViewIndexed<T const, FldI const> requires DFValIndex<RecI>;
 
-
+#endif

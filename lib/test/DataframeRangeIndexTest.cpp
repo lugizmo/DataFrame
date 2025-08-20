@@ -45,7 +45,7 @@ TEST(lugizmo_dataframe_range_index_test, row_major_initializations_range_only)
         ASSERT_TRUE(!df.Empty());
         ASSERT_EQ(dfFlds.size(), FLD_COUNT * 2);
         ASSERT_EQ(dfRecs.size(), REC_COUNT * 2);
-        ASSERT_TRUE(std::ranges::all_of(df.ValuesSpan(), [](auto const val) { return val == 42.f; }));
+        ASSERT_TRUE(std::ranges::all_of(df.Values(), [](auto const val) { return val == 42.f; }));
     }
 
     // initialize fields
@@ -147,7 +147,7 @@ TEST(lugizmo_dataframe_range_index_test, row_major_set_get_records)
     ASSERT_FALSE(df.Empty());
     ASSERT_EQ(df.Records().size(), 10);
 
-    auto values = df.ValuesSpan();
+    auto values = df.Values();
     ASSERT_TRUE(std::ranges::all_of(values, [](auto const& v) { return v == 0; }));
 
     // get values with GetValue()
@@ -167,7 +167,7 @@ TEST(lugizmo_dataframe_range_index_test, row_major_set_get_records)
         for(auto row = records.lower; row < records.upper; ++row)
             ASSERT_TRUE(df.SetValue(col, row, 42));
 
-    values = df.ValuesSpan();
+    values = df.Values();
     ASSERT_TRUE(std::ranges::all_of(values, [](auto const& v) { return v == 42; }));
 
     // set values with [] operator
@@ -175,7 +175,7 @@ TEST(lugizmo_dataframe_range_index_test, row_major_set_get_records)
         for(auto row = records.lower; row < records.upper; ++row)
             df[col, row] = 43;
 
-    values = df.ValuesSpan();
+    values = df.Values();
     ASSERT_TRUE(std::ranges::all_of(values, [](auto const& v) { return v == 43; }));
 
     // ====== SHRINK IT! ==========================================================================================
@@ -196,7 +196,7 @@ TEST(lugizmo_dataframe_range_index_test, row_major_set_get_records)
     ASSERT_FALSE(df.Empty());
     ASSERT_EQ(df.Records().size(), 5);
 
-    while(upper >= 0)
+    while(upper >= 1)
     {
         records = {.lower = lower, .upper = upper--};
         df.SetRecordRange(records, 0);

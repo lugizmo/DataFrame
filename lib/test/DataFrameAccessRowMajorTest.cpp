@@ -108,6 +108,6 @@ TEST(lugizmo_dataframe_access_row_major, set_value)
         for(auto const& fld : df.Fields())
             ASSERT_TRUE(df.SetValue(fld, rec, 42));
 
-    for(auto const val : df.ValuesSpan())
+    for(auto const val : df.Values())
         ASSERT_EQ(val, 42);
 }

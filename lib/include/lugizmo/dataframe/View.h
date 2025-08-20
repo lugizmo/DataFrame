@@ -308,7 +308,7 @@ namespace lugizmo {
     auto DFView<T, I>::TryAt(KeyType const& key) const noexcept -> std::optional<T>
     {
         auto* ref = At(key);
-        return std::optional<T>(ref ? *ref : std::nullopt);
+        return std::optional<T>(ref ? *ref : std::optional<T>{});
     }
 
     template<typename T, typename I>

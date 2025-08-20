@@ -74,7 +74,13 @@ namespace lugizmo {
         _Pragma("GCC diagnostic push")
         _Pragma("GCC diagnostic ignored \"-Wimplicit\"")
         [[nodiscard]]
-        constexpr operator T&() const noexcept  // NOLINT(google-explicit-constructor)
+        constexpr operator T const&() const noexcept  // NOLINT(google-explicit-constructor)
+        {
+            assert(ptr != nullptr); return *ptr;
+        }
+
+        [[nodiscard]]
+        constexpr operator T&() noexcept  // NOLINT(google-explicit-constructor)
         {
             assert(ptr != nullptr); return *ptr;
         }

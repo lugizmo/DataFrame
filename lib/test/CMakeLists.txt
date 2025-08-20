@@ -19,6 +19,9 @@ if(LUGIZMO_BUILD_TESTING)
             DataFrameIterateRowMajorTest.cpp
             DataFrameAccessRowMajorTest.cpp
 
+            # row major
+            RM_Dataframe_Views_Test.cpp
+
             main.cpp
     )
 
