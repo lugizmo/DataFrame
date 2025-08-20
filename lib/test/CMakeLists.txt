@@ -20,9 +20,13 @@ if(LUGIZMO_BUILD_TESTING)
             DataFrameAccessRowMajorTest.cpp
 
             # row major
-            RM_Dataframe_Views_Test.cpp
+            RM_DataframeViewsTest.cpp
 
             main.cpp
+    )
+
+    target_sources(DataFrameTest PUBLIC
+            RM_DataframeTestData.h
     )
 
     target_link_libraries(DataFrameTest PUBLIC DataFrame gtest)
