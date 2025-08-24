@@ -73,7 +73,7 @@ TEST(lugizmo_dataframe_construct_row_major, no_content)
         ASSERT_TRUE(df.Size() == 0);
         ASSERT_TRUE(df.FieldSize() == 0);
         ASSERT_TRUE(df.RecordSize() == 1);
-        ASSERT_FALSE(df.Empty());
+        ASSERT_TRUE(df.Empty());
     }
 }
 

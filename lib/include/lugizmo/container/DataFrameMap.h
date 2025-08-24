@@ -11,6 +11,7 @@
 #include <vector>
 #include <algorithm>
 #include <optional>
+#include <span>
 
 #include "lugizmo/container/Concepts.h"
 

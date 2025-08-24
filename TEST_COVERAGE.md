@@ -19,10 +19,16 @@
 
 ### adding fields and records
 
-- [ ] ```AddField(F index, T const& defaultValue) -> bool```
-- [ ] ```AddFields(std::span<F const> const indices, T const& defaultValue) -> bool```
-- [ ] ```AddRecord(R index, T const& defaultValue) -> bool```
+Test can be found in: [File](/lib/test/RM_DataframeAddingTest.cpp)
+
+- [x] ```AddField(F index, T const& defaultValue) -> bool```
+- [x] ```AddFields(std::span<F const> const indices, T const& defaultValue) -> std::size_t```
+- [x] ```AddRecord(R index, T const& defaultValue) -> bool```
+- [x] ```AddRecords(std::span<R const> const indices, T const& defaultValue) -> std::size_t```
+
+
 - [ ] ```AddRecordPopulated(R index, std::span<T const> records) -> bool```
+
 
 - [ ] ```SetFieldRange(std::optional<FldT> lower, std::optional<FldT> upper, T const& defaultVal) -> bool```
 - [ ] ```SetFieldRange(DFRangeIndexBounds<FldT>, T const& defaultVal) -> bool```
@@ -46,6 +52,7 @@ Test can be found in: [File](/lib/test/RM_DataframePropertiesTest.cpp)
 
 - [x] ```HasField<C>(C const& field) const -> bool```
 - [x] ```HasRecord<C>(C const& record) const -> bool```
+
 
 - [x] ```Size() const -> size_t```
 - [x] ```FieldSize() const -> size_t```

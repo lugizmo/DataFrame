@@ -213,42 +213,54 @@ namespace lugizmo {
 
         /**
          * @brief Add a new field to the dataframe.
-         * TODO replace or ignore?
+         *        If the field already exists, nothing happens.
          *
          * @param index         field name.
          * @param defaultValue  value to put in new field values if records present.
-         * @return              success indicator.
+         * @return              true if the field wasn't present before.
          */
+        auto AddField(F index, T const& defaultValue = T{}) -> bool requires DFValIndex<FldI>;
+
+        /**
+         * @brief Adding new fields to the dataframe.
+         *        Fields already in are skipped.
+         * @param indices      field names to add.
+         * @param defaultValue value to put in new fields if records are present.
+         * @return             count of fields added.
+         */
+        auto AddFields(std::span<F const> indices, T const& defaultValue = T{}) -> std::size_t requires DFValIndex<FldI>;
+
+        /**
+         * @brief Add a new record to the dataframe.
+         *        If the record already exists, nothing happens.
+         * @param index        record name.
+         * @param defaultValue value to put in all fields.
+         * @return             true if the record wasn't present before.
+         */
+        auto AddRecord(R index, T const& defaultValue = T{}) -> bool requires DFValIndex<RecI>;
+
+        /**
+         * @brief Add new records to the dataframe.
+         *        If the record already exists, nothing happens.
+         * @param indices      record names to add.
+         * @param defaultValue value to put in all fields.
+         * @return             count of records added.
+         */
+        auto AddRecords(std::span<R const> indices, T const& defaultValue = T{}) -> std::size_t requires DFValIndex<RecI>;
+
         // TODO think about making it replace if already in
-        auto AddField(F index, T const& defaultValue = T()) -> bool requires DFValIndex<FldI>;
-
-        auto AddFields(std::span<F const> const indices, T const& defaultValue = T()) -> bool requires DFValIndex<FldI>
-        {
-            // add fields to index
-            auto const added = fldIndex.AddMultiple(indices);
-            if(not added) return false; // TODO see TODO at last return of this function
-
-            Layout::ResizeCols(data, capacity, *backingRes.get(), recsData, 0, static_cast<ssize_t>(added), defaultValue);
-
-            // TODO this return is bad, better to switch returning an iterator to fields added? Then user can check on != end
-            return true;
-        }
-
-        // TODO think about making it replace if already in
-        auto AddRecord(R index, T const& defaultValue = T()) -> bool requires DFValIndex<RecI>;
-
-        // TODO think about making it replace if already in
+        // TODO add tests, do not use until now
         auto AddRecordPopulated(R index, std::span<T const> records) -> bool requires DFValIndex<RecI>;
 
         // ======== MANIPULATION SEQUENCE INDEX ============================================================================================
 
-        auto SetFieldRange(std::optional<FldT> lower, std::optional<FldT> upper, T const& defaultVal = T()) noexcept -> bool requires DFSeqIndex<FldI>;
+        auto SetFieldRange(std::optional<FldT> lower, std::optional<FldT> upper, T const& defaultVal = T{}) noexcept -> bool requires DFSeqIndex<FldI>;
 
-        auto SetFieldRange(DFRangeIndexBounds<FldT>, T const& defaultVal = T()) noexcept -> bool requires DFSeqIndex<FldI>;
+        auto SetFieldRange(DFRangeIndexBounds<FldT>, T const& defaultVal = T{}) noexcept -> bool requires DFSeqIndex<FldI>;
 
-        auto SetRecordRange(std::optional<RecT> lower, std::optional<RecT> upper, T const& defaultVal = T()) noexcept -> bool requires DFSeqIndex<RecI>;
+        auto SetRecordRange(std::optional<RecT> lower, std::optional<RecT> upper, T const& defaultVal = T{}) noexcept -> bool requires DFSeqIndex<RecI>;
 
-        auto SetRecordRange(DFRangeIndexBounds<RecT>, T const& defaultVal = T()) noexcept -> bool requires DFSeqIndex<RecI>;
+        auto SetRecordRange(DFRangeIndexBounds<RecT>, T const& defaultVal = T{}) noexcept -> bool requires DFSeqIndex<RecI>;
 
         auto SetRecordRange(std::optional<RecT> lower, std::optional<RecT> upper, std::span<T const> records) noexcept -> bool requires DFSeqIndex<RecI>;
 
@@ -264,9 +276,17 @@ namespace lugizmo {
 
         // ======== CHECKS =========================================================================================================================================================
 
+        /**
+         *  @param field The field to check for.
+         *  @return True if the dataframe contains the given field.
+         */
         template<typename C>
         [[nodiscard]] auto HasField(C const& field) const noexcept -> bool;
 
+        /**
+         *  @param record The record to check for.
+         *  @return True if the dataframe contains the given record.
+         */
         template<typename C>
         [[nodiscard]] auto HasRecord(C const& record) const noexcept -> bool;
 
@@ -548,8 +568,8 @@ namespace lugizmo {
         /// @return    A view into the current records (indices) stored in the dataframe.
         [[nodiscard]] auto Values() const noexcept -> std::span<T> { return std::span(data, recsData.size()); }
 
-        /// @return True when no values (no records) are stored in the dataframe.
-        [[nodiscard]] auto Empty() const noexcept -> bool { return recIndex.Empty(); }
+        /// @return True when no values are stored in the dataframe.
+        [[nodiscard]] auto Empty() const noexcept -> bool { return recsData.empty(); }
 
         static_assert(std::is_trivially_copyable_v<Flds>, "Fields() returns this.");
     };
@@ -787,7 +807,7 @@ namespace lugizmo {
     template <typename T, typename F, typename R, typename L>
     auto DataFrame<T, F, R, L>::AddField(F index, T const& defaultValue) -> bool requires DFValIndex<FldI>
     {
-        // add field to index
+        // add field to the index
         auto const added = fldIndex.Add(std::move(index));
         if(not added) return false;
 
@@ -797,15 +817,39 @@ namespace lugizmo {
     }
 
     template <typename T, typename F, typename R, typename L>
+    auto DataFrame<T, F, R, L>::AddFields(std::span<F const> const indices, T const& defaultValue) -> std::size_t requires DFValIndex<FldI>
+    {
+        // add fields to the index
+        auto const added = fldIndex.AddMultiple(indices);
+        if(added == 0) return 0;
+
+        // add fields to storage
+        Layout::ResizeCols(data, capacity, *backingRes.get(), recsData, 0, static_cast<ssize_t>(added), defaultValue);
+        return added;
+    }
+
+    template <typename T, typename F, typename R, typename L>
     auto DataFrame<T, F, R, L>::AddRecord(R index, T const& defaultValue) -> bool requires DFValIndex<RecI>
     {
-        // add row to index
+        // add row to the index
         auto const added = recIndex.Add(std::move(index));
         if(not added) return false;
 
         // add row to storage
         Layout::ResizeRows(data, capacity, *backingRes.get(), recsData, 0, 1, defaultValue);
         return true;
+    }
+
+    template <typename T, typename F, typename R, typename L>
+    auto DataFrame<T, F, R, L>::AddRecords(std::span<R const> indices, T const& defaultValue) -> std::size_t requires DFValIndex<RecI>
+    {
+        // add rows to the index
+        auto const added = recIndex.AddMultiple(indices);
+        if(added == 0) return 0;
+
+        // add rows to storage
+        Layout::ResizeRows(data, capacity, *backingRes.get(), recsData, 0, static_cast<ssize_t>(added), defaultValue);
+        return added;
     }
 
     template <typename T, typename F, typename R, typename L>

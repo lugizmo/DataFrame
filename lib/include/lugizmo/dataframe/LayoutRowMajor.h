@@ -388,9 +388,7 @@ namespace lugizmo {
             if(rowCount > 0)
             {
                 auto* const destBeg = newData + std::max<ssize_t>(0, adjCountByBeg) * static_cast<ssize_t>(colCount);
-                auto* const destEnd = destBeg + rowCount * colCount;
-
-                assert(destEnd <= newData + newCapacity && "Destination out of bounds for copying existing rows");
+                assert((destBeg + rowCount * colCount /* destEnd */) <= newData + newCapacity && "Destination out of bounds for copying existing rows");
                 std::uninitialized_copy_n(data, rowCount * colCount, destBeg);
             }
 
@@ -455,11 +453,10 @@ namespace lugizmo {
                 auto const elemsPerRow   = colCount;
                 auto const moveElemCount = remainRows * elemsPerRow;
 
-                T* const src    = data + shrinkRows * elemsPerRow;
-                T* const dst    = data;
-                T* const dstEnd = dst + moveElemCount;
+                T* const src = data + shrinkRows * elemsPerRow;
+                T* const dst = data;
 
-                assert(dstEnd >= dst && "Shrinking rows caused invalid range");
+                assert((dst + moveElemCount /* dstEnd */) >= dst && "Shrinking rows caused invalid range");
                 std::move(src, src + moveElemCount, dst);
 
             }
@@ -514,9 +511,8 @@ namespace lugizmo {
             for(size_t row = 0; row < numRows; ++row)
             {
                 auto* start  = data + (startRow + row) * colCount;
-                auto* finish = start + colCount;
 
-                assert(start < finish && "Invalid memory range in FillRows");
+                assert(start < (start + colCount /* finish */) && "Invalid memory range in FillRows");
                 assert(std::distance(begin, end) == static_cast<std::ptrdiff_t>(colCount) && "Column count mismatch");
                 std::copy(begin, end, start);
             }

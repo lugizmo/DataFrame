@@ -20,6 +20,7 @@ if(LUGIZMO_BUILD_TESTING)
             DataFrameAccessRowMajorTest.cpp
 
             # row major
+            RM_DataframeAddingTest.cpp
             RM_DataframeAccessTest.cpp
             RM_DataframeMutatingTest.cpp
             RM_DataframeViewsTest.cpp
