@@ -41,6 +41,10 @@ Test can be found in: [File](/lib/test/RM_DataframeAddingTest.cpp)
 - [ ] ```SetRecordRange(std::optional<RecT> lower, std::optional<RecT> upper, std::initializer_list<std::initializer_list<T>> records) -> bool```
 - [ ] ```SetRecordRange(DFRangeIndexBounds<RecT>, std::initializer_list<std::initializer_list<T>> records) -> bool```
 
+
+- [ ] ```InsertValue(FldT const& field, RecT const& record, T const& value) -> bool;``` 
+- [ ] ```InsertOrAssignValue(FldT const& field, RecT const& record, T const& value) -> bool;```
+
 ### removing fields and records
 
 - [ ] ```DropField(F const& index) -> bool```
@@ -77,7 +81,7 @@ Test can be found in: [File](/lib/test/RM_DataframeAccessTest.cpp)
 
 Test can be found in: [File](/lib/test/RM_DataframeMutatingTest.cpp)
 
-- [x] ```SetValue(FldT const& field, RecT const& record, T const& value) -> bool```
+- [x] ```AssignValue(FldT const& field, RecT const& record, T const& value) -> bool```
 
 ### view fields and records
 
