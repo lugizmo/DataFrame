@@ -162,10 +162,10 @@ TEST(lugizmo_dataframe_range_index_test, row_major_set_get_records)
             ASSERT_EQ(val, 0);
         }
 
-    // set values with SetValue()
+    // replace values with replace_val()
     for(auto col = fields.lower; col < fields.upper; ++col)
         for(auto row = records.lower; row < records.upper; ++row)
-            ASSERT_TRUE(df.SetValue(col, row, 42));
+            ASSERT_TRUE(df.Replace(col, row, 42));
 
     values = df.Values();
     ASSERT_TRUE(std::ranges::all_of(values, [](auto const& v) { return v == 42; }));

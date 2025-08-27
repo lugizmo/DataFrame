@@ -331,13 +331,36 @@ namespace lugizmo {
         // ======== SETTERS ========================================================================================================================================================
 
         /**
+         * @brief Replace the value in the dataframe for field/record
+         *        if the value already exists else does nothing.
+         *
+         * @param field  The field name to check for.
+         * @param record The record name to check for.
+         * @param value  The value to replace with.
+         *
+         * @return       True if value was replaced.
+         */
+        auto Replace(FldT const& field, RecT const& record, T const& value) -> bool;
+
+        /**
          * TODO doc
+         * @brief Adds the value but only if not already present.
          * @param field
          * @param record
          * @param value
          * @return
          */
-        auto SetValue(FldT const& field, RecT const& record, T const& value) -> bool;
+        //auto Insert(FldT const& field, RecT const& record, T const& value) -> bool;
+
+        /**
+        * TODO doc
+        * @brief Adds the value or replaces it if already present.
+        * @param field
+        * @param record
+        * @param value
+        * @return
+        */
+        //auto InsertOrAssign(FldT const& field, RecT const& record, T const& value) -> bool;
 
         // ======== DROP ===========================================================================================================================================================
 
@@ -1069,7 +1092,7 @@ namespace lugizmo {
     // ======== SETTERS ============================================================================================================================================================
 
     template<typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::SetValue(FldT const& field, RecT const& record, T const& value) -> bool
+    auto DataFrame<T, F, R, L>::Replace(FldT const& field, RecT const& record, T const& value) -> bool
     {
         if(auto get = GetValue(field, record); get.has_value())
         {
