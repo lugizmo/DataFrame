@@ -93,7 +93,7 @@ TEST(lugizmo_dataframe_test, row_major_set_get_records)
 
     for(auto col = 0; col < COL_COUNT; ++col)
         for(auto row = 0; row < ROW_COUNT; ++row)
-            ASSERT_TRUE(df.Replace(col + 2, row, ARRAY[static_cast<size_t>(col)] + 2));
+            ASSERT_TRUE(df.AssignValue(col + 2, row, ARRAY[static_cast<size_t>(col)] + 2));
 
     for(auto col = 0; col < COL_COUNT; ++col)
         for(auto row = 0; row < ROW_COUNT; ++row)
@@ -843,7 +843,7 @@ TEST(lugizmo_dataframe_test, dev)
     {
         for(auto row = 0; row < ROW_COUNT; ++row)
         {
-            auto const set = df.Replace(col, row, 42);
+            auto const set = df.AssignValue(col, row, 42);
             ASSERT_TRUE(set);
         }
     }

@@ -106,7 +106,7 @@ TEST(lugizmo_dataframe_access_row_major, set_value)
 
     for(auto const& rec : df.Records())
         for(auto const& fld : df.Fields())
-            ASSERT_TRUE(df.Replace(fld, rec, 42));
+            ASSERT_TRUE(df.AssignValue(fld, rec, 42));
 
     for(auto const val : df.Values())
         ASSERT_EQ(val, 42);

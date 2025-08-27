@@ -39,7 +39,7 @@ TEST(lugizmo_dataframe_mutating_row_major, replace_val)
             for(auto const recName : DFRecords)
             {
 
-                df.Replace(fldName, recName, DFData[recCount][fldCount] * 2);
+                df.AssignValue(fldName, recName, DFData[recCount][fldCount] * 2);
                 recCount++;
             }
             fldCount++;
@@ -71,7 +71,7 @@ TEST(lugizmo_dataframe_mutating_row_major, replace_val)
             for(auto const& recName : DFRecords)
             {
 
-                df.Replace(fldName, recName, DFData[recCount][fldCount] * 2);
+                df.AssignValue(fldName, recName, DFData[recCount][fldCount] * 2);
                 recCount++;
             }
             fldCount++;

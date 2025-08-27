@@ -340,27 +340,30 @@ namespace lugizmo {
          *
          * @return       True if value was replaced.
          */
-        auto Replace(FldT const& field, RecT const& record, T const& value) -> bool;
+        auto AssignValue(FldT const& field, RecT const& record, T const& value) -> bool;
 
         /**
-         * TODO doc
          * @brief Adds the value but only if not already present.
-         * @param field
-         * @param record
-         * @param value
-         * @return
+         *        That means field and/or record are added.
+         *
+         * @param field  The field name to insert if not present yet.
+         * @param record The record name to insert if not present yet.
+         * @param value  The value to insert.
+         *
+         * @return True if value was inserted.
          */
-        //auto Insert(FldT const& field, RecT const& record, T const& value) -> bool;
+        auto InsertValue(FldT const& field, RecT const& record, T const& value) -> bool requires DFValIndex<FldI> and DFValIndex<RecI>; // TODO remove requirement
 
         /**
-        * TODO doc
         * @brief Adds the value or replaces it if already present.
-        * @param field
-        * @param record
-        * @param value
-        * @return
+        *        If field and/or record is not present yet, they are added and the value is set.
+        *        If already present value gets replaced.
+        *
+        * @param field  The field name to insert if not present yet.
+        * @param record The record name to insert if not present yet.
+        * @param value  The value to assign.
         */
-        //auto InsertOrAssign(FldT const& field, RecT const& record, T const& value) -> bool;
+        void InsertOrAssignValue(FldT const& field, RecT const& record, T const& value) requires DFValIndex<FldI> and DFValIndex<RecI>; // TODO remove requirement
 
         // ======== DROP ===========================================================================================================================================================
 
@@ -1092,7 +1095,7 @@ namespace lugizmo {
     // ======== SETTERS ============================================================================================================================================================
 
     template<typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::Replace(FldT const& field, RecT const& record, T const& value) -> bool
+    auto DataFrame<T, F, R, L>::AssignValue(FldT const& field, RecT const& record, T const& value) -> bool
     {
         if(auto get = GetValue(field, record); get.has_value())
         {
@@ -1102,6 +1105,69 @@ namespace lugizmo {
         }
 
         return false;
+    }
+
+    template<typename T, typename F, typename R, typename L>
+    auto DataFrame<T, F, R, L>::InsertValue(FldT const& field, RecT const& record, T const& value) -> bool requires DFValIndex<FldI> and DFValIndex<RecI>
+    {
+        // check if field and record are present
+        auto const hasFld = fldIndex.Position(field);
+        auto const hasRec = recIndex.Position(record);
+        if(hasFld and hasRec) return false;
+
+        if(not hasFld)
+        {
+            // the field is not present
+            [[maybe_unused]] auto const fieldAdded = AddField(field);
+            assert(fieldAdded && "Field should not be present yet.");
+        }
+
+        if(not hasRec)
+        {
+            // the record is not present
+            [[maybe_unused]] auto const recordAdded = AddRecord(record);
+            assert(recordAdded && "Record should not be present yet.");
+        }
+
+        [[maybe_unused]] auto const valueSet = AssignValue(field, record, value);
+        assert(valueSet   && "Field and record should be present.");
+
+        return true;
+    }
+
+    template <typename T, typename F, typename R, typename L>
+    void DataFrame<T, F, R, L>::InsertOrAssignValue(FldT const& field, RecT const& record, T const& value) requires DFValIndex<FldI> and DFValIndex<RecI> // TODO remove requirement
+    {
+        // check if field and record are present
+        auto const hasFld = fldIndex.Position(field);
+        auto const hasRec = recIndex.Position(record);
+
+        // assign
+        if(hasFld and hasRec)
+        {
+            [[maybe_unused]] auto const assigned = AssignValue(field, record, value);
+            assert(assigned && "Field and record should be present.");
+
+            return;
+        }
+
+        // insert and assign
+        if(not hasFld)
+        {
+            // the field is not present
+            [[maybe_unused]] auto const fieldAdded = AddField(field);
+            assert(fieldAdded && "Field should not be present yet.");
+        }
+
+        if(not hasRec)
+        {
+            // the record is not present
+            [[maybe_unused]] auto const recordAdded = AddRecord(record);
+            assert(recordAdded && "Record should not be present yet.");
+        }
+
+        [[maybe_unused]] auto const valueSet = AssignValue(field, record, value);
+        assert(valueSet   && "Field and record should be present.");
     }
 
     // ======== DROP ===============================================================================================================================================================
