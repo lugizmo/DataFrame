@@ -36,7 +36,7 @@ target_include_directories(DataFrame PUBLIC include/)
 # TODO add include what you use
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang" OR
    CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    target_compile_options(DataFrame PUBLIC -fno-exceptions)
+    target_compile_options(DataFrame PRIVATE -fno-exceptions)
 else()
     message(FATAL_ERROR "Unsupported compiler - Only Clang and GCC are supported!")
 endif()
