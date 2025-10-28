@@ -71,7 +71,7 @@ namespace lugizmo {
             if(newColCount == 0)
             {
                 // TODO check if this is like expected
-                if(data != nullptr) res.deallocate(data, capacity * sizeof(T));
+                if(data != nullptr) res.deallocate(data, capacity * sizeof(T), alignof(T));
 
                 data     = nullptr;
                 capacity = 0;
@@ -85,7 +85,7 @@ namespace lugizmo {
             {
                 // Expand storage and shift data
                 auto const newCapacity = std::max<size_t>(2 * capacity, uNewColCount * (rowCount + 1));  // TODO better strategy
-                auto* const newData    = static_cast<T*>(res.allocate(newCapacity * sizeof(T)));
+                auto* const newData    = static_cast<T*>(res.allocate(newCapacity * sizeof(T), alignof(T)));
 
                 for(size_t row = 0; row < rowCount; ++row)
                 {
@@ -103,7 +103,7 @@ namespace lugizmo {
                 }
 
                 // Deallocate old memory
-                if(data != nullptr) res.deallocate(data, capacity * sizeof(T));
+                if(data != nullptr) res.deallocate(data, capacity * sizeof(T), alignof(T));
 
                 // Update pointer and capacity
                 data = newData;
@@ -379,7 +379,7 @@ namespace lugizmo {
             auto const newCapacity = GrowthFactor(capacity + colCount * (newRowCount + 1));
             if(newCapacity == 0) return;
 
-            auto* const newData = static_cast<T*>(res.allocate(newCapacity * sizeof(T)));
+            auto* const newData = static_cast<T*>(res.allocate(newCapacity * sizeof(T), alignof(T)));
 
             assert(newCapacity > capacity || colCount == 0);
             assert(newData != nullptr && "Memory allocation failed");
@@ -393,7 +393,7 @@ namespace lugizmo {
             }
 
             // deallocate old memory
-            if(data != nullptr) res.deallocate(data, capacity * sizeof(T));
+            if(data != nullptr) res.deallocate(data, capacity * sizeof(T), alignof(T));
 
             // update the pointer and capacity
             data     = newData;
@@ -472,7 +472,7 @@ namespace lugizmo {
          */
         static void Free(T*& data, size_t& capacity, MDSpan& dataView, Memory& res)
         {
-            if(data != nullptr) res.deallocate(data, capacity * sizeof(T));
+            if(data != nullptr) res.deallocate(data, capacity * sizeof(T), alignof(T));
 
             data     = nullptr;
             capacity = 0;

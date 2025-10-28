@@ -825,7 +825,7 @@ namespace lugizmo {
     DataFrame<T, F, R, L>::~DataFrame() noexcept
     {
         assert(not (data != nullptr && capacity == 0));
-        if(data != nullptr && capacity) backingRes->deallocate(data, capacity, alignof(T));
+        if(data != nullptr && capacity) backingRes->deallocate(static_cast<void*>(data), capacity * sizeof(T), alignof(T));
     }
 
     // ======== MANIPULATION UNIQUE INDEX ==================================================================================================
