@@ -34,7 +34,7 @@ namespace lugizmo {
     {
         using Memory = std::pmr::memory_resource;
         using Layout = std::layout_right;
-        using MDSpan = std::mdspan<T, std::dextents<size_t, 2>, Layout>;
+        using MDSpan = std::mdspan<T, std::dextents<std::ptrdiff_t, 2>, Layout>;
 
         static constexpr bool IsRowMajor = true;
         static constexpr bool IsColMajor = false;
@@ -59,8 +59,8 @@ namespace lugizmo {
         {
             if(adjCountByBeg == 0 && adjCountByEnd == 0) return;
 
-            auto const colCount = dataView.extent(1);
-            auto const rowCount = dataView.extent(0);
+            auto const colCount = dataView.extent(1) < 0 ? 0UZ : static_cast<size_t>(dataView.extent(1));
+            auto const rowCount = dataView.extent(0) < 0 ? 0UZ : static_cast<size_t>(dataView.extent(0));
 
             auto const newColCount = static_cast<ssize_t>(colCount) + adjCountByBeg + adjCountByEnd;
 
@@ -130,7 +130,7 @@ namespace lugizmo {
             }
 
             // Update the view to reflect the new column count
-            dataView = std::mdspan<T, std::dextents<size_t, 2>, Layout>(data, rowCount, uNewColCount);
+            dataView = std::mdspan<T, std::dextents<std::ptrdiff_t, 2>, Layout>(data, rowCount, uNewColCount);
         }
 
 
@@ -162,8 +162,8 @@ namespace lugizmo {
             if(adjCountByBeg == 0 && adjCountByEnd == 0) return;
 
             // store current and compute change size
-            auto const colCount    = dataView.extent(1);
-            auto const rowCount    = dataView.extent(0);
+            auto const colCount    = dataView.extent(1) < 0 ? 0UZ : static_cast<size_t>(dataView.extent(1));
+            auto const rowCount    = dataView.extent(0) < 0 ? 0UZ : static_cast<size_t>(dataView.extent(0));
             auto const newRowCount = static_cast<ssize_t>(rowCount) + adjCountByBeg + adjCountByEnd;
 
             // free memory when empty data
@@ -201,7 +201,7 @@ namespace lugizmo {
             }
 
             // update the view
-            dataView = std::mdspan<T, std::dextents<size_t, 2>, Layout>(data, newRowCountPos, colCount);
+            dataView = std::mdspan<T, std::dextents<std::ptrdiff_t, 2>, Layout>(data, newRowCountPos, colCount);
         }
 
         /**
@@ -239,8 +239,8 @@ namespace lugizmo {
             if(adjCountByBeg == 0 && adjCountByEnd == 0) return;
 
             // store current extends
-            auto const colCount    = dataView.extent(1);
-            auto const rowCount    = dataView.extent(0);
+            auto const colCount = dataView.extent(1) < 0 ? 0UZ : static_cast<size_t>(dataView.extent(1));
+            auto const rowCount = dataView.extent(0) < 0 ? 0UZ : static_cast<size_t>(dataView.extent(0));
 
             // row count (signed)
             auto const rowCountS    = static_cast<ssize_t>(rowCount);
@@ -287,7 +287,7 @@ namespace lugizmo {
             }
 
             // update the view
-            dataView = std::mdspan<T, std::dextents<size_t, 2>, Layout>(data, static_cast<size_t>(newRowCountS), colCount);
+            dataView = std::mdspan<T, std::dextents<std::ptrdiff_t, 2>, Layout>(data, static_cast<size_t>(newRowCountS), colCount);
         }
 
         // ======= DROP COLUMNS/ROWS =======================================================================================================
@@ -295,8 +295,8 @@ namespace lugizmo {
         static void DropRow(T*& data, size_t& /*capacity*/, Memory& /*res*/, MDSpan& dataView, size_t const rowToRemove) noexcept
         {
             auto const& extents = dataView.extents();
-            auto const colCount = extents.extent(1);
-            auto const rowCount = extents.extent(0);
+            auto const colCount = static_cast<size_t>(extents.extent(1));
+            auto const rowCount = static_cast<size_t>(extents.extent(0));
 
             assert(rowToRemove < rowCount && "Row index out of bounds");
 
@@ -316,8 +316,8 @@ namespace lugizmo {
         static void DropColumn(T*& data, size_t& /*capacity*/, Memory& /*res*/, MDSpan& dataView, size_t const colToRemove) noexcept
         {
             auto const& extents = dataView.extents();
-            auto const colCount = extents.extent(1);
-            auto const rowCount = extents.extent(0);
+            auto const colCount = static_cast<size_t>(extents.extent(1));
+            auto const rowCount = static_cast<size_t>(extents.extent(0));
 
             assert(colToRemove < colCount && "Column index out of bounds");
 

@@ -31,7 +31,7 @@ namespace lugizmo {
         {
         }
 
-        explicit DFUniqueIndex(std::pmr::memory_resource* memResource, size_t const capacity = 0) :
+        explicit DFUniqueIndex(std::pmr::memory_resource* memResource, size_t const capacity = 0) noexcept :
             values(memResource)
         {
             values.Reserve(capacity); // TODO check when 0
@@ -51,8 +51,7 @@ namespace lugizmo {
         [[nodiscard]]
         auto Keys() const -> std::span<KeyType const>
         {
-            auto const keys = values.Keys();
-            return std::span<KeyType const>(keys.data(), keys.size());
+            return values.Keys();
         }
 
         [[nodiscard]]

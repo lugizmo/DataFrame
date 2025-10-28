@@ -30,14 +30,14 @@ namespace lugizmo {
         template<typename Ti, typename Ii>
         friend class DFViewIndexed;
 
-        using Extents = std::dextents<size_t, 1>;
+        using Extents = std::dextents<std::ptrdiff_t, 1>;
         using Strides = std::layout_stride::mapping<Extents>;
         using IndexT  = I const*;
         using KeyType = typename I::KeyType;
         using MDSpan  = std::mdspan<T, Extents, std::layout_stride>;
 
         template<typename Layout>
-        using MDSpanDF = std::mdspan<T, std::dextents<size_t, 2>, Layout>;
+        using MDSpanDF = std::mdspan<T, std::dextents<std::ptrdiff_t, 2>, Layout>;
 
         IndexT dfIndex;
         MDSpan view;
@@ -50,32 +50,38 @@ namespace lugizmo {
         {
             static_assert(std::is_same_v<Layout, std::layout_right> || std::is_same_v<Layout, std::layout_left>);
 
-            if constexpr (std::is_same_v<Layout, std::layout_right>)
+            using IIdx = Extents::index_type;
+            if constexpr(std::is_same_v<Layout, std::layout_right>)
             {
                 if(isFieldView)
                 {
-                    // needs stride span for fields
-                    auto mapping = Strides(Extents(original.extent(0)), std::array<size_t, 1>{original.extent(1)});
-                    view = MDSpan(original.data_handle() + index, mapping);
+                    // fields: stride by number of columns
+                    auto const stride = static_cast<IIdx>(original.extent(1));
+                    auto mapping = Strides(Extents(static_cast<IIdx>(original.extent(0))), std::array{stride});
+                    auto const off = static_cast<IIdx>(index);
+                    view = MDSpan(original.data_handle() + off, mapping);
                 }
                 else
                 {
-                    auto mapping = Strides(Extents(original.extent(1)), std::array<size_t, 1>{1});
-                    view = MDSpan(original.data_handle() + index * original.extent(1), mapping);
+                    auto mapping = Strides(Extents(static_cast<IIdx>(original.extent(1))), std::array{static_cast<IIdx>(1)});
+                    auto const off = static_cast<IIdx>(index) * static_cast<IIdx>(original.extent(1));
+                    view = MDSpan(original.data_handle() + off, mapping);
                 }
             }
             else if constexpr(std::is_same_v<Layout, std::layout_left>)
             {
                 if(isFieldView)
                 {
-                    auto mapping = Strides(Extents(original.extent(0)), std::array<size_t, 1>{1});
-                    view = MDSpan(original.data_handle() + index, mapping);
+                    auto mapping = Strides(Extents(static_cast<IIdx>(original.extent(0))), std::array{static_cast<IIdx>(1)});
+                    auto const off = static_cast<IIdx>(index);
+                    view = MDSpan(original.data_handle() + off, mapping);
                 }
                 else
                 {
-                    // needs stride span for records
-                    auto mapping = Strides(Extents(original.extent(1)), std::array<size_t, 1>{original.extent(0)});
-                    view = MDSpan(original.data_handle() + index * original.extent(0), mapping);
+                    auto const stride = static_cast<IIdx>(original.extent(0));
+                    auto mapping = Strides(Extents(static_cast<IIdx>(original.extent(1))), std::array{stride});
+                    auto const off = static_cast<IIdx>(index) * stride;
+                    view = MDSpan(original.data_handle() + off, mapping);
                 }
             }
         }
@@ -84,33 +90,46 @@ namespace lugizmo {
         DFView(MDSpanDF<Layout> original, IndexT const originalIndex, size_t const index, size_t const begin, size_t const end, bool const isFieldView) noexcept :
             dfIndex(originalIndex)
         {
-            assert(begin <= end && end <= isFieldView ? original.extent(0) : original.extent(1));
-            auto const newExtent = end - begin;
+            assert(begin <= end && end <= (isFieldView ? static_cast<std::size_t>(original.extent(0)) : static_cast<std::size_t>(original.extent(1))));
+            std::size_t const newExtent_sz = end - begin;
+
+            using IIdx           = Extents::index_type;
+            auto const newExtent = static_cast<IIdx>(newExtent_sz);
 
             if(isFieldView)
             {
-                if constexpr (std::is_same_v<Layout, std::layout_right>)
+                if constexpr(std::is_same_v<Layout, std::layout_right>)
                 {
-                    auto mapping = Strides(Extents(newExtent), std::array<size_t, 1>{original.extent(1)});
-                    view = MDSpan(original.data_handle() + begin * original.extent(1) + index, mapping);
+                    auto const stride = static_cast<IIdx>(original.extent(1));
+                    auto mapping = Strides(Extents(newExtent), std::array{stride});
+
+                    auto const off = static_cast<IIdx>(begin) * stride + static_cast<IIdx>(index);
+                    view = MDSpan(original.data_handle() + off, mapping);
                 }
-                else if constexpr (std::is_same_v<Layout, std::layout_left>)
+                else if constexpr(std::is_same_v<Layout, std::layout_left>)
                 {
-                    auto mapping = Strides(Extents(newExtent), std::array<size_t, 1>{1});
-                    view = MDSpan(original.data_handle() + index * original.extent(0) + begin, mapping);
+                    auto mapping = Strides(Extents(newExtent), std::array{static_cast<IIdx>(1)});
+
+                    auto const off = static_cast<IIdx>(index) * static_cast<IIdx>(original.extent(0)) + static_cast<IIdx>(begin);
+                    view = MDSpan(original.data_handle() + off, mapping);
                 }
             }
             else
             {
-                if constexpr (std::is_same_v<Layout, std::layout_right>)
+                if constexpr(std::is_same_v<Layout, std::layout_right>)
                 {
-                    auto mapping = Strides(Extents(newExtent), std::array<size_t, 1>{1});
-                    view = MDSpan(original.data_handle() + index * original.extent(1) + begin, mapping);
+                    auto mapping = Strides(Extents(newExtent), std::array{static_cast<IIdx>(1)});
+
+                    auto const off = static_cast<IIdx>(index) * static_cast<IIdx>(original.extent(1)) + static_cast<IIdx>(begin);
+                    view = MDSpan(original.data_handle() + off, mapping);
                 }
-                else if constexpr (std::is_same_v<Layout, std::layout_left>)
+                else if constexpr(std::is_same_v<Layout, std::layout_left>)
                 {
-                    auto mapping = Strides(Extents(newExtent), std::array<size_t, 1>{original.extent(0)});
-                    view = MDSpan(original.data_handle() + begin * original.extent(0) + index, mapping);
+                    auto const stride = static_cast<IIdx>(original.extent(0));
+                    auto mapping = Strides(Extents(newExtent), std::array{stride});
+
+                    auto const off = static_cast<IIdx>(begin) * stride + static_cast<IIdx>(index);
+                    view = MDSpan(original.data_handle() + off, mapping);
                 }
             }
         }
@@ -119,8 +138,8 @@ namespace lugizmo {
 
         class Iterator
         {
-            T*     ptr;
-            size_t stride;
+            T*             ptr;
+            std::ptrdiff_t stride;
 
         public:
             using iterator_category = std::random_access_iterator_tag;
@@ -130,7 +149,7 @@ namespace lugizmo {
             using reference         = std::conditional_t<IsConstView, T const&, T&>;
 
             constexpr Iterator() noexcept : ptr(nullptr), stride(0) {}
-            constexpr Iterator(T* data, size_t const stride) noexcept : ptr(data), stride(stride) {}
+            constexpr Iterator(T* data, std::ptrdiff_t const stride) noexcept : ptr(data), stride(stride) {}
 
             constexpr Iterator(Iterator const& other) noexcept = default;
             constexpr auto operator=(Iterator const& other) -> Iterator& = default;
@@ -167,7 +186,7 @@ namespace lugizmo {
         DFView() noexcept :
             dfIndex(nullptr)
         {
-            auto mapping = Strides(Extents(0), std::array{size_t{0}});
+            auto mapping = Strides(Extents(0), std::array<std::ptrdiff_t, 1>{1});
             view = MDSpan(nullptr, std::move(mapping));
         }
 
@@ -199,14 +218,14 @@ namespace lugizmo {
             return DFView(original, dfIndex, fldIndex, recBegin, recEnd, true);
         }
 
-        [[nodiscard]] constexpr auto Size() const noexcept -> size_t { return view.extent(0); }
+        [[nodiscard]] constexpr auto Size() const noexcept -> size_t { return view.extent(0) < 0 ? 0 : static_cast<size_t>(view.extent(0)); }
         [[nodiscard]] constexpr auto Empty() const noexcept -> bool  { return Size() == 0; }
 
         [[nodiscard]] constexpr auto operator[](size_t i) noexcept -> T& { return view[i]; }
         [[nodiscard]] constexpr auto operator[](size_t i) const noexcept -> const T& { return view[i]; }
 
-        [[nodiscard]] constexpr auto operator()(size_t i) noexcept -> std::optional<T*> { return i < view.extent(0) ? &view[i] : std::nullopt; }
-        [[nodiscard]] constexpr auto operator()(size_t i) const noexcept -> std::optional<T const*> { return i < view.extent(0) ? &view[i] : std::nullopt; }
+        [[nodiscard]] constexpr auto operator()(size_t i) noexcept -> std::optional<T*> { return i < static_cast<size_t>(view.extent(0)) ? &view[i] : std::nullopt; }
+        [[nodiscard]] constexpr auto operator()(size_t i) const noexcept -> std::optional<T const*> { return i < static_cast<size_t>(view.extent(0)) ? &view[i] : std::nullopt; }
 
         [[nodiscard]] auto Contains(KeyType const& key) -> bool;
 
@@ -233,7 +252,7 @@ namespace lugizmo {
         [[nodiscard]]
         constexpr auto end() noexcept -> Iterator
         {
-            return Iterator(view.data_handle() + view.extent(0) * view.mapping().stride(0), view.mapping().stride(0));
+            return Iterator(view.data_handle() + static_cast<std::ptrdiff_t>(view.extent(0)) * view.mapping().stride(0), view.mapping().stride(0));
         }
 
         [[nodiscard]]
@@ -245,7 +264,7 @@ namespace lugizmo {
         [[nodiscard]]
         constexpr auto end() const noexcept -> Iterator
         {
-            return Iterator(view.data_handle() + view.extent(0) * view.mapping().stride(0), view.mapping().stride(0));
+            return Iterator(view.data_handle() + static_cast<std::ptrdiff_t>(view.extent(0)) * view.mapping().stride(0), view.mapping().stride(0));
         }
 
         [[nodiscard]] constexpr auto cbegin() const noexcept -> Iterator { return begin(); }
@@ -285,7 +304,7 @@ namespace lugizmo {
         if(!posOpt) return {};
 
         size_t const pos = posOpt.value();
-        if(pos >= view.extent(0)) return nullptr;
+        if(pos >= static_cast<size_t>(view.extent(0))) return nullptr;
 
         return &view[pos];
     }
@@ -299,7 +318,7 @@ namespace lugizmo {
         if (!posOpt) return {};
 
         size_t const pos = posOpt.value();
-        if (pos >= view.extent(0)) return nullptr;
+        if (pos >= static_cast<size_t>(view.extent(0))) return nullptr;
 
         return &view[pos];
     }

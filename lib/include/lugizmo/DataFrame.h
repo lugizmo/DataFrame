@@ -83,7 +83,7 @@ namespace lugizmo {
     private:
 
         template<typename MDT>
-        using RecsData = std::mdspan<MDT, std::dextents<size_t, 2>, L>;      // stored view into data;
+        using RecsData = std::mdspan<MDT, std::dextents<std::ptrdiff_t, 2>, L>;      // stored view into data;
 
         // data section
         MemRsc      backingRes;     // memory resource to use

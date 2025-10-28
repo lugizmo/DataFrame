@@ -13,6 +13,7 @@ if(LUGIZMO_BUILD_TESTING)
             dataframe/IndexRangeTest.cpp
             dataframe/IndexUniqueTest.cpp
             dataframe/LayoutRowMajorTest.cpp
+            dataframe/DFViewTest.cpp
             DataframeTest.cpp
             DataframeRangeIndexTest.cpp
             DataFrameConstructRowMajorTest.cpp

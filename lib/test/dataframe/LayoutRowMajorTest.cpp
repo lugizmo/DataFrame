@@ -297,7 +297,7 @@ protected:
 
     using T = int;
     using Layout = lugizmo::DFRowMajor<T>;
-    using MDSpan = std::mdspan<T, std::dextents<size_t, 2>>;
+    using MDSpan = std::mdspan<T, std::dextents<std::ptrdiff_t, 2>>;
 
     std::pmr::memory_resource* memory = std::pmr::get_default_resource();
 
@@ -320,9 +320,9 @@ protected:
 
     void ExpandColumns(size_t const additionalCols, T const defaultValue = 0)
     {
-        size_t const rowC    = dataView.extent(0);
-        size_t const colC    = dataView.extent(1);
-        size_t const newColC = colC + additionalCols;
+        auto const rowC    = static_cast<size_t>(dataView.extent(0));
+        auto const colC    = static_cast<size_t>(dataView.extent(1));
+        auto const newColC = colC + additionalCols;
 
         if (newColC == colC) return;
         auto const newCapacity = rowC * newColC;
@@ -368,7 +368,7 @@ TEST_F(lugizmo_dataframe_layout_row_test, expand_with_default)
     EXPECT_EQ(dataView.extent(0), 5);
     EXPECT_EQ(dataView.extent(1), colCount);
 
-    for (size_t i = 0; i < 5 * dataView.extent(1); ++i) {
+    for (size_t i = 0; i < 5 * static_cast<size_t>(dataView.extent(1)); ++i) {
         EXPECT_EQ(data[i], defaultValue);
     }
 }
@@ -384,8 +384,8 @@ TEST_F(lugizmo_dataframe_layout_row_test, shrinking_records)
     ASSERT_EQ(dataView.extent(1), colCount);
 
     // set unique values
-    for (size_t row = 0; row < dataView.extent(0); ++row)
-        for (size_t col = 0; col < dataView.extent(1); ++col)
+    for (size_t row = 0; row < static_cast<size_t>(dataView.extent(0)); ++row)
+        for (size_t col = 0; col < static_cast<size_t>(dataView.extent(1)); ++col)
             data[row * colCount + col] = static_cast<T>(col);
 
     // shrink
@@ -394,8 +394,8 @@ TEST_F(lugizmo_dataframe_layout_row_test, shrinking_records)
     ASSERT_EQ(dataView.extent(1), colCount);
 
     // verify
-    for (size_t row = 0; row < dataView.extent(0); ++row)
-        for (size_t col = 0; col < dataView.extent(1); ++col)
+    for (size_t row = 0; row < static_cast<size_t>(dataView.extent(0)); ++row)
+        for (size_t col = 0; col < static_cast<size_t>(dataView.extent(1)); ++col)
             EXPECT_EQ(data[row * colCount + col], static_cast<T>(col));
 }
 
@@ -413,7 +413,7 @@ TEST_F(lugizmo_dataframe_layout_row_test, adjust_with_span)
     ASSERT_EQ(dataView.extent(0), 3);
     ASSERT_EQ(dataView.extent(1), rowValues.size());
 
-    VerifyBuffer(data, dataView.extent(0), dataView.extent(1), {rowValues, rowValues, rowValues});
+    VerifyBuffer(data, static_cast<size_t>(dataView.extent(0)), static_cast<size_t>(dataView.extent(1)), {rowValues, rowValues, rowValues});
 }
 
 TEST_F(lugizmo_dataframe_layout_row_test, adjust_with_iterable_of_iterable)

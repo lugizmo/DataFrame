@@ -272,7 +272,7 @@ namespace lugizmo {
             return DFViewIndexed(std::move(dfView), recIndices);
         }
 
-        [[nodiscard]] auto Size() const noexcept -> size_t { return dataView.view.extent(0); }
+        [[nodiscard]] auto Size() const noexcept -> size_t { return dataView.view.extent(0) < 0 ? 0UZ : static_cast<size_t>(dataView.view.extent(0)); }
         [[nodiscard]] auto Empty() const noexcept -> bool  { return dataView.Size() == 0; }
 
         [[nodiscard]] auto operator[](size_t const i) noexcept -> IteratorValue
