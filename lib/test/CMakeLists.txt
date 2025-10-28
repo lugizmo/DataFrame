@@ -35,4 +35,7 @@ if(LUGIZMO_BUILD_TESTING)
 
     target_link_libraries(DataFrameTest PUBLIC DataFrame gtest)
 
+    target_compile_options(DataFrameTest PRIVATE ${LUGIZMO_CXX_FLAGS})
+    target_link_options(DataFrameTest PRIVATE ${LUGIZMO_LINK_FLAGS})
+
 endif(LUGIZMO_BUILD_TESTING)

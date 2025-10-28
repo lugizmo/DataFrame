@@ -7,6 +7,19 @@
 include_guard(GLOBAL)
 
 function(set_lugizmo_global_build_flags)
+
+    # === Flag check function ===
+    include(CheckCXXCompilerFlag)
+    function(_add_flag_if_supported out_list flag)
+        string(REPLACE "-" "_" _flag_id "${flag}")
+        string(REPLACE "=" "_" _flag_id "${_flag_id}")
+        check_cxx_compiler_flag("${flag}" "HAS_${_flag_id}")
+        if(HAS_${_flag_id})
+            list(APPEND ${out_list} "${flag}")
+            set(${out_list} "${${out_list}}" PARENT_SCOPE)
+        endif()
+    endfunction()
+
     # === User Configurable Options ===
     option(LUGIZMO_ENABLE_WARNINGS "Enable warnings" ON)
     option(LUGIZMO_ENABLE_SANITIZERS "Enable sanitizers (UBSan, ASan)" OFF)
@@ -30,21 +43,35 @@ function(set_lugizmo_global_build_flags)
 
     # === Warnings & Strict Mode ===
     if(LUGIZMO_ENABLE_WARNINGS)
-        list(APPEND CXX_FLAGS -Wall -Wextra -Wshadow)
+        foreach(f -Wall -Wextra -Wshadow)
+            _add_flag_if_supported(CXX_FLAGS "${f}")
+        endforeach()
         if(LUGIZMO_STRICT_MODE)
-            list(APPEND CXX_FLAGS -Wpedantic -Werror -Wconversion -Wsign-conversion)
+            foreach(f -Wpedantic -Werror -Wconversion -Wsign-conversion)
+                _add_flag_if_supported(CXX_FLAGS "${f}")
+            endforeach()
         endif()
     endif()
 
     # === Optimizations ===
     if(LUGIZMO_ENABLE_OPTIMIZATIONS AND NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
-        list(APPEND CXX_FLAGS -O3 -march=native)
+        foreach(f -O3 -march=native)
+            _add_flag_if_supported(CXX_FLAGS "${f}")
+        endforeach()
     endif()
 
     # === Sanitizers (only meaningful in Debug builds) ===
-    if(LUGIZMO_ENABLE_SANITIZERS AND CMAKE_BUILD_TYPE STREQUAL "Debug")
-        list(APPEND CXX_FLAGS -fsanitize=address -fsanitize=undefined)
-        list(APPEND LINK_FLAGS -fsanitize=address -fsanitize=undefined)
+    if(LUGIZMO_ENABLE_SANITIZERS AND (CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo"))
+        check_cxx_compiler_flag("-fsanitize=address" HAS_fsanitize_address)
+        if(HAS_fsanitize_address)
+            _add_flag_if_supported(CXX_FLAGS "-fsanitize-address-use-after-scope")
+        endif()
+        foreach(f -fsanitize=address -fsanitize=undefined)
+            _add_flag_if_supported(CXX_FLAGS "${f}")
+        endforeach()
+        foreach(f -fsanitize=address -fsanitize=undefined)
+            _add_flag_if_supported(LINK_FLAGS "${f}")
+        endforeach()
     endif()
 
     # === Link Time Optimization ===
@@ -64,56 +91,51 @@ function(set_lugizmo_global_build_flags)
         endif()
     endif()
 
-
     # === Platform-Specific: Apple Hardening for libc++ ===
     if(APPLE)
         if(CMAKE_BUILD_TYPE STREQUAL "Debug")
             if(NOT LUGIZMO_STRICT_MODE)
                 # Mild hardening always in Debug mode
-                list(APPEND CXX_FLAGS
-                        -fstack-protector-strong
-                        -D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_FAST
-                        -stdlib=libc++
-                )
+                foreach(f -fstack-protector-strong -stdlib=libc++)
+                    _add_flag_if_supported(CXX_FLAGS "${f}")
+                endforeach()
+                add_compile_definitions(_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_FAST)
             else()
                 # Enable hardcore checks if strict mode is active
-                list(APPEND CXX_FLAGS
-                        -fstrict-enums
-                        -fstack-protector-all
-                        -D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_DEBUG
-                )
+                foreach(f -fstrict-enums -fstack-protector-all -fno-omit-frame-pointer -fno-optimize-sibling-calls -stdlib=libc++)
+                    _add_flag_if_supported(CXX_FLAGS "${f}")
+                endforeach()
+                add_compile_definitions(_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_DEBUG)
             endif()
         elseif(CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
             if(LUGIZMO_STRICT_MODE)
-                list(APPEND CXX_FLAGS
-                        -fstack-protector-strong
-                        -D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE
-                        -stdlib=libc++
-                )
+                foreach(f -fstack-protector-strong -stdlib=libc++)
+                    _add_flag_if_supported(CXX_FLAGS "${f}")
+                endforeach()
+                add_compile_definitions(_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE)
             endif()
         else()
             # Mild hardening only in strict mode for Release/RelWithDebInfo
             if(LUGIZMO_STRICT_MODE)
-                list(APPEND CXX_FLAGS
-                        -fstack-protector-strong
-                        -D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_FAST
-                        -stdlib=libc++
-                )
+                foreach(f -fstack-protector-strong -stdlib=libc++)
+                    _add_flag_if_supported(CXX_FLAGS "${f}")
+                endforeach()
+                add_compile_definitions(_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_FAST)
             endif()
         endif()
     elseif(UNIX AND NOT APPLE)
         # fPIC and common Linux safety options
-        list(APPEND CXX_FLAGS -fPIC)
+        _add_flag_if_supported(CXX_FLAGS -fPIC)
     endif()
 
     # === Apply globally ===
-    string(REPLACE ";" " " CXX_FLAGS_STR "${CXX_FLAGS}")
-    string(REPLACE ";" " " LINK_FLAGS_STR "${LINK_FLAGS}")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX_FLAGS_STR}" PARENT_SCOPE)
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${LINK_FLAGS_STR}" PARENT_SCOPE)
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${LINK_FLAGS_STR}" PARENT_SCOPE)
+    set(LUGIZMO_CXX_FLAGS  "${CXX_FLAGS}"  PARENT_SCOPE)
+    set(LUGIZMO_LINK_FLAGS "${LINK_FLAGS}" PARENT_SCOPE)
 
-    message(STATUS "Lugizmo DF - build flags applied:")
+    # Pretty printing only
+    list(JOIN CXX_FLAGS " " CXX_FLAGS_STR)
+    list(JOIN LINK_FLAGS " " LINK_FLAGS_STR)
+    message(STATUS "Lugizmo DF - build flags prepared (per-target):")
     message(STATUS "  CXX_FLAGS: ${CXX_FLAGS_STR}")
     message(STATUS "  LINK_FLAGS: ${LINK_FLAGS_STR}")
 endfunction()
