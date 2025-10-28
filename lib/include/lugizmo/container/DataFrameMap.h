@@ -177,8 +177,24 @@ namespace lugizmo {
             auto index = std::distance(keys.begin(), it);
 
             // insert key and value at the calculated position
-            keys.insert(it, key);
-            values.insert(values.begin() + index, value);
+            if (it == keys.end())
+            {
+                auto const kSize = keys.size();
+                auto const vSize = values.size();
+
+                keys.push_back(key);
+                values.push_back(value);
+                assert(keys.size() == kSize + 1);
+                assert(values.size() == vSize + 1);
+            }
+            else
+            {
+                // insert key and value at the calculated position
+                keys.insert(it, key);
+                values.insert(values.begin() + index, value);
+            }
+
+            assert(keys.size() == values.size());
         }
     }
 
@@ -190,7 +206,11 @@ namespace lugizmo {
         // check input
         if(inKeys.empty() || inKeys.size() != inValues.size()) return;
 
-        // small element size & capacity optimization
+        // extend the capacity of containers if needed
+        if(const auto needKeys = keys.size()   + inKeys.size();   keys.capacity() < needKeys)   keys.reserve(needKeys);
+        if(const auto needVals = values.size() + inValues.size(); values.capacity() < needVals) values.reserve(needVals);
+
+        // small element size and capacity optimizations
         // don't need to create temporaries
         if(inKeys.size() <= this->keys.capacity() || inKeys.size() < SMALL_ENTRIES_SIZE)
         {
