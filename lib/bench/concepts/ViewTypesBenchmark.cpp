@@ -19,53 +19,53 @@ template <typename T, typename Layout>
 struct MatrixView
 {
     static_assert(std::is_same_v<Layout, std::layout_right> || std::is_same_v<Layout, std::layout_left>);
-    using MDSpanT = std::mdspan<T, std::dextents<size_t, 2>, Layout>;
+    using MDSpanT = std::mdspan<T, std::dextents<std::ptrdiff_t, 2>, Layout>;
 
     MDSpanT matrix;
 
     constexpr MatrixView(T* data, size_t const rows, size_t const cols) noexcept : matrix(data, rows, cols) {}
 
     [[nodiscard]]
-    auto ColumnViewMDSpan(size_t targetColumn) noexcept -> std::mdspan<T, std::dextents<size_t, 1>, std::layout_stride>
+    auto ColumnViewMDSpan(size_t targetColumn) noexcept -> std::mdspan<T, std::dextents<std::ptrdiff_t, 1>, std::layout_stride>
     {
         assert(targetColumn < matrix.extent(1) && "Column index out of bounds");
 
         if constexpr (std::is_same_v<Layout, std::layout_left>)
         {
             // layout is column-major, we can access the column directly
-            return std::mdspan<T, std::dextents<size_t, 1>>(matrix.data_handle() + targetColumn * matrix.stride(1), matrix.extent(0));
+            return std::mdspan<T, std::dextents<std::ptrdiff_t, 1>>(matrix.data_handle() + targetColumn * matrix.stride(1), matrix.extent(0));
         }
         else
         {
             //  layout is row-major, we need to use layout_stride for non-contiguous access
-            auto const extents = std::dextents<size_t, 1>(matrix.extent(0));
+            auto const extents = std::dextents<std::ptrdiff_t, 1>(matrix.extent(0));
             auto const strides = std::array<size_t, 1>{matrix.stride(1)};
             auto mapping = std::layout_stride::mapping(extents, strides);
 
             auto* columnStart = matrix.data_handle() + targetColumn * matrix.stride(1);
-            return std::mdspan<T, std::dextents<size_t, 1>, std::layout_stride>(columnStart, mapping);
+            return std::mdspan<T, std::dextents<std::ptrdiff_t, 1>, std::layout_stride>(columnStart, mapping);
         }
     }
 
     [[nodiscard]]
-    auto RowViewMDSpan(size_t const targetRow) noexcept -> std::mdspan<T, std::dextents<size_t, 1>, std::layout_stride>
+    auto RowViewMDSpan(size_t const targetRow) noexcept -> std::mdspan<T, std::dextents<std::ptrdiff_t, 1>, std::layout_stride>
     {
         assert(targetRow < matrix.extent(0) && "Row index out of bounds");
 
         if constexpr (std::is_same_v<Layout, std::layout_right>)
         {
             // layout is row-major, we can access the row directly
-            return std::mdspan<T, std::dextents<size_t, 1>>(matrix.data_handle() + targetRow * matrix.stride(0), matrix.extent(1));
+            return std::mdspan<T, std::dextents<std::ptrdiff_t, 1>>(matrix.data_handle() + targetRow * matrix.stride(0), matrix.extent(1));
         }
         else
         {
             // layout is column-major, we need to use layout_stride for non-contiguous access
-            auto const extents = std::dextents<size_t, 1>(matrix.extent(1));
+            auto const extents = std::dextents<std::ptrdiff_t, 1>(matrix.extent(1));
             auto const strides = std::array<size_t, 1>{matrix.stride(0)};
             auto mapping       = std::layout_stride::mapping(extents, strides);
 
             auto* rowStart = matrix.data_handle() + targetRow * matrix.stride(0);
-            return std::mdspan<T, std::dextents<size_t, 1>, std::layout_stride>(rowStart, mapping);
+            return std::mdspan<T, std::dextents<std::ptrdiff_t, 1>, std::layout_stride>(rowStart, mapping);
         }
     }
 
