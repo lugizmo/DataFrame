@@ -20,6 +20,9 @@ if(LUGIZMO_BUILD_TESTING)
             DataFrameIterateRowMajorTest.cpp
             DataFrameAccessRowMajorTest.cpp
 
+            # memory
+            memory/MemoryTest.cpp
+
             # row major
             RM_DataframeAddingTest.cpp
             RM_DataframeAccessTest.cpp

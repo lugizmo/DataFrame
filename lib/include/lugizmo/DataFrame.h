@@ -57,6 +57,7 @@ namespace lugizmo {
         // dataframe basic options and types
         static_assert(std::is_same_v<L, RowMajor>, "Currently only layout_right is supported");
         static_assert(std::is_default_constructible_v<T>, "Currently only default constructable values are supported");
+        static_assert(std::is_trivially_copyable_v<T>, "Assumes trivially copyable element type");
 
         using Layout = std::conditional_t<std::is_same_v<L, RowMajor>, DFRowMajor<T>, void>;
 
@@ -105,7 +106,7 @@ namespace lugizmo {
          *           (except for the essentials).
          *  @details Uses the default memory resource of the system.
          */
-        explicit DataFrame(MemRsc res = BackingResDefault()) noexcept;
+        explicit DataFrame(MemRsc res = internal::BackingResDefault()) noexcept;
 
         /**
          * @brief Empty Dataframe optionally reserving memory and using a backing
@@ -115,7 +116,7 @@ namespace lugizmo {
          *                       record nor column count but the multiple of both.
          * @param res            Backing memory resource to use (defaults to system-default).
          */
-        explicit DataFrame(size_t reservedValues, MemRsc res = BackingResDefault()) noexcept;
+        explicit DataFrame(size_t reservedValues, MemRsc res = internal::BackingResDefault()) noexcept;
 
         // ======== CONSTRUCTION FUNCTIONS =================================================================================================
 
@@ -130,7 +131,7 @@ namespace lugizmo {
          * @return Dataframe initialized with given fields.
          */
         static auto FromFields(std::conditional_t<IsFISeq, DFRangeIndexBounds<FldT>, std::span<FldT const>> fields, size_t reservedValues = 0,
-                               MemRsc res = BackingResDefault()) noexcept -> DataFrame;
+                               MemRsc res = internal::BackingResDefault()) noexcept -> DataFrame;
 
         /**
          * @brief Empty Dataframe with field definitions optionally reserving memory
@@ -143,7 +144,7 @@ namespace lugizmo {
          * @return Dataframe initialized with given fields.
          */
         static auto FromFields(std::initializer_list<FldT const> fields, size_t reservedValues = 0,
-                               MemRsc res = BackingResDefault()) noexcept -> DataFrame requires DFValIndex<FldI>;
+                               MemRsc res = internal::BackingResDefault()) noexcept -> DataFrame requires DFValIndex<FldI>;
 
         /**
          *  @brief Add new fields and records; all records are
@@ -161,7 +162,7 @@ namespace lugizmo {
                                         std::conditional_t<IsRISeq, DFRangeIndexBounds<RecT>, std::span<R const>> recIndices,
                                         std::span<T const> recValues = {},
                                         size_t             capacity  = 0,
-                                        MemRsc             res       = BackingResDefault()) noexcept -> DataFrame;
+                                        MemRsc             res       = internal::BackingResDefault()) noexcept -> DataFrame;
 
         /**
          *  @brief Add new fields and records; all records are
@@ -179,7 +180,7 @@ namespace lugizmo {
                                          std::conditional_t<IsRISeq, DFRangeIndexBounds<RecT>, std::span<R const>> recIndices,
                                          IterableOfIterable auto const& recValues,
                                          size_t             capacity  = 0,
-                                         MemRsc             res       = BackingResDefault()) noexcept -> DataFrame;
+                                         MemRsc             res       = internal::BackingResDefault()) noexcept -> DataFrame;
 
         /**
          *  @brief Add new fields and records; all records are
@@ -197,7 +198,7 @@ namespace lugizmo {
                                          std::conditional_t<IsRISeq, DFRangeIndexBounds<RecT>, std::initializer_list<R const>> recIndices,
                                          std::initializer_list<std::initializer_list<T>> recValues = {},
                                          size_t capacity = 0,
-                                         MemRsc res      = BackingResDefault()) noexcept -> DataFrame;
+                                         MemRsc res      = internal::BackingResDefault()) noexcept -> DataFrame;
 
         // ======== COPY, MOVE & DELETE ====================================================================================================
 
@@ -620,7 +621,7 @@ namespace lugizmo {
     DataFrame<T, F, R, L>::DataFrame(size_t const reservedValues, MemRsc res) noexcept :
         backingRes(std::move(res)),
         capacity(reservedValues),
-        data(reservedValues == 0 ? nullptr : static_cast<T*>(backingRes->allocate(reservedValues * sizeof(T), alignof(T)))),
+        data(reservedValues == 0 ? nullptr : static_cast<T*>(backingRes->allocate(reservedValues * sizeof(T), internal::Alignment<T>()))),
         recsData(data, 0, 0)
     {
         if constexpr (DFValIndex<FldI>) fldIndex = FldI{backingRes.get(), 0};
@@ -825,7 +826,7 @@ namespace lugizmo {
     DataFrame<T, F, R, L>::~DataFrame() noexcept
     {
         assert(not (data != nullptr && capacity == 0));
-        if(data != nullptr && capacity) backingRes->deallocate(static_cast<void*>(data), capacity * sizeof(T), alignof(T));
+        if(data != nullptr && capacity) backingRes->deallocate(static_cast<void*>(data), capacity * sizeof(T), internal::Alignment<T>());
     }
 
     // ======== MANIPULATION UNIQUE INDEX ==================================================================================================
