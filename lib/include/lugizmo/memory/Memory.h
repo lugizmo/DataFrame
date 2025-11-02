@@ -10,6 +10,7 @@
 #include <memory>
 #include <memory_resource>
 #include <new>
+#include <limits>
 
 namespace lugizmo::internal {
 
@@ -56,6 +57,42 @@ namespace lugizmo::internal {
         constexpr auto perfAlign      = arithmeticLike ? (simdAlign > cacheAlign ? simdAlign : cacheAlign) : cacheAlign;
 
         return perfAlign > typeAlign ? perfAlign : typeAlign;
+    }
+
+
+    /**
+     * @brief   Computes a sensible next capacity for growth.
+     * @details Works on element counts (not bytes). Doubles small allocations,
+     *          grows 25% for medium ones, and adds +32M elements for very large arrays.
+     *
+     * @tparam SizeT unsigned integer type, e.g. std::size_t or uint64_t
+     */
+    template<std::unsigned_integral SizeT = std::size_t>
+    constexpr auto GrowthFactorDefault(SizeT const current) noexcept -> SizeT
+    {
+        static_assert(std::numeric_limits<SizeT>::digits >= 32, "DefaultGrowthFactor requires at least 32-bit unsigned integer type.");
+        static_assert(std::numeric_limits<SizeT>::max() > static_cast<SizeT>(1) * 1024 * 1024 * 1024, "Type too small to represent typical allocation sizes.");
+
+        // sanity check: if the current value is zero, start with 8
+        if(current == 0) return 8;
+
+        // below 1M elements → ×2
+        if(current < static_cast<SizeT>(1'000'000)) return static_cast<SizeT>(current * 2);
+
+        // below 256M elements → ×1.25
+        if(current < static_cast<SizeT>(256'000'000))
+        {
+            auto const next = static_cast<long double>(current) * 1.25L;
+
+            if(next > static_cast<long double>(std::numeric_limits<SizeT>::max())) return std::numeric_limits<SizeT>::max();
+            return static_cast<SizeT>(next);
+        }
+
+        // huge → add 32M elements
+        constexpr auto step = static_cast<SizeT>(32'000'000);
+
+        if(current > std::numeric_limits<SizeT>::max() - step) return std::numeric_limits<SizeT>::max();
+        return current + step;
     }
 }
 

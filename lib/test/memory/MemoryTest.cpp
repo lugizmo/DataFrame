@@ -63,3 +63,32 @@ TEST(lugizmo_dataframe_memory_align, allocated_pointer_aligned)
 
     res.deallocate(ptr, 10 * sizeof(double), align);
 }
+
+TEST(lugizmo_dataframe_memory_growth, default_double_small_values)
+{
+    using namespace lugizmo::internal;
+    EXPECT_EQ(GrowthFactorDefault(0u), 8u);
+    EXPECT_EQ(GrowthFactorDefault(10u), 20u);
+    EXPECT_EQ(GrowthFactorDefault(999'999u), 1'999'998u);
+}
+
+TEST(lugizmo_dataframe_memory_growth, default_mid_range)
+{
+    using namespace lugizmo::internal;
+    EXPECT_EQ(GrowthFactorDefault(1'000'000u), 1'250'000u);
+}
+
+TEST(lugizmo_dataframe_memory_growth, default_huge_values)
+{
+    using namespace lugizmo::internal;
+    constexpr std::size_t big = 300'000'000;
+
+    EXPECT_EQ(GrowthFactorDefault(big), big + 32'000'000);
+}
+
+TEST(lugizmo_dataframe_memory_growth, default_prevents_overflow)
+{
+    using namespace lugizmo::internal;
+    constexpr auto max = std::numeric_limits<std::size_t>::max();
+    EXPECT_EQ(GrowthFactorDefault(max - 10), max);
+}

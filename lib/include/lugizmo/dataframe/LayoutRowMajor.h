@@ -369,15 +369,8 @@ namespace lugizmo {
         static void Realloc(T*& data, Memory& res, size_t& capacity, size_t const colCount, size_t const rowCount,
                             size_t const newRowCount, ssize_t const adjCountByBeg) noexcept
         {
-            auto GrowthFactor = [](size_t const current)
-            {
-                // TODO better strategy?
-                if(current < 1 * 1024 * 1024) return current * 2;                                                   // < 1MB
-                if(current < 256 * 1024 * 1024) return static_cast<size_t>(static_cast<float>(current) * 1.25f);    // < 256MB
-                return current + 32 * 1024 * 1024;
-            };
-
-            auto const newCapacity = GrowthFactor(capacity + colCount * (newRowCount + 1));
+            auto const required    = capacity + colCount * (newRowCount + 1);
+            auto const newCapacity = internal::GrowthFactorDefault(required);
             if(newCapacity == 0) return;
 
             auto* const newData = static_cast<T*>(res.allocate(newCapacity * sizeof(T), internal::Alignment<T>()));
