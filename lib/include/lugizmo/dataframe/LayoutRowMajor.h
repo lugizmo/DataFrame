@@ -22,13 +22,72 @@
 namespace lugizmo {
 
     /**
-     * @brief   Manages Data stored as T* that consists of fields and records.
-     * @details User passes the pointer to the underlying data (T*) and can then:
-     *          - ResizeCols
-     *          - ResizeRows
-     *          TODO add shrink function (maybe as replacement for drop?)
+     * @class DFRowMajor
+     * @brief Storage controller for 2-D, row-major–ordered datasets used by the DataFrame.
      *
-     * @tparam T
+     * @details
+     *   This layout manages memory for rectangular data blocks consisting of `records` (rows)
+     *   and `fields` (columns). All values are stored contiguously in a single, aligned buffer
+     *   (`T* data`), optimized for iteration over rows. It operates directly on raw memory
+     *   managed through a polymorphic allocator (`std::pmr::memory_resource`).
+     *
+     *   Reallocations use a geometric growth strategy and aligned allocations
+     *   (`internal::Alignment<T>()`), ensuring predictable cache-friendly access patterns.
+     *
+     *   ┌───────────────────────────────┐
+     *   │ Layout: Row-major order       │
+     *   │ (rows contiguous in memory)   │
+     *   ├───────────────────────────────┤
+     *   │ Field_0  Field_1  Field_2 ... │
+     *   │───────────────────────────────│
+     *   │ Row_0 → [ v00 , v01 , v02 ]   │
+     *   │ Row_1 → [ v10 , v11 , v12 ]   │
+     *   │ Row_2 → [ v20 , v21 , v22 ]   │
+     *   └───────────────────────────────┘
+     *
+     *   Memory layout (for M rows × N columns):
+     *
+     *       data[0] ............... data[N-1]        → row 0
+     *       data[N] ............... data[2*N-1]      → row 1
+     *       data[2*N] ............. data[3*N-1]      → row 2
+     *       ...
+     *       data[(M-1)*N] ......... data[M*N - 1]    → row M-1
+     *
+     *   The internal mdspan view wraps this buffer:
+     *
+     *       MDSpan{ data, rows, cols }  // layout_right → row-major
+     *
+     * @tparam T  The element type. Must be trivially copyable and trivially destructible.
+     *
+     * @note
+     *   - All operations are exception-free and assert-based.
+     *   - Iterators and references are invalidated after any resize or reallocation.
+     *   - Thread safety: not safe for concurrent mutation.
+     *   - `capacity` always represents the total number of elements (not bytes).
+     *   - `ResizeRows()` and `ResizeCols()` may reallocate memory if capacity is not enough.
+     *
+     * @section Example Example usage
+     *
+     *   ```cpp
+     *   using namespace lugizmo;
+     *
+     *   std::pmr::monotonic_buffer_resource res;
+     *   double* data = nullptr;
+     *   std::size_t capacity = 0;
+     *   DFRowMajor<double>::MDSpan view{nullptr, 0, 0};
+     *
+     *   // Create 3×4 matrix initialized with zeros
+     *   DFRowMajor<double>::ResizeRows(data, capacity, res, view, +3, 0, 0.0);
+     *   DFRowMajor<double>::ResizeCols(data, capacity, res, view, +0, +4, 0.0);
+     *
+     *   // Access row 1, column 2:
+     *   double val = view(1, 2);
+     *   ```
+     *
+     * @section Design Design decisions
+     *   - Uses `std::layout_right` (row-major) for predictable cache access.
+     *   - Grows geometrically using `internal::GrowthFactorDefault`.
+     *   - Uses `internal::Alignment<T>()` for consistent cacheline-aware alignment.
      */
     template <typename T>
     struct DFRowMajor final
