@@ -73,6 +73,9 @@ namespace lugizmo {
         using FldI = std::conditional_t<IsFISeq, F, DFUniqueIndex<F>>;   // index for field values
         using RecI = std::conditional_t<IsRISeq, R, DFUniqueIndex<R>>;   // index for record values
 
+        template<typename MDT>
+        using RecsData = std::mdspan<MDT, std::dextents<std::ptrdiff_t, 2>, L>;      // stored view into data;
+
     public:
 
         // public types
@@ -81,16 +84,16 @@ namespace lugizmo {
         using Flds = FldI::KeyView;     // stored view into field indices
         using Recs = RecI::KeyView;     // stored view into record indices
 
+        using DataMatrix      = RecsData<T>;
+        using ConstDataMatrix = RecsData<T const>;
+
     private:
 
-        template<typename MDT>
-        using RecsData = std::mdspan<MDT, std::dextents<std::ptrdiff_t, 2>, L>;      // stored view into data;
-
         // data section
-        MemRsc      backingRes;     // memory resource to use
-        size_t      capacity;       // capacity of data
-        DataPt      data;           // pointer to allocated memory
-        RecsData<T> recsData;       // view into whole stored data
+        MemRsc     backingRes;     // memory resource to use
+        size_t     capacity;       // capacity of data
+        DataPt     data;           // pointer to allocated memory
+        DataMatrix recsData;       // view into whole stored data
 
         // indices/view section
         FldI fldIndex;              // index for fields
@@ -594,7 +597,7 @@ namespace lugizmo {
         /// @attention It's a pointer so can be invalidated when adding/removing fields/records.
         ///            Only keep this pointer alive as long as this dataframe wasn't mutated.
         /// @return    View as std::mdspan into the data.
-        [[nodiscard]] auto MDSpan() const noexcept -> RecsData<T const> { return recsData; };
+        [[nodiscard]] auto MDSpan() const noexcept -> ConstDataMatrix { return recsData; };
 
         /// @attention It's a view so can be invalidated when adding/removing fields/records.
         /// @return    A view into the current records (indices) stored in the dataframe.
@@ -1219,7 +1222,7 @@ namespace lugizmo {
         auto const pos = fldIndex.Position(index);
         if (!pos.has_value()) { return DFView<T const, RecI>(); }
 
-        return DFView<T const, RecI>::FieldView(static_cast<RecsData<T const>>(recsData), &recIndex, pos.value());
+        return DFView<T const, RecI>::FieldView(static_cast<ConstDataMatrix>(recsData), &recIndex, pos.value());
     }
 
     template <typename T, typename F, typename R, typename L>
@@ -1237,7 +1240,7 @@ namespace lugizmo {
         auto const pos = fldIndex.Position(index);
         if(!pos.has_value()) { return DFView<T const, RecI>(); }
 
-        return DFView<T const, RecI>::FieldView(static_cast<RecsData<T const>>(recsData), &recIndex, *pos, recIndex.LowerBoundPosition(), recIndex.UpperBoundPosition());
+        return DFView<T const, RecI>::FieldView(static_cast<ConstDataMatrix>(recsData), &recIndex, *pos, recIndex.LowerBoundPosition(), recIndex.UpperBoundPosition());
     }
 
     template <typename T, typename F, typename R, typename L>
@@ -1255,7 +1258,7 @@ namespace lugizmo {
         auto const pos = fldIndex.Position(index);
         if(!pos.has_value()) { return DFViewIndexed<T const, RecI const>(); }
 
-        return DFViewIndexed<T const, RecI const>::template FieldView<>(static_cast<RecsData<T const>>(recsData), &recIndex, pos.value(), recIndex.Keys());
+        return DFViewIndexed<T const, RecI const>::template FieldView<>(static_cast<ConstDataMatrix>(recsData), &recIndex, pos.value(), recIndex.Keys());
     }
 
     template <typename T, typename F, typename R, typename L>
@@ -1273,7 +1276,7 @@ namespace lugizmo {
         auto pos = recIndex.Position(index);
         if(not pos.has_value()) return DFView<T const, FldI>();
 
-        return DFView<T const, FldI>::RecordView(static_cast<RecsData<T const>>(recsData), &fldIndex, pos.value());
+        return DFView<T const, FldI>::RecordView(static_cast<ConstDataMatrix>(recsData), &fldIndex, pos.value());
     }
 
     template <typename T, typename F, typename R, typename L>
@@ -1291,7 +1294,7 @@ namespace lugizmo {
         auto pos = recIndex.Position(index);
         if(not pos.has_value()) return DFViewIndexed<T const, FldI const>();
 
-        return DFViewIndexed<T const, FldI const>::template RecordView<>(static_cast<RecsData<T const>>(recsData), &fldIndex, pos.value(), fldIndex.Keys());
+        return DFViewIndexed<T const, FldI const>::template RecordView<>(static_cast<ConstDataMatrix>(recsData), &fldIndex, pos.value(), fldIndex.Keys());
     }
 
     // ======== FUNCTIONAL =================================================================================================================
