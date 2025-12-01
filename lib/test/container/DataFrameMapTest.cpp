@@ -82,18 +82,58 @@ TEST(lugizmo_container_dataframe_map_test, get_set)
 
     defaultMap.Set(7, "seventh");
     ASSERT_EQ(defaultMap.Get(7), "seventh");
+}
 
-    // mutate all values
-    auto values = defaultMap.Values();
-    std::ranges::for_each(values, [](auto& v) { v.front() = static_cast<char>(std::toupper(v.front())); });
+TEST(lugizmo_container_dataframe_map_test, ordered)
+{
+    using namespace lugizmo;
+    auto        defaultMap      = DataFrameMap<int, std::string>();
+    auto const& defaultMapConst = defaultMap;
 
-    ASSERT_EQ(defaultMap.Get(1), "First");
-    ASSERT_EQ(defaultMap.Get(2), "Second");
-    ASSERT_EQ(defaultMap.Get(3), "Third");
-    ASSERT_EQ(defaultMap.Get(4), "Fourth");
-    ASSERT_EQ(defaultMap.Get(5), "Fifth");
-    ASSERT_EQ(defaultMap.Get(6), "Sixth");
-    ASSERT_EQ(defaultMap.Get(7), "Seventh");
+    // reserve capacity
+    defaultMap.Reserve(3);
+    ASSERT_EQ(defaultMap.Capacity(), 3);
+
+    // insert values
+    defaultMap.Insert(1, "first");
+    defaultMap.Insert(2, "second");
+    defaultMap.Insert(3, "third");
+
+    EXPECT_EQ(defaultMapConst.Get(1), std::optional<std::string>("first"));
+    EXPECT_EQ(defaultMapConst.Get(2), std::optional<std::string>("second"));
+    EXPECT_EQ(defaultMapConst.Get(3), std::optional<std::string>("third"));
+
+    auto const viewFldsInit = defaultMapConst.Keys();
+    auto const viewRecsInit = defaultMapConst.Values();
+    ASSERT_EQ(viewFldsInit.size(), 3);
+    EXPECT_EQ(viewFldsInit[0], 1);
+    EXPECT_EQ(viewFldsInit[1], 2);
+    EXPECT_EQ(viewFldsInit[2], 3);
+    ASSERT_EQ(viewRecsInit.size(), 3);
+    EXPECT_EQ(viewRecsInit[0], "first");
+    EXPECT_EQ(viewRecsInit[1], "second");
+    EXPECT_EQ(viewRecsInit[2], "third");
+
+    defaultMap.Erase(2);
+    ASSERT_EQ(defaultMap.Size(), 2);
+
+    defaultMap.Insert(2, "second");
+    ASSERT_EQ(defaultMap.Size(), 3);
+
+    EXPECT_EQ(defaultMapConst.Get(1), std::optional<std::string>("first"));
+    EXPECT_EQ(defaultMapConst.Get(2), std::optional<std::string>("second"));
+    EXPECT_EQ(defaultMapConst.Get(3), std::optional<std::string>("third"));
+
+    auto const viewFldsRem = defaultMapConst.Keys();
+    auto const viewRecsRem = defaultMapConst.Values();
+    ASSERT_EQ(viewFldsRem.size(), 3);
+    EXPECT_EQ(viewFldsRem[0], 1);
+    EXPECT_EQ(viewFldsRem[1], 3);
+    EXPECT_EQ(viewFldsRem[2], 2);
+    ASSERT_EQ(viewRecsRem.size(), 3);
+    EXPECT_EQ(viewRecsRem[0], "first");
+    EXPECT_EQ(viewRecsRem[1], "third");
+    EXPECT_EQ(viewRecsRem[2], "second");
 }
 
 TEST(lugizmo_container_dataframe_map_test, erase)

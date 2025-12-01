@@ -28,6 +28,9 @@ namespace lugizmo {
     template <typename Key, typename Value>
     struct DataFrameMap
     {
+        // TODO This class should be more specialized and handle matrix position only
+        //      so not being a normal flat_map.
+
         /// @brief Const iterator to keys and values.
         struct IteratorPair
         {
@@ -113,22 +116,19 @@ namespace lugizmo {
         [[maybe_unused]]
         auto Erase(Key const& key) noexcept -> bool;
 
-        /// @return size of key/values stored in map.
+        /// @return size of key/values stored in the map.
         [[nodiscard]]
         auto Size() const noexcept -> size_t;
 
-        /// @return true when noting stored in map.
+        /// @return true when noting stored in the map.
         [[nodiscard]]
         auto Empty() const noexcept -> bool;
 
-        /// @return Span to constant keys in map.
+        /// @return Span to constant keys in the map. (Physical Order)
         auto Keys() const noexcept -> std::span<Key const>;
 
-        /// @return Span to constant values in map.
+        /// @return Span to constant values in the map. (Physical Order)
         auto Values() const noexcept -> std::span<Value const>;
-
-        /// @return Span to mutable values in map.
-        auto Values() noexcept -> std::span<Value>;
 
         /// @return Backing allocator.
         [[nodiscard]]
@@ -136,159 +136,97 @@ namespace lugizmo {
 
     private:
 
+        template<typename T>
+        friend struct DFUniqueIndex;
+
+        // keys[i] / values[i] are in "physical" order (e.g. matrix order)
         std::pmr::vector<Key>   keys;
         std::pmr::vector<Value> values;
+
+        // keys[i] / values[i] are in "physical" order (e.g. matrix order)
+        std::pmr::vector<size_t> keyOrder;
+
+        /// @return Span to mutable values in the map. (Physical Order)
+        auto Values() noexcept -> std::span<Value>;
+
+        [[nodiscard]]
+        auto LowerBoundKey(Key const& key) const noexcept -> typename std::pmr::vector<size_t>::const_iterator;
     };
 
     template<class K, class V>
     DataFrameMap<K, V>::DataFrameMap(std::pmr::memory_resource* resource) noexcept :
         keys(resource),
-        values(resource)
+        values(resource),
+        keyOrder(resource)
     {
     }
 
     template<class K, class V>
     void DataFrameMap<K, V>::Reserve(size_t capacity) noexcept
     {
-       keys.reserve(capacity);
-       values.reserve(capacity);
+        keys.reserve(capacity);
+        values.reserve(capacity);
+        keyOrder.reserve(capacity);
     }
 
     template<class K, class V>
     auto DataFrameMap<K, V>::Capacity() noexcept -> size_t
     {
-        return std::min(keys.capacity(), values.capacity());
+        return std::min({keys.capacity(), values.capacity(), keyOrder.capacity()});
+    }
+
+    template<class K, class V>
+    auto DataFrameMap<K, V>::LowerBoundKey(K const& key) const noexcept -> typename std::pmr::vector<size_t>::const_iterator
+    {
+        return std::lower_bound(keyOrder.begin(), keyOrder.end(), key, [this](size_t idx, K const& k) { return keys[idx] < k; });
     }
 
     template<class K, class V>
     void DataFrameMap<K, V>::Insert(K const& key, V const& value) noexcept
     {
-        // find the insertion point or existing element
-        auto it = std::lower_bound(keys.begin(), keys.end(), key);
-
-        if (it != keys.end() && *it == key)
+        auto const it = LowerBoundKey(key);
+        if(it != keyOrder.end() && !(key < keys[*it]) && !(keys[*it] < key))
         {
-            // update the value if the key exists
-            values[static_cast<size_t>(std::distance(keys.begin(), it))] = value;
+            // key exists -> update value at the physical index
+            values[*it] = value;
+            return;
         }
-        else
-        {
-            // calculate the insertion index
-            auto index = std::distance(keys.begin(), it);
 
-            // insert key and value at the calculated position
-            if (it == keys.end())
-            {
-                auto const kSize = keys.size();
-                auto const vSize = values.size();
+        // new key: append in physical order
+        auto const newIndex = keys.size();
 
-                keys.push_back(key);
-                values.push_back(value);
-                assert(keys.size() == kSize + 1);
-                assert(values.size() == vSize + 1);
-            }
-            else
-            {
-                // insert key and value at the calculated position
-                keys.insert(it, key);
-                values.insert(values.begin() + index, value);
-            }
+        keys.push_back(key);
+        values.push_back(value);
+        keyOrder.insert(it, newIndex);
 
-            assert(keys.size() == values.size());
-        }
+        assert(keys.size() == values.size());
+        assert(keys.size() == keyOrder.size());
     }
 
     template<class K, class V>
     void DataFrameMap<K, V>::Insert(std::span<K const> inKeys, std::span<V const> inValues) noexcept
     {
-        static constexpr auto SMALL_ENTRIES_SIZE = 10U;
-
         // check input
         if(inKeys.empty() || inKeys.size() != inValues.size()) return;
 
-        // extend the capacity of containers if needed
-        if(const auto needKeys = keys.size()   + inKeys.size();   keys.capacity() < needKeys)   keys.reserve(needKeys);
-        if(const auto needVals = values.size() + inValues.size(); values.capacity() < needVals) values.reserve(needVals);
+        // Reserve once to avoid repeated reallocations.
+        auto const need = keys.size() + inKeys.size();
+        if(keys.capacity() < need) keys.reserve(need);
+        if(values.capacity() < need) values.reserve(need);
+        if(keyOrder.capacity() < need) keyOrder.reserve(need);
 
-        // small element size and capacity optimizations
-        // don't need to create temporaries
-        if(inKeys.size() <= this->keys.capacity() || inKeys.size() < SMALL_ENTRIES_SIZE)
+        for (size_t i = 0; i < inKeys.size(); ++i)
         {
-            for(size_t i = 0; i < inKeys.size(); ++i) Insert(inKeys[i], inValues[i]);
-            return;
+            Insert(inKeys[i], inValues[i]);
         }
-
-        // TODO check if reserving is not better
-
-        // temporary vectors to hold merged keys and values
-        std::pmr::vector<K> mergedKeys(this->keys.get_allocator());
-        std::pmr::vector<V> mergedValues(this->values.get_allocator());
-
-        mergedKeys.reserve(this->keys.size() + inKeys.size());
-        mergedValues.reserve(this->values.size() + inValues.size());
-
-        // merge existing keys/values with new keys/values
-        auto existingKeyIt   = this->keys.begin();
-        auto existingValueIt = this->values.begin();
-        auto newKeyIt        = inKeys.begin();
-        auto newValueIt      = inValues.begin();
-
-        while (existingKeyIt != this->keys.end() && newKeyIt != inKeys.end())
-        {
-            if (*existingKeyIt < *newKeyIt)
-            {
-                // existing key is smaller, keep it
-                mergedKeys.push_back(*existingKeyIt);
-                mergedValues.push_back(*existingValueIt);
-                ++existingKeyIt;
-                ++existingValueIt;
-            }
-            else if (*newKeyIt < *existingKeyIt)
-            {
-                // new key is smaller, insert it
-                mergedKeys.push_back(*newKeyIt);
-                mergedValues.push_back(*newValueIt);
-                ++newKeyIt;
-                ++newValueIt;
-            }
-            else
-            {
-                // key are equal, replace value
-                mergedKeys.push_back(*existingKeyIt);
-                mergedValues.push_back(*newValueIt);
-                ++existingKeyIt;
-                ++existingValueIt;
-                ++newKeyIt;
-                ++newValueIt;
-            }
-        }
-
-        // add remaining elements from existing keys/values
-        mergedKeys.insert(mergedKeys.end(), existingKeyIt, this->keys.end());
-        mergedValues.insert(mergedValues.end(), existingValueIt, this->values.end());
-
-        // add remaining elements from new keys/values
-        while (newKeyIt != inKeys.end())
-        {
-            mergedKeys.push_back(*newKeyIt);
-            mergedValues.push_back(*newValueIt);
-            ++newKeyIt;
-            ++newValueIt;
-        }
-
-        // replace existing keys and values with merged results
-        this->keys   = std::move(mergedKeys);
-        this->values = std::move(mergedValues);
     }
 
     template<class K, class V>
     auto DataFrameMap<K, V>::Get(K const& key) const noexcept -> std::optional<V>
     {
-        auto it = std::lower_bound(keys.begin(), keys.end(), key);
-
-        if (it != keys.end() && *it == key)
+        if(auto const it = LowerBoundKey(key); it != keyOrder.end() && !(key < keys[*it]) && !(keys[*it] < key))
         {
-            return values[static_cast<size_t>(std::distance(keys.begin(), it))];
+            return values[*it];
         }
 
         return std::nullopt;
@@ -297,9 +235,9 @@ namespace lugizmo {
     template<class K, class V>
     auto DataFrameMap<K, V>::Set(K const& key, V&& val) noexcept -> bool
     {
-        if(auto it = Find(key); it.valIt != values.end())
+        if(auto const it = LowerBoundKey(key); it != keyOrder.end() && !(key < keys[*it]) && !(keys[*it] < key))
         {
-            *it.valIt = std::forward<V>(val);
+            values[*it] = std::forward<V>(val);
             return true;
         }
 
@@ -309,10 +247,13 @@ namespace lugizmo {
     template<class K, class V>
     auto DataFrameMap<K, V>::Find(const K& key) const noexcept -> IteratorPair
     {
-        if(auto it = std::lower_bound(keys.begin(), keys.end(), key); it != keys.end() && *it == key)
+        if(auto const it = LowerBoundKey(key); it != keyOrder.end() && !(key < keys[*it]) && !(keys[*it] < key))
         {
-            auto index = std::distance(keys.begin(), it);
-            return {.keyIt = it, .valIt = values.begin() + index};
+            auto const idx = *it;
+            return {
+                .keyIt = keys.begin() + static_cast<std::ptrdiff_t>(idx),
+                .valIt = values.begin() + static_cast<std::ptrdiff_t>(idx)
+            };
         }
 
         return {.keyIt = keys.end(), .valIt = values.end()};
@@ -321,10 +262,13 @@ namespace lugizmo {
     template<class K, class V>
     auto DataFrameMap<K, V>::Find(const K& key) noexcept -> MutableIteratorPair
     {
-        if(auto it = std::lower_bound(keys.begin(), keys.end(), key); it != keys.end() && *it == key)
+        if(auto const it = LowerBoundKey(key); it != keyOrder.end() && !(key < keys[*it]) && !(keys[*it] < key))
         {
-            auto index = std::distance(keys.begin(), it);
-            return {.keyIt = it, .valIt = values.begin() + index};
+            auto const idx = *it;
+            return {
+                .keyIt = keys.begin() + static_cast<std::ptrdiff_t>(idx),
+                .valIt = values.begin() + static_cast<std::ptrdiff_t>(idx)
+            };
         }
 
         return {.keyIt = keys.end(), .valIt = values.end()};
@@ -335,24 +279,31 @@ namespace lugizmo {
     auto DataFrameMap<K, V>::Contains(C const& key) const noexcept -> bool
     {
         static_assert(ComparableType<C, K>);
-        return std::binary_search(keys.begin(), keys.end(), key);
+
+        auto const it = std::lower_bound(keyOrder.begin(), keyOrder.end(), key, [this](size_t idx, C const& k) { return keys[idx] < k; });
+        return it != keyOrder.end() && !(key < keys[*it]) && !(keys[*it] < key);
     }
 
     template<class K, class V>
     auto DataFrameMap<K, V>::Erase(K const& key) noexcept -> bool
     {
-        auto it = std::lower_bound(keys.begin(), keys.end(), key);
+        auto const it = LowerBoundKey(key);
+        if (it == keyOrder.end() || (keys[*it] < key) || (key < keys[*it])) return false;
 
-        if (it != keys.end() && *it == key)
-        {
-            auto index = std::distance(keys.begin(), it);
-            keys.erase(it);
-            values.erase(values.begin() + index);
+        auto const eraseIndex = *it;
 
-            return true;
-        }
+        // erase from physical storage (keys/values are in physical order)
+        keys.erase(keys.begin()   + static_cast<std::ptrdiff_t>(eraseIndex));
+        values.erase(values.begin() + static_cast<std::ptrdiff_t>(eraseIndex));
 
-        return false;
+        // erase from keyOrder and fix its indices -> physical positions
+        keyOrder.erase(it);
+        for(auto& idx : keyOrder) if (idx > eraseIndex) --idx;
+
+        assert(keys.size() == values.size());
+        assert(keys.size() == keyOrder.size());
+
+        return true;
     }
 
     template<class K, class V>
