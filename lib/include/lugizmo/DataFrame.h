@@ -591,6 +591,11 @@ namespace lugizmo {
         /// @return    Pointer to the currently stored dataframe->data.
         [[nodiscard]] auto Data() const noexcept -> T const* { return data; }
 
+        /// @attention It's a pointer so can be invalidated when adding/removing fields/records.
+        ///            Only keep this pointer alive as long as this dataframe wasn't mutated.
+        /// @return    View as std::mdspan into the data.
+        [[nodiscard]] auto MDSpan() const noexcept -> RecsData<T const> { return recsData; };
+
         /// @attention It's a view so can be invalidated when adding/removing fields/records.
         /// @return    A view into the current records (indices) stored in the dataframe.
         [[nodiscard]] auto Values() const noexcept -> std::span<T> { return std::span(data, recsData.size()); }

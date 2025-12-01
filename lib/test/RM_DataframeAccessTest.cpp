@@ -18,6 +18,9 @@
 //
 // ✅ get_raw_mem
 // - Data() const -> T const*
+//
+// ✅ get_mdspan
+// - MDSpan() const -> RecsData<T const>
 
 #include "gtest/gtest.h"
 
@@ -182,3 +185,57 @@ TEST(lugizmo_dataframe_access_row_major, get_raw_mem)
         }
     }
 }
+
+/**
+ *  @brief Getting raw underlying memory as a mdspan.
+ *  @see   lugizmo::Dataframe.MDSpan() const -> RecsData<T const>
+ */
+TEST(lugizmo_dataframe_access_row_major, get_mdspan)
+{
+    // no difference between the value index and sequence index
+    using namespace lugizmo;
+    using namespace lugizmo::test;
+    using namespace lugizmo::test::integer;
+
+    // empty span
+    auto const dfEmpty = DataFrame<float, int, int>{10};
+    auto const mdEmpty = dfEmpty.MDSpan();
+    ASSERT_TRUE(mdEmpty.empty());
+    ASSERT_EQ(mdEmpty.size(), 0);
+    ASSERT_EQ(mdEmpty.extent(0), 0);
+    ASSERT_EQ(mdEmpty.extent(1), 0);
+
+    // const version
+    auto const df = DefaultDataframe();
+    auto const md = df.MDSpan();
+
+    ASSERT_EQ(md.extent(0), DFRecCount);
+    ASSERT_EQ(md.extent(1), DFFldCount);
+    ASSERT_EQ(md.size(), DFRecCount * DFFldCount);
+    ASSERT_EQ(md.data_handle(), df.Data());
+
+    // verify a couple of specific positions
+    {
+        auto const v00      = md[0, 0];
+        auto const v0_last  = md[0, DFFldCount - 1];
+        auto const vLast0   = md[DFRecCount - 1, 0];
+        auto const vLastLast= md[DFRecCount - 1, DFFldCount - 1];
+
+        EXPECT_EQ(v00,          DFData[0][0]);
+        EXPECT_EQ(v0_last,      DFData[0][DFFldCount - 1]);
+        EXPECT_EQ(vLast0,       DFData[DFRecCount - 1][0]);
+        EXPECT_EQ(vLastLast,    DFData[DFRecCount - 1][DFFldCount - 1]);
+    }
+
+    // cross‑check every element against DFData (small fixed-size test data)
+    for (std::size_t r = 0; r < DFRecCount; ++r)
+    {
+        for (std::size_t c = 0; c < DFFldCount; ++c)
+        {
+            auto const value = md[r, c];
+            auto const expected = DFData[r][c];
+            EXPECT_EQ(value, expected) << "mismatch at (" << r << "," << c << ")";
+        }
+    }
+}
+
