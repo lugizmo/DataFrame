@@ -95,8 +95,8 @@ Test can be found in: [File](/lib/test/RM_DataframeViewsTest.cpp)
 
 - [x] ```ViewFieldIndexed(F const& index) -> DFViewIndexed<T, RecI const>```
 - [x] ```ViewFieldIndexed(F const& index) const -> DFViewIndexed<T const, RecI const>```
-- [ ] add sequence version
-- [ ] add sequence version
+- [x] ```ViewFieldIndexed(F const& index) -> DFViewIndexed<T, RecI const>```
+- [x] ```ViewFieldIndexed(F const& index) const -> DFViewIndexed<T const, RecI const>```
 
 
 - [x] ```ViewRecord(R const& index) -> DFView<T, FldI>```
@@ -107,8 +107,8 @@ Test can be found in: [File](/lib/test/RM_DataframeViewsTest.cpp)
 
 - [x] ```ViewRecordIndexed(R const& index) -> DFViewIndexed<T, FldI const>```
 - [x] ```ViewRecordIndexed(R const& index) const -> DFViewIndexed<T const, FldI const>```
-- [ ] add sequence version
-- [ ] add sequence version
+- [x] ```ViewRecordIndexed(R const& index) -> DFViewIndexed<T, FldI const>```
+- [x] ```ViewRecordIndexed(R const& index) const -> DFViewIndexed<T const, FldI const>```
 
 
 - [x] ```operator|(SelectField<F> const& index) -> DFView<T, RecI>```

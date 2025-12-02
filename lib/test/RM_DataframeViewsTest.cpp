@@ -31,7 +31,9 @@
 // - ViewFieldIndexed(F const& index)        -> DFViewIndexed<T, RecI const>        requires DFValIndex<RecI>;
 // - ViewFieldIndexed(F const& index) const  -> DFViewIndexed<T const, RecI const>  requires DFValIndex<RecI>;
 //
-//  TODO view_field_idx_seq
+//  ✅ view_field_idx_seq
+// - ViewFieldIndexed(F const& index)        -> DFViewIndexed<T, RecI const>        requires DFSeqIndex<RecI>;
+// - ViewFieldIndexed(F const& index) const  -> DFViewIndexed<T const, RecI const>  requires DFSeqIndex<RecI>;
 //
 //   ✅ view_record_val
 // - ViewRecord(R const& index)       -> DFView<T, FldI>       requires DFValIndex<RecI>;
@@ -43,7 +45,9 @@
 // - ViewRecordIndexed(R const& index)       -> DFViewIndexed<T, FldI const>        requires DFValIndex<RecI>;
 // - ViewRecordIndexed(R const& index) const -> DFViewIndexed<T const, FldI const>  requires DFValIndex<RecI>;
 //
-//  TODO view_record_idx_seq
+//   ✅ view_record_idx_seq
+// - ViewRecordIndexed(R const& index)       -> DFViewIndexed<T, FldI const>        requires DFSeqIndex<RecI>;
+// - ViewRecordIndexed(R const& index) const -> DFViewIndexed<T const, FldI const>  requires DFSeqIndex<RecI>;
 //
 //   ✅ select_field_val
 // - operator|(SelectField<F> const& index)       -> DFView<T, RecI>       requires DFValIndex<FldI>
@@ -424,6 +428,108 @@ TEST(lugizmo_dataframe_views_row_major, view_field_idx_val)
 }
 
 /**
+ *  @brief View fields and their values. Also getting the index of the record.
+ *  @see   lugizmo::Dataframe.ViewFieldIndexed(F const& index)       -> DFViewIndexed<T, RecI const>       requires DFSeqIndex<RecI>;
+ *         lugizmo::Dataframe.ViewFieldIndexed(F const& index) const -> DFViewIndexed<T const, RecI const> requires DFSeqIndex<RecI>;
+ */
+TEST(lugizmo_dataframe_views_row_major, view_field_idx_seq)
+{
+    using namespace lugizmo;
+    using namespace lugizmo::test;
+    using namespace lugizmo::test::sequence;
+
+    // const versions
+    {
+        auto const df   = DefaultDataframe();
+        auto const flds = df.Fields();
+        auto const recs = df.Records();
+        ASSERT_EQ(DFFields.lower, flds.lower);
+        ASSERT_EQ(DFFields.upper, flds.upper);
+        ASSERT_EQ(DFRecords.lower, recs.lower);
+        ASSERT_EQ(DFRecords.upper, recs.upper);
+
+        size_t fldCount = 0;
+        for(auto fld = DFFields.lower; fld < DFFields.upper; ++fld)
+        {
+            auto const view = df.ViewFieldIndexed(fld);
+            EXPECT_EQ(view.Size(), DFRecCount);
+            EXPECT_FALSE(view.Empty());
+
+            // direct record access
+            size_t recCount = 0;
+            for(int rec = DFRecords.lower; rec < DFRecords.upper; ++rec)
+            {
+                auto const val = view.TryAt(rec);
+                ASSERT_TRUE(val.has_value());
+                EXPECT_EQ(*val, DFData[recCount++][fldCount]);
+            }
+
+            // iterate all
+            recCount = 0;
+            for(auto const& [val, idx]: df.ViewFieldIndexed(fld))
+            {
+                EXPECT_EQ(val, DFData[recCount][fldCount]);
+                EXPECT_EQ(idx.Get(), DFRecords.lower + static_cast<int>(recCount));
+                ++recCount;
+            }
+
+            ++fldCount;
+        }
+    }
+
+    // mutable version
+    {
+        auto df = DefaultDataframe();
+        size_t fldCount = 0;
+
+        for(auto fld = DFFields.lower; fld < DFFields.upper; ++fld)
+        {
+            auto view = df.ViewFieldIndexed(fld);
+            EXPECT_EQ(view.Size(), DFRecCount);
+            EXPECT_FALSE(view.Empty());
+
+            // direct record access
+            size_t recCount = 0;
+            for(int rec = DFRecords.lower; rec < DFRecords.upper; ++rec)
+            {
+                auto val = view.At(rec);
+                ASSERT_TRUE(val != nullptr);
+                EXPECT_EQ(*val, DFData[recCount++][fldCount]);
+
+                *val = 42;
+                auto valAgain = view.At(rec);
+                ASSERT_TRUE(valAgain != nullptr);
+                EXPECT_EQ(*valAgain, 42);
+            }
+
+            ++fldCount;
+        }
+
+        df = DefaultDataframe();
+        fldCount = 0;
+
+        for(auto fld = DFFields.lower; fld < DFFields.upper; ++fld)
+        {
+            auto recIdx   = DFRecords.lower;
+            auto recCount = 0UZ;
+            for(auto& [val, idx]: df.ViewFieldIndexed(fld))
+            {
+                EXPECT_EQ(val, DFData[recCount++][fldCount]);
+                EXPECT_EQ(idx.Get(), recIdx);
+
+                val = 42;
+                auto valAgain = df.GetValue(fld, recIdx);
+                EXPECT_EQ(*valAgain, 42);
+
+                ++recIdx;
+            }
+
+            ++fldCount;
+        }
+    }
+}
+
+/**
  *  @brief View records and their values.
  *  @see   lugizmo::Dataframe.ViewRecord(R const& index)       -> DFView<T, FldI>       requires DFValIndex<RecI>;
  *         lugizmo::Dataframe.ViewRecord(R const& index) const -> DFView<T const, FldI> requires DFValIndex<RecI>;
@@ -566,6 +672,109 @@ TEST(lugizmo_dataframe_views_row_major, view_record_idx_val)
         [[maybe_unused]] auto recView = dfM.ViewRecordIndexed(DFRecords[0]);
         static_assert(not std::is_const_v<decltype(recView)>);
         static_assert(not std::is_const_v<std::remove_pointer_t<decltype(recView.At("0"))>>);
+    }
+}
+
+
+/**
+ *  @brief View fields and their values. Also getting the index of the record.
+ *  @see   lugizmo::Dataframe.ViewRecordIndexed(R const& index)       -> DFViewIndexed<T, FldI const>        requires DFSeqIndex<RecI>;
+ *         lugizmo::Dataframe.ViewRecordIndexed(R const& index) const -> DFViewIndexed<T const, FldI const>  requires DFSeqIndex<RecI>;
+ */
+TEST(lugizmo_dataframe_views_row_major, view_record_idx_seq)
+{
+    using namespace lugizmo;
+    using namespace lugizmo::test;
+    using namespace lugizmo::test::sequence;
+
+    // const versions
+    {
+        auto const df   = DefaultDataframe();
+        auto const flds = df.Fields();
+        auto const recs = df.Records();
+        ASSERT_EQ(DFFields.lower, flds.lower);
+        ASSERT_EQ(DFFields.upper, flds.upper);
+        ASSERT_EQ(DFRecords.lower, recs.lower);
+        ASSERT_EQ(DFRecords.upper, recs.upper);
+
+        size_t recCount = 0;
+        for(auto rec = DFRecords.lower; rec < DFRecords.upper; ++rec)
+        {
+            auto const view = df.ViewRecordIndexed(rec);
+            EXPECT_EQ(view.Size(), DFFldCount);
+            EXPECT_FALSE(view.Empty());
+
+            // direct field access
+            size_t fldCount = 0;
+            for(int fld = DFFields.lower; fld < DFFields.upper; ++fld)
+            {
+                auto const val = view.TryAt(fld);
+                ASSERT_TRUE(val.has_value());
+                EXPECT_EQ(*val, DFData[recCount][fldCount++]);
+            }
+
+            // iterate all
+            fldCount = 0;
+            for(auto const& [val, idx]: df.ViewRecordIndexed(rec))
+            {
+                EXPECT_EQ(val, DFData[recCount][fldCount]);
+                EXPECT_EQ(idx.Get(), DFFields.lower + static_cast<int>(fldCount));
+                ++fldCount;
+            }
+
+            ++recCount;
+        }
+    }
+
+    // mutable version
+    {
+        auto df = DefaultDataframe();
+        size_t recCount = 0;
+
+        for(auto rec = DFRecords.lower; rec < DFRecords.upper; ++rec)
+        {
+            auto view = df.ViewRecordIndexed(rec);
+            EXPECT_EQ(view.Size(), DFFldCount);
+            EXPECT_FALSE(view.Empty());
+
+            // direct record access
+            size_t fldCount = 0;
+            for(int fld = DFFields.lower; fld < DFFields.upper; ++fld)
+            {
+                auto val = view.At(fld);
+                ASSERT_TRUE(val != nullptr);
+                EXPECT_EQ(*val, DFData[recCount][fldCount++]);
+
+                *val = 42;
+                auto valAgain = view.At(fld);
+                ASSERT_TRUE(valAgain != nullptr);
+                EXPECT_EQ(*valAgain, 42);
+            }
+
+            ++recCount;
+        }
+
+        df = DefaultDataframe();
+        recCount = 0;
+
+        for(auto rec = DFRecords.lower; rec < DFRecords.upper; ++rec)
+        {
+            auto fldIdx   = DFFields.lower;
+            auto fldCount = 0UZ;
+            for(auto& [val, idx]: df.ViewRecordIndexed(rec))
+            {
+                EXPECT_EQ(val, DFData[recCount][fldCount++]);
+                EXPECT_EQ(idx.Get(), fldIdx);
+
+                val = 42;
+                auto valAgain = df.GetValue(fldIdx, rec);
+                EXPECT_EQ(*valAgain, 42);
+
+                ++fldIdx;
+            }
+
+            ++recCount;
+        }
     }
 }
 

@@ -12,13 +12,13 @@
 #include <iterator>
 #include <utility>
 #include <span>
-#include <format>
 
 #include "lugizmo/Error.h"
 #include "lugizmo/memory/References.h"
 #include "lugizmo/container/Concepts.h"
 
 #include "View.h"
+#include "IndexRange.h"
 
 namespace lugizmo {
 
@@ -30,23 +30,22 @@ namespace lugizmo {
     template<typename T, typename I>
     class DFViewIndexed
     {
-        static constexpr bool IsConstView = std::is_const_v<T>;
-        using KeyType = std::conditional_t<std::is_const_v<typename I::KeyType>, typename I::KeyType, const typename I::KeyType>;
+        // Data Types
+        using View = DFView<T, I>;
+
+        template<typename Layout>
+        using MDSpanDF = View::template MDSpanDF<Layout>;
+
+        // Index Types
+        using KeyType = I::ConstKeyType;
+        using Indices = std::conditional_t<DFSeqIndex<std::remove_const_t<I>>, DFRangeIndexBounds<std::remove_const_t<KeyType>>, std::span<KeyType>>;
 
         static_assert(not std::is_pointer_v<T>   && not std::is_pointer_v<KeyType>);
         static_assert(not std::is_reference_v<T> && not std::is_reference_v<KeyType>);
         static_assert(std::is_const_v<KeyType>, "The index should not be able to be mutated by this view.");
 
-        using View    = DFView<T, I>;
-        using Indices = std::span<KeyType>;
-        using Extents = typename View::Extents;
-        using MDSpan  = typename View::MDSpan;
-
         static_assert(std::random_access_iterator<typename View::Iterator>);
         static_assert(std::random_access_iterator<typename Indices::iterator>);
-
-        template<typename Layout>
-        using MDSpanDF = typename View::template MDSpanDF<Layout>;
 
         View    dataView;
         Indices indexSpan;
@@ -70,7 +69,7 @@ namespace lugizmo {
          */
         struct IteratorValue
         {
-            NullableAssignableReferenceWrapper<T>        val;
+            NullableAssignableReferenceWrapper<T>       val;
             NullableAssignableReferenceWrapper<KeyType> idx;
 
             constexpr IteratorValue(T* v, KeyType* i) noexcept : val(v), idx(i) { assert(v != nullptr && i != nullptr); }
@@ -81,12 +80,12 @@ namespace lugizmo {
             constexpr auto operator=(IteratorValue&& other) noexcept -> IteratorValue&      = default;
             constexpr auto operator=(IteratorValue const& other) noexcept -> IteratorValue& = default;
 
-            constexpr auto first()        noexcept -> T*              { return val; }
-            constexpr auto first()  const noexcept -> T const*        { return val; }
+            constexpr auto first()        noexcept -> T*             { return val; }
+            constexpr auto first()  const noexcept -> T const*       { return val; }
             constexpr auto second() const noexcept -> KeyType const* { return idx; }
 
-            constexpr auto First()        noexcept -> T*              { return val; }
-            constexpr auto First()  const noexcept -> T const*        { return val; }
+            constexpr auto First()        noexcept -> T*             { return val; }
+            constexpr auto First()  const noexcept -> T const*       { return val; }
             constexpr auto Second() const noexcept -> KeyType const* { return idx; }
         };
 
@@ -97,11 +96,11 @@ namespace lugizmo {
          */
         class IteratorIdx
         {
-            using DIt    = typename View::Iterator;                                         // Referenced Data Iterator
-            using IIt    = typename Indices::iterator;                                      // Referenced Index Iterator
+            using DIt    = View::Iterator;                                                              // Referenced Data Iterator
+            using IIt    = Indices::iterator;                                                           // Referenced Index Iterator
 
-            using Val    = std::conditional_t<IsConstView, IteratorValue const, IteratorValue>;   // Current value of the Iterator
-            using OptVal = std::optional<IteratorValue>;                                          // Current value of the Iterator as Optional
+            using Val    = std::conditional_t<std::is_const_v<T>, IteratorValue const, IteratorValue>;  // Current value of the Iterator
+            using OptVal = std::optional<IteratorValue>;                                                // Current value of the Iterator as Optional
 
             DIt    ptr;
             IIt    indices;
@@ -134,31 +133,12 @@ namespace lugizmo {
             IteratorIdx(DIt data, IIt indices) noexcept :
                 ptr(data),
                 indices(indices),
-                current(Val(data.operator->(), indices.operator->()))
+                current(Val(this->ptr.operator->(), this->indices.operator->()))
             {
             }
 
-            IteratorIdx(IteratorIdx const& other) noexcept
-            {
-                if (this != &other)
-                {
-                    ptr = other.ptr;
-                    indices = other.indices;
-                    current = other.current;
-                }
-            }
-
-            auto operator=(IteratorIdx const& other) noexcept -> IteratorIdx&
-            {
-                if (this != &other)
-                {
-                    ptr = other.ptr;
-                    indices = other.indices;
-                    current = other.current;
-                }
-
-                return *this;
-            }
+            IteratorIdx(IteratorIdx const& other) noexcept = default;
+            auto operator=(IteratorIdx const& other) noexcept -> IteratorIdx& = default;
 
             auto operator*()  const noexcept -> reference { assert(current.has_value()); return *current; }
             auto operator->() const noexcept -> pointer   { assert(current.has_value()); return &*current; }

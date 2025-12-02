@@ -32,6 +32,61 @@ namespace lugizmo {
 
         [[nodiscard]] constexpr auto Empty() const noexcept -> bool { return Size() == T(0); }  // TODO support other types like chrono, here should be fine but what about dataframe
         [[nodiscard]] constexpr auto empty() const noexcept -> bool { return Empty(); }         // TODO support other types like chrono, here should be fine but what about dataframe
+
+        struct Iterator
+        {
+            using value_type        = T;
+            using difference_type   = std::ptrdiff_t;
+            using iterator_category = std::random_access_iterator_tag;
+            using reference         = T;
+            using pointer           = T*;
+
+            T value; // Current value being iterated
+
+            // Dereference
+            constexpr auto operator*() const noexcept -> T { return value; }
+            constexpr auto operator->() const noexcept -> T const* { return &value; }
+
+            // Increment / decrement
+            constexpr Iterator& operator++() noexcept { ++value; return *this; }
+            constexpr Iterator& operator--() noexcept { --value; return *this; }
+
+            constexpr Iterator operator++(int) noexcept { auto tmp = *this; ++(*this); return tmp; }
+            constexpr Iterator operator--(int) noexcept { auto tmp = *this; --(*this); return tmp; }
+
+            // Arithmetic
+            constexpr Iterator& operator+=(difference_type n) noexcept
+            {
+                value = static_cast<T>(value + static_cast<T>(n));
+                return *this;
+            }
+
+            constexpr Iterator& operator-=(difference_type n) noexcept
+            {
+                value = static_cast<T>(value - static_cast<T>(n));
+                return *this;
+            }
+
+            friend constexpr Iterator operator+(Iterator it, difference_type n) noexcept { it += n; return it; }
+            friend constexpr Iterator operator+(difference_type n, Iterator it) noexcept { it += n; return it; }
+            friend constexpr Iterator operator-(Iterator it, difference_type n) noexcept { it -= n; return it; }
+            friend constexpr difference_type operator-(Iterator a, Iterator b) noexcept { return static_cast<difference_type>(a.value) - static_cast<difference_type>(b.value); }
+
+            constexpr reference operator[](difference_type n) const noexcept { return static_cast<T>(value + static_cast<T>(n)); }
+
+            // Comparisons
+            constexpr bool operator==(Iterator const& other) const noexcept { return value == other.value; }
+            constexpr bool operator!=(Iterator const& other) const noexcept { return value != other.value; }
+
+            constexpr bool operator<(Iterator  const& other) const noexcept { return value < other.value; }
+            constexpr bool operator<=(Iterator const& other) const noexcept { return value <= other.value; }
+            constexpr bool operator>(Iterator  const& other) const noexcept { return value > other.value; }
+            constexpr bool operator>=(Iterator const& other) const noexcept { return value >= other.value; }
+        };
+
+        using iterator = Iterator;
+        [[nodiscard]] constexpr Iterator begin() const noexcept { return Iterator{.value = lower}; }
+        [[nodiscard]] constexpr Iterator end() const noexcept { return Iterator{.value = upper}; }
     };
 
     template<typename T = size_t>
@@ -40,18 +95,17 @@ namespace lugizmo {
         static_assert(std::is_integral_v<T>, "DFRangeIndex must be an integral type.");
         static_assert(std::is_convertible_v<T, ssize_t>, "DFRangeIndex must be convertable to ssize_t.");
 
-        using KeyType = T;
-        using KeyView = DFRangeIndexBounds<T>;
+        using KeyType      = T;
+        using ConstKeyType = KeyType const;
+        using KeyView      = DFRangeIndexBounds<T>;
 
         explicit constexpr DFRangeIndex() noexcept :
-            lowerBound(0),
-            upperBound(0)
+            bounds{.lower = 0, .upper = 0}
         {
         }
 
         explicit constexpr DFRangeIndex(KeyType const lower, KeyType const upper) noexcept :
-            lowerBound(lower <= upper ? lower : 0),
-            upperBound(upper >= lower ? upper : 0)
+            bounds{.lower = lower <= upper ? lower : 0, .upper = upper >= lower ? upper : 0}
         {
         }
 
@@ -67,19 +121,19 @@ namespace lugizmo {
             // TODO put compare logic somewhere else
             if constexpr (std::is_integral_v<C> && std::is_integral_v<T>)
             {
-                return std::cmp_greater_equal(key, lowerBound) && std::cmp_less(key, upperBound);
+                return std::cmp_greater_equal(key, bounds.lower) && std::cmp_less(key, bounds.upper);
             }
             else if constexpr(std::is_arithmetic_v<C> && std::is_arithmetic_v<T>)
             {
                 using CT    = std::common_type_t<C, T>;
                 const CT k  = static_cast<CT>(key);
-                const CT lo = static_cast<CT>(lowerBound);
-                const CT hi = static_cast<CT>(upperBound);
+                const CT lo = static_cast<CT>(bounds.lower);
+                const CT hi = static_cast<CT>(bounds.upper);
                 return k >= lo && k < hi;
             }
             else
             {
-                return key >= lowerBound && key < upperBound;
+                return key >= bounds.lower && key < bounds.upper;
             }
         }
 
@@ -89,7 +143,15 @@ namespace lugizmo {
         [[nodiscard]]
         constexpr auto Keys() const noexcept -> KeyView
         {
-            return {.lower = lowerBound, .upper = upperBound};
+            return {.lower = bounds.lower, .upper = bounds.upper};
+        }
+
+        /**
+        * TODO doc + idea
+        */
+        constexpr auto Bounds() const noexcept -> DFRangeIndexBounds<T> const&
+        {
+            return bounds;
         }
 
         /**
@@ -98,7 +160,7 @@ namespace lugizmo {
         [[nodiscard]]
         constexpr auto LowerBound() const noexcept -> KeyType
         {
-            return lowerBound;
+            return bounds.lower;
         }
 
         /**
@@ -116,13 +178,13 @@ namespace lugizmo {
         [[nodiscard]]
         constexpr auto UpperBound() const noexcept -> KeyType
         {
-            return upperBound;
+            return bounds.upper;
         }
 
         [[nodiscard]]
         constexpr auto UpperBoundPosition() const noexcept -> size_t
         {
-            return static_cast<size_t>(upperBound - lowerBound);
+            return static_cast<size_t>(bounds.upper - bounds.lower);
         }
 
         /**
@@ -131,7 +193,7 @@ namespace lugizmo {
         [[nodiscard]]
         constexpr auto InBound(KeyType const key) const noexcept -> bool
         {
-            return key >= lowerBound && key < upperBound;
+            return key >= bounds.lower && key < bounds.upper;
         }
 
         /**
@@ -140,10 +202,10 @@ namespace lugizmo {
         [[maybe_unused]]
         constexpr auto SetLowerBound(KeyType const key) noexcept -> std::optional<ssize_t>
         {
-            if(key > upperBound || key == lowerBound) return std::nullopt;
-            ssize_t diff = (key - lowerBound) * static_cast<ssize_t>(-1);
+            if(key > bounds.upper || key == bounds.lower) return std::nullopt;
+            ssize_t diff = (key - bounds.lower) * static_cast<ssize_t>(-1);
 
-            lowerBound = key;
+            bounds.lower = key;
             return diff;
         }
 
@@ -153,10 +215,10 @@ namespace lugizmo {
         [[maybe_unused]]
         constexpr auto SetUpperBound(KeyType const key) noexcept -> std::optional<ssize_t>
         {
-            if(key < lowerBound || key == upperBound) return std::nullopt;
-            ssize_t diff = key - upperBound;
+            if(key < bounds.lower || key == bounds.upper) return std::nullopt;
+            ssize_t diff = key - bounds.upper;
 
-            upperBound = key;
+            bounds.upper = key;
             return diff;
         }
 
@@ -167,26 +229,26 @@ namespace lugizmo {
         constexpr auto SetLowerUpperBound(std::optional<KeyType> const lower,
                                           std::optional<KeyType> const upper) noexcept -> std::pair<std::optional<ssize_t>, std::optional<ssize_t>>
         {
-            auto const newLower = lower.value_or(lowerBound);
-            auto const newUpper = upper.value_or(upperBound);
+            auto const newLower = lower.value_or(bounds.lower);
+            auto const newUpper = upper.value_or(bounds.upper);
 
             if(newLower > newUpper) return { std::nullopt, std::nullopt };
 
             // update bounds and compute differences
             std::optional<ssize_t> lowerDiff, upperDiff;
 
-            if(newLower != lowerBound)
+            if(newLower != bounds.lower)
             {
-                auto const dLower = static_cast<ssize_t>(lowerBound) - static_cast<ssize_t>(newLower);
+                auto const dLower = static_cast<ssize_t>(bounds.lower) - static_cast<ssize_t>(newLower);
                 lowerDiff  = dLower;
-                lowerBound = newLower;
+                bounds.lower = newLower;
             }
 
-            if(newUpper != upperBound)
+            if(newUpper != bounds.upper)
             {
-                auto const dUpper = static_cast<ssize_t>(newUpper) - static_cast<ssize_t>(upperBound);
+                auto const dUpper = static_cast<ssize_t>(newUpper) - static_cast<ssize_t>(bounds.upper);
                 upperDiff  = dUpper;
-                upperBound = newUpper;
+                bounds.upper = newUpper;
             }
 
             return { lowerDiff, upperDiff };
@@ -196,28 +258,27 @@ namespace lugizmo {
         [[nodiscard]]
         constexpr auto Position(KeyType const key) const noexcept -> std::optional<size_t>
         {
-            if(key < lowerBound || key >= upperBound) return std::nullopt;
-            return key - lowerBound;
+            if(key < bounds.lower || key >= bounds.upper) return std::nullopt;
+            return key - bounds.lower;
         }
 
         [[nodiscard]]
         constexpr auto Size() const noexcept -> size_t
         {
             // TODO ensure this is never < 0
-            assert(lowerBound <= upperBound);
-            return static_cast<size_t>(upperBound - lowerBound);
+            assert(bounds.lower <= bounds.upper);
+            return static_cast<size_t>(bounds.upper - bounds.lower);
         }
 
         [[nodiscard]]
         constexpr auto Empty() const noexcept -> bool
         {
-            return lowerBound == upperBound;
+            return bounds.lower == bounds.upper;
         }
 
     private:
 
-        KeyType lowerBound;
-        KeyType upperBound;
+        DFRangeIndexBounds<T> bounds;
     };
 }
 

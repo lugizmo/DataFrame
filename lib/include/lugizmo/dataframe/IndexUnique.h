@@ -24,8 +24,9 @@ namespace lugizmo {
     template<typename T>
     struct DFUniqueIndex final : DFBaseValueIndex<DFUniqueIndex<T>, T>
     {
-        using KeyType = T;
-        using KeyView = std::span<KeyType const>;
+        using KeyType      = T;
+        using ConstKeyType = KeyType const;
+        using KeyView      = std::span<KeyType const>;
 
         explicit DFUniqueIndex() noexcept : values()
         {
