@@ -396,14 +396,14 @@ namespace lugizmo {
          * @param index field index to try getting data for.
          */
         [[nodiscard]]
-        auto ViewField(F const& index) noexcept -> DFView<T, RecI> requires DFValIndex<RecI>;
+        auto ViewField(FldT const& index) noexcept -> DFView<T, RecI> requires DFValIndex<RecI>;
 
         /**
          * @return      View into a field (handling layout) if field found in (const) dataframe.
          * @param index field index to try getting data for.
          */
         [[nodiscard]]
-        auto ViewField(F const& index) const noexcept -> DFView<T const, RecI> requires DFValIndex<RecI>;
+        auto ViewField(FldT const& index) const noexcept -> DFView<T const, RecI> requires DFValIndex<RecI>;
 
         /**
          * TODO doc
@@ -430,7 +430,7 @@ namespace lugizmo {
          * @param index field index to try getting data for.
          */
         [[nodiscard]]
-        auto ViewFieldIndexed(F const& index) noexcept -> DFViewIndexed<T, RecI const> requires DFValIndex<RecI>;
+        auto ViewFieldIndexed(FldT const& index) noexcept -> DFViewIndexed<T, RecI const> requires DFValIndex<RecI>;
 
         /**
          * @return      View into a field (handling layout) if field found in (const) dataframe.
@@ -439,7 +439,7 @@ namespace lugizmo {
          * @param index field index to try getting data for.
          */
         [[nodiscard]]
-        auto ViewFieldIndexed(F const& index) const noexcept -> DFViewIndexed<T const, RecI const> requires DFValIndex<RecI>;
+        auto ViewFieldIndexed(FldT const& index) const noexcept -> DFViewIndexed<T const, RecI const> requires DFValIndex<RecI>;
 
         /**
          * @return      View into a field (handling layout) if field found in dataframe.
@@ -464,14 +464,14 @@ namespace lugizmo {
          * @param index record index to try getting data for.
          */
         [[nodiscard]]
-        auto ViewRecord(R const& index) noexcept -> DFView<T, FldI> requires DFValIndex<FldI>;
+        auto ViewRecord(RecT const& index) noexcept -> DFView<T, FldI> requires DFValIndex<FldI>;
 
         /**
          * @return      View into a record (handling layout) if record found in (const) dataframe.
          * @param index record index to try getting data for.
          */
         [[nodiscard]]
-        auto ViewRecord(R const& index) const noexcept -> DFView<T const, FldI> requires DFValIndex<FldI>;
+        auto ViewRecord(RecT const& index) const noexcept -> DFView<T const, FldI> requires DFValIndex<FldI>;
 
         /**
          * @return      View into a record (handling layout) if record found in dataframe.
@@ -480,7 +480,7 @@ namespace lugizmo {
          * @param index record index to try getting data for.
          */
         [[nodiscard]]
-        auto ViewRecordIndexed(R const& index) noexcept -> DFViewIndexed<T, FldI const> requires DFValIndex<FldI>;
+        auto ViewRecordIndexed(RecT const& index) noexcept -> DFViewIndexed<T, FldI const> requires DFValIndex<FldI>;
 
         /**
          * @return      View into a record (handling layout) if record found in (const) dataframe.
@@ -489,7 +489,7 @@ namespace lugizmo {
          * @param index record index to try getting data for.
          */
         [[nodiscard]]
-        auto ViewRecordIndexed(R const& index) const noexcept -> DFViewIndexed<T const, FldI const> requires DFValIndex<FldI>;
+        auto ViewRecordIndexed(RecT const& index) const noexcept -> DFViewIndexed<T const, FldI const> requires DFValIndex<FldI>;
 
         /**
         * @return      View into a record (handling layout) if record found in dataframe.
@@ -1241,7 +1241,7 @@ namespace lugizmo {
     // ======== VIEWS ======================================================================================================================
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::ViewField(F const& index) noexcept -> DFView<T, RecI> requires DFValIndex<RecI>
+    auto DataFrame<T, F, R, L>::ViewField(FldT const& index) noexcept -> DFView<T, RecI> requires DFValIndex<RecI>
     {
         auto const pos = fldIndex.Position(index);
         if (!pos.has_value()) { return DFView<T, RecI>(); }
@@ -1250,7 +1250,7 @@ namespace lugizmo {
     }
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::ViewField(F const& index) const noexcept -> DFView<T const, RecI> requires DFValIndex<RecI>
+    auto DataFrame<T, F, R, L>::ViewField(FldT const& index) const noexcept -> DFView<T const, RecI> requires DFValIndex<RecI>
     {
         auto const pos = fldIndex.Position(index);
         if (!pos.has_value()) { return DFView<T const, RecI>(); }
@@ -1277,7 +1277,7 @@ namespace lugizmo {
     }
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::ViewFieldIndexed(F const& index) noexcept -> DFViewIndexed<T, RecI const> requires DFValIndex<RecI>
+    auto DataFrame<T, F, R, L>::ViewFieldIndexed(FldT const& index) noexcept -> DFViewIndexed<T, RecI const> requires DFValIndex<RecI>
     {
         auto const pos = fldIndex.Position(index);
         if (!pos.has_value()) { return DFViewIndexed<T, RecI const>(); }
@@ -1286,7 +1286,7 @@ namespace lugizmo {
     }
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::ViewFieldIndexed(F const& index) const noexcept -> DFViewIndexed<T const, RecI const> requires DFValIndex<RecI>
+    auto DataFrame<T, F, R, L>::ViewFieldIndexed(FldT const& index) const noexcept -> DFViewIndexed<T const, RecI const> requires DFValIndex<RecI>
     {
         auto const pos = fldIndex.Position(index);
         if(!pos.has_value()) { return DFViewIndexed<T const, RecI const>(); }
@@ -1313,7 +1313,7 @@ namespace lugizmo {
     }
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::ViewRecord(R const& index) noexcept -> DFView<T, FldI> requires DFValIndex<FldI>
+    auto DataFrame<T, F, R, L>::ViewRecord(RecT const& index) noexcept -> DFView<T, FldI> requires DFValIndex<FldI>
     {
         auto pos = recIndex.Position(index);
         if(not pos.has_value()) return DFView<T, FldI>();
@@ -1322,7 +1322,7 @@ namespace lugizmo {
     }
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::ViewRecord(R const& index) const noexcept -> DFView<T const, FldI> requires DFValIndex<FldI>
+    auto DataFrame<T, F, R, L>::ViewRecord(RecT const& index) const noexcept -> DFView<T const, FldI> requires DFValIndex<FldI>
     {
         auto pos = recIndex.Position(index);
         if(not pos.has_value()) return DFView<T const, FldI>();
@@ -1331,7 +1331,7 @@ namespace lugizmo {
     }
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::ViewRecordIndexed(R const& index) noexcept -> DFViewIndexed<T, FldI const> requires DFValIndex<FldI>
+    auto DataFrame<T, F, R, L>::ViewRecordIndexed(RecT const& index) noexcept -> DFViewIndexed<T, FldI const> requires DFValIndex<FldI>
     {
         auto pos = recIndex.Position(index);
         if(not pos.has_value()) return DFViewIndexed<T, FldI const>();
@@ -1340,7 +1340,7 @@ namespace lugizmo {
     }
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::ViewRecordIndexed(R const& index) const noexcept -> DFViewIndexed<T const, FldI const> requires DFValIndex<FldI>
+    auto DataFrame<T, F, R, L>::ViewRecordIndexed(RecT const& index) const noexcept -> DFViewIndexed<T const, FldI const> requires DFValIndex<FldI>
     {
         auto pos = recIndex.Position(index);
         if(not pos.has_value()) return DFViewIndexed<T const, FldI const>();
