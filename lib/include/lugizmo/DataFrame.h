@@ -639,6 +639,15 @@ namespace lugizmo {
         /// @return True when no values are stored in the dataframe.
         [[nodiscard]] auto Empty() const noexcept -> bool { return recsData.empty(); }
 
+        /// @return Shared reference to the memory resource used by the dataframe.
+        /// @note   No assumptions about the resource. E.g., no thread safety.
+        [[nodiscard]] auto MemoryResource() const noexcept -> MemRsc { return this->backingRes; }
+
+        /// @return Default memory resource as used by the Dataframe if non is passed.
+        /// @note   Not thread safe.
+        /// @see    MemoryResource() to get a reference to the current used resource.
+        [[nodiscard]] static auto DefaultMemoryResource() noexcept -> MemRsc { return internal::BackingResDefault(); }
+
         static_assert(std::is_trivially_copyable_v<Flds>, "Fields() returns this.");
     };
 
