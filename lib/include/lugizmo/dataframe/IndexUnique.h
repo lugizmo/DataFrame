@@ -109,7 +109,7 @@ namespace lugizmo {
                 if(newKeys.empty()) return false;
 
                 count = newKeys.size();
-                values.Insert(keys, positions);
+                values.Insert(newKeys, positions);
             }
 
             return count;

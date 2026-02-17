@@ -132,6 +132,7 @@ Functional:
 ### TODO Code
 
 - more constexpr
+- add merge of two dataframes of the same type
 - add multi type version or specialization for single type
 - todo thing about using lugizmo::df to drop the DF names everywhere
   - DFView -> lugizmo::df::View -> df::View
