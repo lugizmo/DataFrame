@@ -54,3 +54,10 @@ include(vendor/fetch_benchmark.cmake)
 add_subdirectory(lib)
 add_subdirectory(lib/test)
 add_subdirectory(lib/bench)
+
+# ====== LLDB FORMATTERS ==================================================================================================================
+
+#add_custom_target(lugizmo-lldb-formatters-dataframe
+#    COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/tools/llvm_format.cmake
+#    COMMENT "Install LLDB formatters to ~/.lldb/lugizmo and update ~/.lldbinit"
+#)
