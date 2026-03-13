@@ -1,30 +1,291 @@
 Checks: >
-  -*,                                 # Start by disabling all checks.
-  bugprone-*,                         # Enable bug-prone code checks.
-  clang-analyzer-*,                   # Static analyzer checks.
-  modernize-*,                        # Enforce modern C++ practices.
-  cppcoreguidelines-*,                # Adhere to C++ Core Guidelines.
-  readability-*,                      # Enforce readability improvements.
-  performance-*,                      # Performance optimizations.
-  portability-*,                      # Code portability enhancements.
-  misc-*                              # Enable miscellaneous checks.
-WarningsAsErrors: '*'                 # Treat all warnings as errors.
-HeaderFilterRegex: '.*'               # Apply checks to all headers.
-AnalyzeTemporaryDtors: true           # Analyze destructors of temporaries.
-FormatStyle: file                     # Use style from the `.clang-format` file.
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  clang-analyzer-*,
+  cppcoreguidelines-avoid-capturing-this,
+  cppcoreguidelines-narrowing-conversions,
+  cppcoreguidelines-pro-type-const-cast,
+  cppcoreguidelines-avoid-capturing-lambda-coroutines,
+  cppcoreguidelines-avoid-const-or-ref-data-members,
+  cppcoreguidelines-avoid-do-while,
+  cppcoreguidelines-avoid-goto,
+  cppcoreguidelines-avoid-non-const-global-variables,
+  cppcoreguidelines-avoid-reference-coroutine-parameters,
+  cppcoreguidelines-interfaces-global-init,
+  cppcoreguidelines-macro-usage,
+  cppcoreguidelines-misleading-capture-default-by-value,
+  cppcoreguidelines-missing-std-forward,
+  cppcoreguidelines-no-malloc,
+  cppcoreguidelines-no-suspend-with-lock,
+  cppcoreguidelines-prefer-member-initializer,
+  cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  cppcoreguidelines-pro-type-cstyle-cast,
+  cppcoreguidelines-pro-type-member-init,
+  cppcoreguidelines-pro-type-reinterpret-cast,
+  cppcoreguidelines-pro-type-static-cast-downcast,
+  cppcoreguidelines-rvalue-reference-param-not-moved,
+  cppcoreguidelines-slicing,
+  cppcoreguidelines-special-member-functions,
+  cppcoreguidelines-virtual-class-destructor,
+  darwin-avoid-spinlock,
+  darwin-dispatch-once-nonstatic,
+  google-build-explicit-make-pair,
+  google-default-arguments,
+  google-explicit-constructor,
+  google-readability-casting,
+  google-readability-avoid-underscore-in-googletest-name,
+  google-upgrade-googletest-case,
+  google-readability-todo,
+  google-runtime-float,
+  google-runtime-int,
+  google-runtime-operator,
+  hicpp-exception-baseclass,
+  hicpp-ignored-remove-result,
+  hicpp-multiway-paths-covered,
+  hicpp-signed-bitwise,
+  llvm-namespace-comment,
+  misc-const-correctness,
+  misc-coroutine-hostile-raii,
+  misc-definitions-in-headers,
+  misc-header-include-cycle,
+  misc-include-cleaner,
+  misc-misleading-bidirectional,
+  misc-misleading-identifier,
+  misc-misplaced-const,
+  misc-new-delete-overloads,
+  misc-no-recursion,
+  misc-non-copyable-objects,
+  misc-override-with-different-visibility,
+  misc-predictable-rand,
+  misc-redundant-expression,
+  misc-static-assert,
+  misc-throw-by-value-catch-by-reference,
+  misc-unconventional-assign-operator,
+  misc-uniqueptr-reset-release,
+  misc-unused-alias-decls,
+  misc-unused-parameters,
+  misc-unused-using-decls,
+  misc-use-anonymous-namespace,
+  concurrency-mt-unsafe,
+  concurrency-thread-canceltype-asynchronous,
+  modernize-avoid-bind,
+  modernize-concat-nested-namespaces,
+  modernize-deprecated-headers,
+  modernize-deprecated-ios-base-aliases,
+  modernize-loop-convert,
+  modernize-avoid-setjmp-longjmp,
+  modernize-macro-to-enum,
+  modernize-make-shared,
+  modernize-make-unique,
+  modernize-min-max-use-initializer-list,
+  modernize-pass-by-value,
+  modernize-replace-auto-ptr,
+  modernize-redundant-void-arg,
+  modernize-replace-disallow-copy-and-assign-macro,
+  modernize-raw-string-literal,
+  modernize-replace-random-shuffle,
+  modernize-unary-static-assert,
+  modernize-use-default-member-init,
+  modernize-use-designated-initializers,
+  modernize-use-auto,
+  modernize-use-emplace,
+  modernize-type-traits,
+  modernize-use-equals-default,
+  modernize-use-equals-delete,
+  modernize-use-integer-sign-comparison,
+  modernize-return-braced-init-list,
+  modernize-shrink-to-fit,
+  modernize-use-nodiscard,
+  modernize-use-bool-literals,
+  modernize-use-constraints,
+  modernize-use-nullptr,
+  modernize-use-override,
+  modernize-use-noexcept,
+  modernize-use-trailing-return-type,
+  modernize-use-concepts,
+  modernize-use-ranges,
+  modernize-use-std-format,
+  modernize-use-transparent-functors,
+  modernize-use-uncaught-exceptions,
+  modernize-use-scoped-lock,
+  modernize-use-std-numbers,
+  modernize-use-std-print,
+  modernize-use-using,
+  modernize-use-starts-ends-with,
+  mpi-buffer-deref,
+  mpi-type-mismatch,
+  openmp-exception-escape,
+  openmp-use-default-none,
+  performance-avoid-endl,
+  performance-enum-size,
+  performance-faster-string-find,
+  performance-for-range-copy,
+  performance-implicit-conversion-in-loop,
+  performance-inefficient-string-concatenation,
+  performance-inefficient-vector-operation,
+  performance-inefficient-algorithm,
+  performance-move-const-arg,
+  performance-unnecessary-copy-initialization,
+  performance-move-constructor-init,
+  performance-no-automatic-move,
+  performance-no-int-to-ptr,
+  performance-noexcept-destructor,
+  performance-noexcept-move-constructor,
+  performance-noexcept-swap,
+  performance-trivially-destructible,
+  performance-type-promotion-in-math-fn,
+  performance-unnecessary-value-param,
+  portability-avoid-pragma-once,
+  portability-simd-intrinsics,
+  portability-std-allocator-const,
+  portability-template-virtual-member-function,
+  readability-ambiguous-smartptr-reset-call,
+  readability-avoid-const-params-in-decls,
+  readability-avoid-return-with-void-value,
+  readability-const-return-type,
+  readability-container-contains,
+  readability-container-data-pointer,
+  readability-container-size-empty,
+  readability-convert-member-functions-to-static,
+  readability-delete-null-pointer,
+  readability-avoid-nested-conditional-operator,
+  readability-identifier-naming,
+  readability-duplicate-include,
+  readability-else-after-return,
+  readability-make-member-function-const,
+  readability-redundant-declaration,
+  -readability-math-missing-parentheses,
+  readability-simplify-boolean-expr,
+  readability-misleading-indentation,
+  readability-enum-initial-value,
+  readability-uniqueptr-delete-release,
+  readability-implicit-bool-conversion,
+  readability-inconsistent-declaration-parameter-name,
+  readability-misplaced-array-index,
+  readability-named-parameter,
+  readability-non-const-parameter,
+  readability-operators-representation,
+  readability-qualified-auto,
+  readability-redundant-casting,
+  readability-redundant-control-flow,
+  readability-redundant-function-ptr-dereference,
+  readability-redundant-inline-specifier,
+  readability-redundant-parentheses,
+  readability-redundant-preprocessor,
+  readability-redundant-smartptr-get,
+  readability-redundant-string-cstr,
+  readability-redundant-typename,
+  readability-reference-to-constructed-temporary,
+  readability-simplify-subscript-expr,
+  readability-static-accessed-through-instance,
+  readability-static-definition-in-anonymous-namespace,
+  readability-string-compare,
+  readability-suspicious-call-argument,
+  readability-use-anyofallof,
+  readability-use-concise-preprocessor-directives,
+  readability-use-std-min-max
+
+WarningsAsErrors: ''
+HeaderFilterRegex: '.*'
+FormatStyle: file
+
 CheckOptions:
-  # Enforce CamelCase for classes, structs, and functions
-  - key: readability-identifier-naming.ClassCase
-    value: CamelCase
-  - key: readability-identifier-naming.StructCase
-    value: CamelCase
-  - key: readability-identifier-naming.FunctionCase
-    value: CamelCase
-  # Enforce PascalCase for member variables
-  - key: readability-identifier-naming.MemberCase
-    value: camelBack
-  # Enforce official naming for enums, constants, and variables
-  - key: readability-identifier-naming.EnumCase
-    value: CamelCase
-  - key: readability-identifier-naming.VariableCase
-    value: camelBack
+  # --- Naming conventions ---
+  # Namespaces
+  - { key: readability-identifier-naming.NamespaceCase,                    value: lower_case }
+
+  # Types
+  - { key: readability-identifier-naming.TypeCase,                         value: CamelCase }
+  - { key: readability-identifier-naming.StructCase,                       value: CamelCase }
+  - { key: readability-identifier-naming.ClassCase,                        value: CamelCase }
+  - { key: readability-identifier-naming.EnumCase,                         value: CamelCase }
+  - { key: readability-identifier-naming.UnionCase,                        value: CamelCase }
+
+  # Functions
+  - { key: readability-identifier-naming.FunctionCase,                     value: CamelCase }
+  - { key: readability-identifier-naming.MemberFunctionCase,               value: CamelCase }
+  - { key: readability-identifier-naming.LambdaCase,                       value: camelBack }
+
+  # Variables
+  - { key: readability-identifier-naming.VariableCase,                     value: camelBack }
+  - { key: readability-identifier-naming.GlobalVariableCase,               value: CamelCase }
+  - { key: readability-identifier-naming.StaticVariableCase,               value: CamelCase }
+  - { key: readability-identifier-naming.StaticConstantCase,               value: CamelCase }
+  - { key: readability-identifier-naming.ClassMemberCase,                  value: camelBack }
+  - { key: readability-identifier-naming.PrivateMemberCase,                value: camelBack }
+  - { key: readability-identifier-naming.ProtectedMemberCase,              value: camelBack }
+
+  # Parameters
+  - { key: readability-identifier-naming.ParameterCase,                    value: camelBack }
+
+  # Constants
+  - { key: readability-identifier-naming.ConstantCase,                     value: camelBack }
+  - { key: readability-identifier-naming.MemberConstantCase,               value: camelBack }
+  - { key: readability-identifier-naming.GlobalConstantCase,               value: UPPER_CASE }
+  - { key: readability-identifier-naming.EnumConstantCase,                 value: UPPER_CASE }
+
+  # Templates
+  - { key: readability-identifier-naming.TemplateParameterCase,            value: CamelCase }
+  - { key: readability-identifier-naming.TemplateTemplateParameterCase,    value: CamelCase }
+  - { key: readability-identifier-naming.TypeTemplateParameterCase,        value: CamelCase }
+
+  # Aliases
+  - { key: readability-identifier-naming.TypeAliasCase,                    value: CamelCase }
+  - { key: readability-identifier-naming.ConceptCase,                      value: CamelCase }
+
+  # Macros
+  - { key: readability-identifier-naming.MacroDefinitionCase,              value: UPPER_CASE }
+  - { key: readability-identifier-naming.MacroUsageCase,                   value: UPPER_CASE }
+
+  # No prefixes anywhere
+  - { key: readability-identifier-naming.NamespacePrefix,                  value: "" }
+  - { key: readability-identifier-naming.TypePrefix,                       value: "" }
+  - { key: readability-identifier-naming.StructPrefix,                     value: "" }
+  - { key: readability-identifier-naming.ClassPrefix,                      value: "" }
+  - { key: readability-identifier-naming.EnumPrefix,                       value: "" }
+  - { key: readability-identifier-naming.UnionPrefix,                      value: "" }
+  - { key: readability-identifier-naming.FunctionPrefix,                   value: "" }
+  - { key: readability-identifier-naming.MemberFunctionPrefix,             value: "" }
+  - { key: readability-identifier-naming.VariablePrefix,                   value: "" }
+  - { key: readability-identifier-naming.GlobalVariablePrefix,             value: "" }
+  - { key: readability-identifier-naming.StaticVariablePrefix,             value: "" }
+  - { key: readability-identifier-naming.ClassMemberPrefix,                value: "" }
+  - { key: readability-identifier-naming.PrivateMemberPrefix,              value: "" }
+  - { key: readability-identifier-naming.ProtectedMemberPrefix,            value: "" }
+  - { key: readability-identifier-naming.ParameterPrefix,                  value: "" }
+  - { key: readability-identifier-naming.ConstantPrefix,                   value: "" }
+  - { key: readability-identifier-naming.GlobalConstantPrefix,             value: "" }
+  - { key: readability-identifier-naming.MemberConstantPrefix,             value: "" }
+  - { key: readability-identifier-naming.EnumConstantPrefix,               value: "" }
+  - { key: readability-identifier-naming.TemplateParameterPrefix,          value: "" }
+  - { key: readability-identifier-naming.TypeAliasPrefix,                  value: "" }
+
+  # Suffixes
+  - { key: readability-identifier-naming.PrivateMemberSuffix,              value: "" }
+  - { key: readability-identifier-naming.ProtectedMemberSuffix,            value: "" }
+  - { key: readability-identifier-naming.ClassMemberSuffix,                value: "" }
+  - { key: readability-identifier-naming.MemberFunctionSuffix,             value: "" }
+  - { key: readability-identifier-naming.ParameterSuffix,                  value: "" }
+  - { key: readability-identifier-naming.TemplateParameterSuffix,          value: "" }
+  - { key: readability-identifier-naming.TypeAliasSuffix,                  value: "" }
+  - { key: readability-identifier-naming.MacroDefinitionSuffix,            value: "" }
+  - { key: readability-identifier-naming.MacroUsageSuffix,                 value: "" }
+
+  # --- Enforce noexcept and const correctness ---
+  - { key: modernize-use-trailing-return-type.IgnoreVoidReturnType,    value: true }
+  - { key: cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor, value: true }
+
+  # --- Lambda guidelines ---
+  - { key: cppcoreguidelines-avoid-capturing-this.WarnOnlyWhenNecessary, value: true }
+
+  # --- Modernization & consistency ---
+  - { key: modernize-use-concepts.MinimalInclude, value: true }
+  - { key: modernize-use-nullptr.NullMacros, value: 'NULL' }
+
+  # --- Trailing return type enforcement ---
+  - { key: modernize-use-trailing-return-type.TransformFunctions, value: true }
+  - { key: modernize-use-trailing-return-type.TransformLambdas, value: none }
+
+  # --- Readability ---
+  - { key: readability-operators-representation.BinaryOperators, value: "" }
+  - { key: readability-operators-representation.OverloadedOperators, value: "&&,!,||" }

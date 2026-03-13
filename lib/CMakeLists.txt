@@ -12,6 +12,8 @@ set(LUGIZMO_DF_INCLUDES
         include/lugizmo/container/Concepts.h
         include/lugizmo/container/DataFrameMap.h
 
+        include/lugizmo/meta/DeducingThis.h
+
         include/lugizmo/dataframe/LayoutColMajor.h
         include/lugizmo/dataframe/LayoutRowMajor.h
         include/lugizmo/dataframe/IndexBase.h

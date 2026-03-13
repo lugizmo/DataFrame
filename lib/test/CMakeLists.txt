@@ -14,6 +14,7 @@ if(LUGIZMO_BUILD_TESTING)
             dataframe/IndexUniqueTest.cpp
             dataframe/LayoutRowMajorTest.cpp
             dataframe/DFViewTest.cpp
+            meta/DeducingThisTest.cpp
             DataframeTest.cpp
             DataframeRangeIndexTest.cpp
             DataFrameConstructRowMajorTest.cpp

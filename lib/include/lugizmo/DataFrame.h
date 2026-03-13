@@ -27,6 +27,7 @@
 #include "memory/Memory.h"
 
 #include "container/Concepts.h"
+#include "meta/DeducingThis.h"
 
 #include "dataframe/IndexBase.h"
 #include "dataframe/IndexUnique.h"
@@ -86,6 +87,27 @@ namespace lugizmo {
 
         using DataMatrix      = RecsData<T>;
         using ConstDataMatrix = RecsData<T const>;
+
+        template<typename Self>
+        using ViewValueT = meta::ThisValueT<Self, T>;
+
+        template<typename Self>
+        using ValueRefT = meta::ThisRefWrapperT<Self, T>;
+
+        template<typename Self>
+        using ValueRefOptT = meta::ThisRefWrapperOptT<Self, T>;
+
+        template<typename Self>
+        using FieldViewT = DFView<ViewValueT<Self>, RecI>;
+
+        template<typename Self>
+        using FieldViewIndexedT = DFViewIndexed<ViewValueT<Self>, RecI const>;
+
+        template<typename Self>
+        using RecordViewT = DFView<ViewValueT<Self>, FldI>;
+
+        template<typename Self>
+        using RecordViewIndexedT = DFViewIndexed<ViewValueT<Self>, FldI const>;
 
     private:
 
@@ -303,7 +325,7 @@ namespace lugizmo {
          * @return
          */
         [[nodiscard]]
-        auto GetValue(FldT const& field, RecT const& record) const -> std::optional<std::reference_wrapper<T const>>;
+        auto GetValue(this auto& self, FldT const& field, RecT const& record) -> ValueRefOptT<decltype(self)>;
 
         /**
          * TODO doc
@@ -312,25 +334,7 @@ namespace lugizmo {
          * @return
          */
         [[nodiscard]]
-        auto GetValue(FldT const& field, RecT const& record) -> std::optional<std::reference_wrapper<T>>;
-
-        /**
-         * TODO doc
-         * @param field
-         * @param record
-         * @return
-         */
-        [[nodiscard]]
-        auto operator[](FldT const& field, RecT const& record) -> T&;
-
-        /**
-         * TODO doc
-         * @param field
-         * @param record
-         * @return
-         */
-        [[nodiscard]]
-        auto operator[](FldT const& field, RecT const& record) const -> T const&;
+        auto operator[](this auto& self, FldT const& field, RecT const& record) -> ViewValueT<decltype(self)>&;
 
         // ======== SETTERS ========================================================================================================================================================
 
@@ -396,32 +400,7 @@ namespace lugizmo {
          * @param index field index to try getting data for.
          */
         [[nodiscard]]
-        auto ViewField(FldT const& index) noexcept -> DFView<T, RecI> requires DFValIndex<RecI>;
-
-        /**
-         * @return      View into a field (handling layout) if field found in (const) dataframe.
-         * @param index field index to try getting data for.
-         */
-        [[nodiscard]]
-        auto ViewField(FldT const& index) const noexcept -> DFView<T const, RecI> requires DFValIndex<RecI>;
-
-        /**
-         * TODO doc
-         * TODO check FldT should be trivial copyable for seq indices?
-         * @param index
-         * @return
-         */
-        [[nodiscard]]
-        auto ViewField(FldT const& index) noexcept -> DFView<T, RecI> requires DFSeqIndex<RecI>;
-
-        /**
-         * TODO doc
-         * TODO check FldT should be trivial copyable for seq indices?
-         * @param index
-         * @return
-         */
-        [[nodiscard]]
-        auto ViewField(FldT const& index) const noexcept -> DFView<T const, RecI> requires DFSeqIndex<RecI>;
+        auto ViewField(this auto& self, FldT const& index) noexcept -> FieldViewT<decltype(self)>;
 
         /**
          * @return      View into a field (handling layout) if field found in dataframe.
@@ -430,48 +409,14 @@ namespace lugizmo {
          * @param index field index to try getting data for.
          */
         [[nodiscard]]
-        auto ViewFieldIndexed(FldT const& index) noexcept -> DFViewIndexed<T, RecI const> requires DFValIndex<RecI>;
-
-        /**
-         * @return      View into a field (handling layout) if field found in (const) dataframe.
-         *              Row index is available while iterating.
-         * TODO as mentioned in the README this interface is currently not 100% as expected. Changes my come.
-         * @param index field index to try getting data for.
-         */
-        [[nodiscard]]
-        auto ViewFieldIndexed(FldT const& index) const noexcept -> DFViewIndexed<T const, RecI const> requires DFValIndex<RecI>;
-
-        /**
-         * @return      View into a field (handling layout) if field found in dataframe.
-         *              Row index is available while iterating.
-         * TODO as mentioned in the README this interface is currently not 100% as expected. Changes my come.
-         * @param index field index to try getting data for.
-         */
-        [[nodiscard]]
-        auto ViewFieldIndexed(FldT const& index) noexcept -> DFViewIndexed<T, RecI const> requires DFSeqIndex<RecI>;
-
-        /**
-         * @return      View into a field (handling layout) if field found in (const) dataframe.
-         *              Row index is available while iterating.
-         * TODO as mentioned in the README this interface is currently not 100% as expected. Changes my come.
-         * @param index field index to try getting data for.
-         */
-        [[nodiscard]]
-        auto ViewFieldIndexed(FldT const& index) const noexcept -> DFViewIndexed<T const, RecI const> requires DFSeqIndex<RecI>;
+        auto ViewFieldIndexed(this auto& self, FldT const& index) noexcept -> FieldViewIndexedT<decltype(self)>;
 
         /**
          * @return      View into a record (handling layout) if record found in dataframe.
          * @param index record index to try getting data for.
          */
         [[nodiscard]]
-        auto ViewRecord(RecT const& index) noexcept -> DFView<T, FldI> requires DFValIndex<FldI>;
-
-        /**
-         * @return      View into a record (handling layout) if record found in (const) dataframe.
-         * @param index record index to try getting data for.
-         */
-        [[nodiscard]]
-        auto ViewRecord(RecT const& index) const noexcept -> DFView<T const, FldI> requires DFValIndex<FldI>;
+        auto ViewRecord(this auto& self, RecT const& index) noexcept -> RecordViewT<decltype(self)> requires DFValIndex<FldI>;
 
         /**
          * @return      View into a record (handling layout) if record found in dataframe.
@@ -480,58 +425,19 @@ namespace lugizmo {
          * @param index record index to try getting data for.
          */
         [[nodiscard]]
-        auto ViewRecordIndexed(RecT const& index) noexcept -> DFViewIndexed<T, FldI const> requires DFValIndex<FldI>;
-
-        /**
-         * @return      View into a record (handling layout) if record found in (const) dataframe.
-         *              Field index is available while iterating.
-         * TODO as mentioned in the README this interface is currently not 100% as expected. Changes my come.
-         * @param index record index to try getting data for.
-         */
-        [[nodiscard]]
-        auto ViewRecordIndexed(RecT const& index) const noexcept -> DFViewIndexed<T const, FldI const> requires DFValIndex<FldI>;
-
-        /**
-        * @return      View into a record (handling layout) if record found in dataframe.
-        *              Field index is available while iterating.
-        * TODO as mentioned in the README this interface is currently not 100% as expected. Changes my come.
-        * @param index record index to try getting data for.
-        */
-        [[nodiscard]]
-        auto ViewRecordIndexed(RecT const& index) noexcept -> DFViewIndexed<T, FldI const> requires DFSeqIndex<FldI>;
-
-        /**
-         * @return      View into a record (handling layout) if record found in (const) dataframe.
-         *              Field index is available while iterating.
-         * TODO as mentioned in the README this interface is currently not 100% as expected. Changes my come.
-         * @param index record index to try getting data for.
-         */
-        [[nodiscard]]
-        auto ViewRecordIndexed(RecT const& index) const noexcept -> DFViewIndexed<T const, FldI const> requires DFSeqIndex<FldI>;
+        auto ViewRecordIndexed(this auto& self, RecT const& index) noexcept -> RecordViewIndexedT<decltype(self)>;
 
         /// @brief Alternative syntax for GetField()
-        auto operator|(SelectField<F> const& index) noexcept -> DFView<T, RecI> requires DFValIndex<FldI> { return ViewField(index.val); }
-
-        /// @brief Alternative syntax for GetField() const
-        auto operator|(SelectField<F> const& index) const noexcept -> DFView<T const, RecI> requires DFValIndex<FldI> { return ViewField(index.val); }
+        auto operator|(this auto& self, SelectField<F> const& index) noexcept -> FieldViewT<decltype(self)> requires DFValIndex<FldI> { return self.ViewField(index.val); }
 
         /// @brief Alternative syntax for GetRecord()
-        auto operator|(SelectRecord<R> const& index) noexcept -> DFView<T, FldI> requires DFValIndex<RecI> { return ViewRecord(index.val); }
-
-        /// @brief Alternative syntax for GetRecord() const
-        auto operator|(SelectRecord<R> const& index) const noexcept -> DFView<T const, FldI> requires DFValIndex<RecI> { return ViewRecord(index.val); }
+        auto operator|(this auto& self, SelectRecord<R> const& index) noexcept -> RecordViewT<decltype(self)> requires DFValIndex<RecI> { return self.ViewRecord(index.val); }
 
         /// @brief Alternative syntax for GetFieldIndexed()
-        auto operator|(SelectFieldIndexed<F> const& index) noexcept -> DFViewIndexed<T, RecI const> requires DFValIndex<FldI> { return ViewFieldIndexed(index.val); }
+        auto operator|(this auto& self, SelectFieldIndexed<F> const& index) noexcept -> FieldViewIndexedT<decltype(self)> requires DFValIndex<FldI> { return self.ViewFieldIndexed(index.val); }
 
-         /// @brief Alternative syntax for GetFieldIndexed() const
-        auto operator|(SelectFieldIndexed<F> const& index) const noexcept -> DFViewIndexed<T const, RecI const> requires DFValIndex<FldI> { return ViewFieldIndexed(index.val); }
-
-         /// @brief Alternative syntax for GetRecordIndexed()
-        auto operator|(SelectRecordIndexed<R> const& index) noexcept -> DFViewIndexed<T, RecI const> requires DFValIndex<RecI> { return ViewRecordIndexed(index.val); }
-
-         /// @brief Alternative syntax for GetRecordIndexed() const
-        auto operator|(SelectRecordIndexed<R> const& index) const noexcept -> DFViewIndexed<T const, RecI const> requires DFValIndex<RecI> { return ViewRecordIndexed(index.val); }
+        /// @brief Alternative syntax for GetRecordIndexed()
+        auto operator|(this auto& self, SelectRecordIndexed<R> const& index) noexcept -> RecordViewIndexedT<decltype(self)> requires DFValIndex<RecI> { return self.ViewRecordIndexed(index.val); }
 
         // ======== FUNCTIONAL =============================================================================================================
 
@@ -544,18 +450,7 @@ namespace lugizmo {
          * @return For chaining the view the function was applied on.
          */
         template <typename Func>
-        auto ForEachOnField(F const& index, Func&& func) -> DFView<T, RecI> requires DFValIndex<FldI>;
-
-        /**
-         * @brief       Apply a function on each value in a field on constant DataFrame.
-         * @tparam Func Type of the function to apply on each value in a field.
-         *
-         * @param index Field index to look for. If not found function returns empty view.
-         * @param func  Function to apply on each value in a field.
-         * @return For chaining the view the function was applied on.
-         */
-        template <typename Func>
-        auto ForEachOnField(F const& index, Func&& func) const -> DFView<T const, RecI> requires DFValIndex<FldI>;
+        auto ForEachOnField(this auto& self, F const& index, Func&& func) -> FieldViewT<decltype(self)> requires DFValIndex<FldI>;
 
         /**
          * @brief       Apply a function on each value in a record.
@@ -566,18 +461,7 @@ namespace lugizmo {
          * @return For chaining the view the function was applied on.
          */
         template<typename Func>
-        auto ForEachOnRecord(R const& index, Func&& func) -> DFView<T, FldI> requires DFValIndex<RecI>;
-
-        /**
-         * @brief       Apply a function on each value in a record on constant DataFrame.
-         * @tparam Func Type of the function to apply on each value in a record.
-         *
-         * @param index Record index to look for. If not found function returns empty view.
-         * @param func  Function to apply on each value in a record.
-         * @return For chaining the view the function was applied on.
-         */
-        template<typename Func>
-        auto ForEachOnRecord(R const& index, Func&& func) const -> DFView<T const, FldI> requires DFValIndex<RecI>;
+        auto ForEachOnRecord(this auto& self, R const& index, Func&& func) -> RecordViewT<decltype(self)> requires DFValIndex<RecI>;
 
         // ======== PRINT ==================================================================================================================
 
@@ -634,7 +518,7 @@ namespace lugizmo {
 
         /// @attention It's a view so can be invalidated when adding/removing fields/records.
         /// @return    A view into the current records (indices) stored in the dataframe.
-        [[nodiscard]] auto Values() const noexcept -> std::span<T> { return std::span(data, recsData.size()); }
+        [[nodiscard]] auto Values(this auto& self) noexcept -> meta::ThisValueSpanT<decltype(self), T> { return std::span(self.data, self.recsData.size()); }
 
         /// @return True when no values are stored in the dataframe.
         [[nodiscard]] auto Empty() const noexcept -> bool { return recsData.empty(); }
@@ -1109,38 +993,22 @@ namespace lugizmo {
     // ======== GETTERS ============================================================================================================================================================
 
     template<typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::GetValue(FldT const& field, RecT const& record) const -> std::optional<std::reference_wrapper<T const>>
+    auto DataFrame<T, F, R, L>::GetValue(this auto& self, FldT const& field, RecT const& record) -> ValueRefOptT<decltype(self)>
     {
-        auto const fldPos = fldIndex.Position(field);
-        auto const recPos = recIndex.Position(record);
+        auto const fldPos = self.fldIndex.Position(field);
+        auto const recPos = self.recIndex.Position(record);
 
-        return fldPos && recPos ? std::optional<std::reference_wrapper<T const>>{recsData[*recPos, *fldPos]} : std::nullopt;
+        return fldPos && recPos ? ValueRefOptT<decltype(self)>{self.recsData[*recPos, *fldPos]} : std::nullopt;
     }
-    template<typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::GetValue(FldT const& field, RecT const& record) -> std::optional<std::reference_wrapper<T>>
-    {
-        auto const fldPos = fldIndex.Position(field);
-        auto const recPos = recIndex.Position(record);
 
-        return fldPos && recPos ? std::optional<std::reference_wrapper<T>>{recsData[*recPos, *fldPos]} : std::nullopt;
-    }
     template<typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::operator[](FldT const& field, RecT const& record) -> T&
+    auto DataFrame<T, F, R, L>::operator[](this auto& self, FldT const& field, RecT const& record) -> ViewValueT<decltype(self)>&
     {
-        auto const fldPos = fldIndex.Position(field);
-        auto const recPos = recIndex.Position(record);
+        auto const fldPos = self.fldIndex.Position(field);
+        auto const recPos = self.recIndex.Position(record);
 
         assert(fldPos.has_value() && recPos.has_value());
-        return recsData[*recPos, *fldPos];
-    }
-    template<typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::operator[](FldT const& field, RecT const& record) const -> T const&
-    {
-        auto const fldPos = fldIndex.Position(field);
-        auto const recPos = recIndex.Position(record);
-
-        assert(fldPos.has_value() && recPos.has_value());
-        return recsData[*recPos, *fldPos];
+        return self.recsData[*recPos, *fldPos];
     }
 
     // ======== SETTERS ============================================================================================================================================================
@@ -1250,138 +1118,126 @@ namespace lugizmo {
     // ======== VIEWS ======================================================================================================================
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::ViewField(FldT const& index) noexcept -> DFView<T, RecI> requires DFValIndex<RecI>
+    auto DataFrame<T, F, R, L>::ViewField(this auto& self, FldT const& index) noexcept -> FieldViewT<decltype(self)>
     {
-        auto const pos = fldIndex.Position(index);
-        if (!pos.has_value()) { return DFView<T, RecI>(); }
+        auto const pos = self.fldIndex.Position(index);
+        if(not pos.has_value()) return FieldViewT<decltype(self)>{};
 
-        return DFView<T, RecI>::FieldView(recsData, &recIndex, pos.value());
+        if constexpr (DFValIndex<RecI>)
+        {
+            if constexpr (meta::IsConstThis<decltype(self)>())
+            {
+                return FieldViewT<decltype(self)>::FieldView(static_cast<ConstDataMatrix>(self.recsData), &self.recIndex, *pos);
+            }
+            else
+            {
+                return FieldViewT<decltype(self)>::FieldView(self.recsData, &self.recIndex, *pos);
+            }
+        }
+        else
+        {
+            if constexpr (meta::IsConstThis<decltype(self)>())
+            {
+                return FieldViewT<decltype(self)>::FieldView(static_cast<ConstDataMatrix>(self.recsData),
+                                                             &self.recIndex,
+                                                             *pos,
+                                                             self.recIndex.LowerBoundPosition(),
+                                                             self.recIndex.UpperBoundPosition());
+            }
+            else
+            {
+                return FieldViewT<decltype(self)>::FieldView(self.recsData,
+                                                             &self.recIndex,
+                                                             *pos,
+                                                             self.recIndex.LowerBoundPosition(),
+                                                             self.recIndex.UpperBoundPosition());
+            }
+        }
     }
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::ViewField(FldT const& index) const noexcept -> DFView<T const, RecI> requires DFValIndex<RecI>
+    auto DataFrame<T, F, R, L>::ViewFieldIndexed(this auto& self, FldT const& index) noexcept -> FieldViewIndexedT<decltype(self)>
     {
-        auto const pos = fldIndex.Position(index);
-        if (!pos.has_value()) { return DFView<T const, RecI>(); }
+        auto const pos = self.fldIndex.Position(index);
+        if(not pos.has_value()) return FieldViewIndexedT<decltype(self)>{};
 
-        return DFView<T const, RecI>::FieldView(static_cast<ConstDataMatrix>(recsData), &recIndex, pos.value());
+        if constexpr (DFValIndex<RecI>)
+        {
+            if constexpr (meta::IsConstThis<decltype(self)>())
+            {
+                return FieldViewIndexedT<decltype(self)>::template FieldView<>(static_cast<ConstDataMatrix>(self.recsData), &self.recIndex, *pos, self.recIndex.Keys());
+            }
+            else
+            {
+                return FieldViewIndexedT<decltype(self)>::FieldView(self.recsData, &self.recIndex, *pos, self.recIndex.Keys());
+            }
+        }
+        else
+        {
+            if constexpr (meta::IsConstThis<decltype(self)>())
+            {
+                return FieldViewIndexedT<decltype(self)>::FieldView(static_cast<ConstDataMatrix>(self.recsData), &self.recIndex, *pos, self.recIndex.Bounds());
+            }
+            else
+            {
+                return FieldViewIndexedT<decltype(self)>::FieldView(self.recsData, &self.recIndex, *pos, self.recIndex.Bounds());
+            }
+        }
     }
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::ViewField(FldT const& index) noexcept -> DFView<T, RecI> requires DFSeqIndex<RecI>
+    auto DataFrame<T, F, R, L>::ViewRecord(this auto& self, RecT const& index) noexcept -> RecordViewT<decltype(self)> requires DFValIndex<FldI>
     {
-        auto const pos = fldIndex.Position(index);
-        if(!pos.has_value()) { return DFView<T, RecI>(); }
+        auto const pos = self.recIndex.Position(index);
+        if(not pos.has_value()) return RecordViewT<decltype(self)>{};
 
-        return DFView<T, RecI>::FieldView(recsData, &recIndex, *pos, recIndex.LowerBoundPosition(), recIndex.UpperBoundPosition());
+        if constexpr (meta::IsConstThis<decltype(self)>())
+        {
+            return RecordViewT<decltype(self)>::RecordView(static_cast<ConstDataMatrix>(self.recsData), &self.fldIndex, *pos);
+        }
+        else
+        {
+            return RecordViewT<decltype(self)>::RecordView(self.recsData, &self.fldIndex, *pos);
+        }
     }
 
     template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::ViewField(FldT const& index) const noexcept -> DFView<T const, RecI> requires DFSeqIndex<RecI>
+    auto DataFrame<T, F, R, L>::ViewRecordIndexed(this auto& self, RecT const& index) noexcept -> RecordViewIndexedT<decltype(self)>
     {
-        auto const pos = fldIndex.Position(index);
-        if(!pos.has_value()) { return DFView<T const, RecI>(); }
+        auto const pos = self.recIndex.Position(index);
+        if(not pos.has_value()) return RecordViewIndexedT<decltype(self)>{};
 
-        return DFView<T const, RecI>::FieldView(static_cast<ConstDataMatrix>(recsData), &recIndex, *pos, recIndex.LowerBoundPosition(), recIndex.UpperBoundPosition());
-    }
-
-    template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::ViewFieldIndexed(FldT const& index) noexcept -> DFViewIndexed<T, RecI const> requires DFValIndex<RecI>
-    {
-        auto const pos = fldIndex.Position(index);
-        if (!pos.has_value()) { return DFViewIndexed<T, RecI const>(); }
-
-        return DFViewIndexed<T, RecI const>::FieldView(recsData, &recIndex, pos.value(), recIndex.Keys());
-    }
-
-    template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::ViewFieldIndexed(FldT const& index) const noexcept -> DFViewIndexed<T const, RecI const> requires DFValIndex<RecI>
-    {
-        auto const pos = fldIndex.Position(index);
-        if(!pos.has_value()) { return DFViewIndexed<T const, RecI const>(); }
-
-        return DFViewIndexed<T const, RecI const>::template FieldView<>(static_cast<ConstDataMatrix>(recsData), &recIndex, pos.value(), recIndex.Keys());
-    }
-
-    template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::ViewFieldIndexed(FldT const& index) noexcept -> DFViewIndexed<T, RecI const> requires DFSeqIndex<RecI>
-    {
-        auto const pos = fldIndex.Position(index);
-        if(!pos) return {};
-
-        return DFViewIndexed<T, RecI const>::FieldView(recsData, &recIndex, *pos, recIndex.Bounds());
-    }
-
-    template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::ViewFieldIndexed(FldT const& index) const noexcept -> DFViewIndexed<T const, RecI const> requires DFSeqIndex<RecI>
-    {
-        auto const pos = fldIndex.Position(index);
-        if(!pos) return {};
-
-        return DFViewIndexed<T const, RecI const>::FieldView(static_cast<ConstDataMatrix>(recsData), &recIndex, *pos, recIndex.Bounds());
-    }
-
-    template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::ViewRecord(RecT const& index) noexcept -> DFView<T, FldI> requires DFValIndex<FldI>
-    {
-        auto pos = recIndex.Position(index);
-        if(not pos.has_value()) return DFView<T, FldI>();
-
-        return DFView<T, FldI>::RecordView(recsData, &fldIndex, pos.value());
-    }
-
-    template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::ViewRecord(RecT const& index) const noexcept -> DFView<T const, FldI> requires DFValIndex<FldI>
-    {
-        auto pos = recIndex.Position(index);
-        if(not pos.has_value()) return DFView<T const, FldI>();
-
-        return DFView<T const, FldI>::RecordView(static_cast<ConstDataMatrix>(recsData), &fldIndex, pos.value());
-    }
-
-    template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::ViewRecordIndexed(RecT const& index) noexcept -> DFViewIndexed<T, FldI const> requires DFValIndex<FldI>
-    {
-        auto pos = recIndex.Position(index);
-        if(not pos.has_value()) return DFViewIndexed<T, FldI const>();
-
-        return DFViewIndexed<T, FldI const>::template RecordView<>(recsData, &fldIndex, pos.value(), fldIndex.Keys());
-    }
-
-    template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::ViewRecordIndexed(RecT const& index) const noexcept -> DFViewIndexed<T const, FldI const> requires DFValIndex<FldI>
-    {
-        auto pos = recIndex.Position(index);
-        if(not pos.has_value()) return DFViewIndexed<T const, FldI const>();
-
-        return DFViewIndexed<T const, FldI const>::template RecordView<>(static_cast<ConstDataMatrix>(recsData), &fldIndex, pos.value(), fldIndex.Keys());
-    }
-
-    template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::ViewRecordIndexed(RecT const& index) noexcept -> DFViewIndexed<T, FldI const> requires DFSeqIndex<FldI>
-    {
-        auto const pos = recIndex.Position(index);
-        if(!pos) return {};
-
-        return DFViewIndexed<T, FldI const>::RecordView(recsData, &fldIndex, *pos, fldIndex.Bounds());
-    }
-
-    template <typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::ViewRecordIndexed(RecT const& index) const noexcept -> DFViewIndexed<T const, FldI const> requires DFSeqIndex<FldI>
-    {
-        auto const pos = recIndex.Position(index);
-        if(!pos) return {};
-
-        return DFViewIndexed<T const, FldI const>::RecordView(static_cast<ConstDataMatrix>(recsData), &fldIndex, *pos, fldIndex.Bounds());
+        if constexpr (DFValIndex<FldI>)
+        {
+            if constexpr (meta::IsConstThis<decltype(self)>())
+            {
+                return RecordViewIndexedT<decltype(self)>::template RecordView<>(static_cast<ConstDataMatrix>(self.recsData), &self.fldIndex, *pos, self.fldIndex.Keys());
+            }
+            else
+            {
+                return RecordViewIndexedT<decltype(self)>::template RecordView<>(self.recsData, &self.fldIndex, *pos, self.fldIndex.Keys());
+            }
+        }
+        else
+        {
+            if constexpr (meta::IsConstThis<decltype(self)>())
+            {
+                return RecordViewIndexedT<decltype(self)>::RecordView(static_cast<ConstDataMatrix>(self.recsData), &self.fldIndex, *pos, self.fldIndex.Bounds());
+            }
+            else
+            {
+                return RecordViewIndexedT<decltype(self)>::RecordView(self.recsData, &self.fldIndex, *pos, self.fldIndex.Bounds());
+            }
+        }
     }
 
     // ======== FUNCTIONAL =================================================================================================================
 
     template <typename T, typename F, typename R, typename L>
     template <typename Func>
-    auto DataFrame<T, F, R, L>::ForEachOnField(F const& index, Func&& func) -> DFView<T, RecI> requires DFValIndex<FldI>
+    auto DataFrame<T, F, R, L>::ForEachOnField(this auto& self, F const& index, Func&& func) -> FieldViewT<decltype(self)> requires DFValIndex<FldI>
     {
-        auto view = ViewField(index);
+        auto view = self.ViewField(index);
         std::ranges::for_each(view, std::forward<Func>(func));
 
         return view;
@@ -1389,29 +1245,9 @@ namespace lugizmo {
 
     template <typename T, typename F, typename R, typename L>
     template <typename Func>
-    auto DataFrame<T, F, R, L>::ForEachOnField(F const& index, Func&& func) const -> DFView<T const, RecI> requires DFValIndex<FldI>
+    auto DataFrame<T, F, R, L>::ForEachOnRecord(this auto& self, R const& index, Func&& func) -> RecordViewT<decltype(self)> requires DFValIndex<RecI>
     {
-        auto const view = ViewField(index);
-        std::ranges::for_each(view, std::forward<Func>(func));
-
-        return view;
-    }
-
-    template <typename T, typename F, typename R, typename L>
-    template <typename Func>
-    auto DataFrame<T, F, R, L>::ForEachOnRecord(R const& index, Func&& func) -> DFView<T, FldI> requires DFValIndex<RecI>
-    {
-        auto view = ViewRecord(index);
-        std::ranges::for_each(view, std::forward<Func>(func));
-
-        return view;
-    }
-
-    template <typename T, typename F, typename R, typename L>
-    template <typename Func>
-    auto DataFrame<T, F, R, L>::ForEachOnRecord(R const& index, Func&& func) const -> DFView<T const, FldI> requires DFValIndex<RecI>
-    {
-        auto view = ViewRecord(index);
+        auto view = self.ViewRecord(index);
         std::ranges::for_each(view, std::forward<Func>(func));
 
         return view;
@@ -1556,6 +1392,7 @@ namespace lugizmo {
             }
         }
     }
-}
+
+} // namespace lugizmo
 
 #endif // LUGIZMO_DF_DATAFRAME_H
