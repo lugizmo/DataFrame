@@ -29,11 +29,8 @@
 //     SetRecordRange(std::optional<RecT> lower, std::optional<RecT> upper, std::initializer_list<std::initializer_list<T>> records) -> bool requires DFSeqIndex<FldI>
 //     SetRecordRange(DFRangeIndexBounds<RecT>, std::initializer_list<std::initializer_list<T>> records) -> bool requires DFSeqIndex<FldI>
 //
-// ❌ insert_value
-// - InsertValue(FldT const& field, RecT const& record, T const& value) -> bool;
-//
-// ❌ insert_or_assign_value
-// - InsertOrAssignValue(FldT const& field, RecT const& record, T const& value);
+// ✅ upsert_value
+// - UpsertValue(FldT const& field, RecT const& record, T const& value);
 
 #include <string>
 #include <array>
@@ -174,12 +171,13 @@ TEST(lugizmo_dataframe_adding_row_major, add_records_val)
 }
 
 /**
- *  @brief Insert value into the dataframe but only if the field-record combination is not present yet.
- *         If the field is not present and/or the record, they will be added and value will be inserted.
+ *  @brief Upsert value in the dataframe.
+ *         If the field is not present and/or the record, they will be added and value will be assigned.
+ *         If both are already present, value will be replaced.
  *
- *  @see   lugizmo::Dataframe.InsertValue(FldT const& field, RecT const& record, T const& value) -> bool;
+ *  @see   lugizmo::Dataframe.UpsertValue(FldT const& field, RecT const& record, T const& value);
  */
-TEST(lugizmo_dataframe_adding_row_major, insert_value)
+TEST(lugizmo_dataframe_adding_row_major, upsert_value)
 {
     using namespace lugizmo;
 
@@ -187,7 +185,7 @@ TEST(lugizmo_dataframe_adding_row_major, insert_value)
         auto df = DataFrame<int, std::string, std::string>();
 
         // insert field and record
-        EXPECT_TRUE(df.InsertValue("field1", "record1", 1));
+        df.UpsertValue("field1", "record1", 1);
         EXPECT_EQ(df.FieldSize(), 1);
         EXPECT_EQ(df.RecordSize(), 1);
         EXPECT_EQ(df.Fields()[0], "field1");
@@ -198,7 +196,7 @@ TEST(lugizmo_dataframe_adding_row_major, insert_value)
         EXPECT_EQ(val, 1);
 
         // insert field but the record is already present
-        EXPECT_TRUE(df.InsertValue("field1", "record2", 2));
+        df.UpsertValue("field1", "record2", 2);
         EXPECT_EQ(df.FieldSize(), 1);
         EXPECT_EQ(df.RecordSize(), 2);
         EXPECT_EQ(df.Fields()[0], "field1");
@@ -210,7 +208,7 @@ TEST(lugizmo_dataframe_adding_row_major, insert_value)
         EXPECT_EQ(val, 2);
 
         // insert record but the field is already present
-        EXPECT_TRUE(df.InsertValue("field2", "record1", 3));
+        df.UpsertValue("field2", "record1", 3);
         EXPECT_EQ(df.FieldSize(), 2);
         EXPECT_EQ(df.RecordSize(), 2);
         EXPECT_EQ(df.Fields()[1], "field2");
@@ -220,63 +218,11 @@ TEST(lugizmo_dataframe_adding_row_major, insert_value)
         ASSERT_TRUE(val.HasValue());
         EXPECT_EQ(val, 3);
 
-        // field and value already present
-        EXPECT_FALSE(df.InsertValue("field1", "record1", 4));
+        // field and record already present -> assign
+        df.UpsertValue("field1", "record1", 4);
         EXPECT_EQ(df.FieldSize(), 2);
         EXPECT_EQ(df.RecordSize(), 2);
-    }
-
-    {
-        // TODO add for sequence index
-    }
-}
-
-/**
- *  @brief Adds record/field if not already present and assigns value int the dataframe.
- *         If the field is not present and/or the record, they will be added and value will be inserted.
- *
- *  @see   lugizmo::Dataframe.InsertorAssignValue(FldT const& field, RecT const& record, T const& value) -> bool;
- */
-TEST(lugizmo_dataframe_adding_row_major, insert_or_assign_value)
-{
-    using namespace lugizmo;
-
-    {
-        auto df = DataFrame<int, std::string, std::string>();
-
-        // insert not existing field and record
-        df.InsertOrAssignValue("field1", "record1", 1);
-        EXPECT_EQ(df.FieldSize(), 1);
-        EXPECT_EQ(df.RecordSize(), 1);
-
-        auto val = df.GetValue("field1", "record1");
-        ASSERT_TRUE(val.HasValue());
-        EXPECT_EQ(val, 1);
-
-        // insert not existing field
-        df.InsertOrAssignValue("field2", "record1", 2);
-        EXPECT_EQ(df.FieldSize(), 2);
-        EXPECT_EQ(df.RecordSize(), 1);
-
-        val = df.GetValue("field2", "record1");
-        ASSERT_TRUE(val.HasValue());
-        EXPECT_EQ(val, 2);
-
-        // insert not existing record
-        df.InsertOrAssignValue("field2", "record2", 3);
-        EXPECT_EQ(df.FieldSize(), 2);
-        EXPECT_EQ(df.RecordSize(), 2);
-
-        val = df.GetValue("field2", "record2");
-        ASSERT_TRUE(val.HasValue());
-        EXPECT_EQ(val, 3);
-
-        // assign existing field and record
-        df.InsertOrAssignValue("field2", "record2", 4);
-        EXPECT_EQ(df.FieldSize(), 2);
-        EXPECT_EQ(df.RecordSize(), 2);
-
-        val = df.GetValue("field2", "record2");
+        val = df.GetValue("field1", "record1");
         ASSERT_TRUE(val.HasValue());
         EXPECT_EQ(val, 4);
     }

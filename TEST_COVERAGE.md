@@ -42,8 +42,7 @@ Test can be found in: [File](/lib/test/RM_DataframeAddingTest.cpp)
 - [ ] ```SetRecordRange(DFRangeIndexBounds<RecT>, std::initializer_list<std::initializer_list<T>> records) -> bool```
 
 
-- [ ] ```InsertValue(FldT const& field, RecT const& record, T const& value) -> bool;``` 
-- [ ] ```InsertOrAssignValue(FldT const& field, RecT const& record, T const& value) -> bool;```
+- [ ] ```UpsertValue(FldT const& field, RecT const& record, T const& value) -> void;```
 
 ### removing fields and records
 

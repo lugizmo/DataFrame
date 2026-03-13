@@ -349,18 +349,6 @@ namespace lugizmo {
         auto AssignValue(FldT const& field, RecT const& record, T const& value) -> bool;
 
         /**
-         * @brief Adds the value but only if not already present.
-         *        That means field and/or record are added.
-         *
-         * @param field  The field name to insert if not present yet.
-         * @param record The record name to insert if not present yet.
-         * @param value  The value to insert.
-         *
-         * @return True if value was inserted.
-         */
-        auto InsertValue(FldT const& field, RecT const& record, T const& value) -> bool requires DFValIndex<FldI> and DFValIndex<RecI>; // TODO remove requirement
-
-        /**
         * @brief Adds the value or replaces it if already present.
         *        If field and/or record is not present yet, they are added and the value is set.
         *        If already present value gets replaced.
@@ -369,7 +357,7 @@ namespace lugizmo {
         * @param record The record name to insert if not present yet.
         * @param value  The value to assign.
         */
-        void InsertOrAssignValue(FldT const& field, RecT const& record, T const& value) requires DFValIndex<FldI> and DFValIndex<RecI>; // TODO remove requirement
+        void UpsertValue(FldT const& field, RecT const& record, T const& value) requires DFValIndex<FldI> and DFValIndex<RecI>; // TODO remove requirement
 
         // ======== DROP ===========================================================================================================================================================
 
@@ -1024,36 +1012,8 @@ namespace lugizmo {
         return false;
     }
 
-    template<typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::InsertValue(FldT const& field, RecT const& record, T const& value) -> bool requires DFValIndex<FldI> and DFValIndex<RecI>
-    {
-        // check if field and record are present
-        auto const hasFld = fldIndex.Position(field);
-        auto const hasRec = recIndex.Position(record);
-        if(hasFld and hasRec) return false;
-
-        if(not hasFld)
-        {
-            // the field is not present
-            [[maybe_unused]] auto const fieldAdded = AddField(field);
-            LUGIZMO_ASSERT_EXP(fieldAdded, "InsertValue expected AddField to succeed.");
-        }
-
-        if(not hasRec)
-        {
-            // the record is not present
-            [[maybe_unused]] auto const recordAdded = AddRecord(record);
-            LUGIZMO_ASSERT_EXP(recordAdded, "InsertValue expected AddRecord to succeed.");
-        }
-
-        [[maybe_unused]] auto const valueSet = AssignValue(field, record, value);
-        LUGIZMO_ASSERT_EXP(valueSet, "InsertValue expected AssignValue to succeed.");
-
-        return true;
-    }
-
     template <typename T, typename F, typename R, typename L>
-    void DataFrame<T, F, R, L>::InsertOrAssignValue(FldT const& field, RecT const& record, T const& value) requires DFValIndex<FldI> and DFValIndex<RecI> // TODO remove requirement
+    void DataFrame<T, F, R, L>::UpsertValue(FldT const& field, RecT const& record, T const& value) requires DFValIndex<FldI> and DFValIndex<RecI> // TODO remove requirement
     {
         // check if field and record are present
         auto const hasFld = fldIndex.Position(field);
@@ -1063,7 +1023,7 @@ namespace lugizmo {
         if(hasFld and hasRec)
         {
             [[maybe_unused]] auto const assigned = AssignValue(field, record, value);
-            LUGIZMO_ASSERT_EXP(assigned, "InsertOrAssignValue expected AssignValue to succeed.");
+            LUGIZMO_ASSERT_EXP(assigned, "UpsertValue expected AssignValue to succeed.");
 
             return;
         }
@@ -1073,18 +1033,18 @@ namespace lugizmo {
         {
             // the field is not present
             [[maybe_unused]] auto const fieldAdded = AddField(field);
-            LUGIZMO_ASSERT_EXP(fieldAdded, "InsertOrAssignValue expected AddField to succeed.");
+            LUGIZMO_ASSERT_EXP(fieldAdded, "UpsertValue expected AddField to succeed.");
         }
 
         if(not hasRec)
         {
             // the record is not present
             [[maybe_unused]] auto const recordAdded = AddRecord(record);
-            LUGIZMO_ASSERT_EXP(recordAdded, "InsertOrAssignValue expected AddRecord to succeed.");
+            LUGIZMO_ASSERT_EXP(recordAdded, "UpsertValue expected AddRecord to succeed.");
         }
 
         [[maybe_unused]] auto const valueSet = AssignValue(field, record, value);
-        LUGIZMO_ASSERT_EXP(valueSet, "InsertOrAssignValue expected AssignValue to succeed.");
+        LUGIZMO_ASSERT_EXP(valueSet, "UpsertValue expected AssignValue to succeed.");
     }
 
     // ======== DROP ===============================================================================================================================================================
