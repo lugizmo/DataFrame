@@ -37,7 +37,7 @@ target_sources(DataFrame PUBLIC ${LUGIZMO_DF_INCLUDES})
 target_include_directories(DataFrame PUBLIC include/)
 target_compile_definitions(DataFrame PUBLIC
         LUGIZMO_DF_ENABLE_ASSERT=$<IF:$<BOOL:${LUGIZMO_DF_ENABLE_ASSERT}>,1,0>
-        LUGIZMO_DF_ENABLE_ASSERT_EXPENSIVE=$<IF:$<BOOL:${LUGIZMO_DF_ENABLE_ASSERT_EXPENSIVE}>,1,0>
+        LUGIZMO_DF_ENABLE_ASSERT_TRACE=$<IF:$<BOOL:${LUGIZMO_DF_ENABLE_ASSERT_TRACE}>,1,0>
 )
 
 target_compile_options(DataFrame PRIVATE ${LUGIZMO_CXX_FLAGS})

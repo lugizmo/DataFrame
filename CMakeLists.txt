@@ -23,7 +23,7 @@ option(LUGIZMO_DOWNLOAD_BENCHMARK "Download Benchmark regardless of local instal
 
 option(LUGIZMO_USE_CLANG_TIDY "Enable Clang-Tidy analysis during builds." OFF)
 option(LUGIZMO_DF_ENABLE_ASSERT "Enable default runtime assertions in LUGIZMO_ASSERT." ON)
-option(LUGIZMO_DF_ENABLE_ASSERT_EXPENSIVE "Enable expensive runtime assertions in LUGIZMO_ASSERT_EXP." OFF)
+option(LUGIZMO_DF_ENABLE_ASSERT_TRACE "Enable internal trace runtime assertions in LUGIZMO_ASSERT_TRACE (alias: LUGIZMO_ASSERT_TRACE)." OFF)
 
 set(LUGIZMO_BUILD_TESTING ${BUILD_TESTING})
 set(LUGIZMO_BUILD_BENCH ${BUILD_BENCHMARKS})

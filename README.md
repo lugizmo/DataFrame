@@ -113,6 +113,7 @@ Functional:
 
 ### TODO General
 
+- put all types and functions etc. not intended for the user in a separate namespace
 - rework dependency management to allow local versions
 - add lldb tooling
 - improve clang-format

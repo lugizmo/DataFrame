@@ -31,6 +31,7 @@ if(LUGIZMO_BUILD_TESTING)
             RM_DataframeMutatingTest.cpp
             RM_DataframeViewsTest.cpp
             RM_DataframePropertiesTest.cpp
+            RM_DataframeNonTrivialTypeTest.cpp
 
             main.cpp
     )

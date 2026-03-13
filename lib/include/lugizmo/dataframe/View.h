@@ -92,7 +92,7 @@ namespace lugizmo {
         DFView(MDSpanDF<Layout> original, IndexT const originalIndex, size_t const index, size_t const begin, size_t const end, bool const isFieldView) noexcept :
             dfIndex(originalIndex)
         {
-            LUGIZMO_ASSERT_EXP(begin <= end && end <= (isFieldView ? static_cast<std::size_t>(original.extent(0)) : static_cast<std::size_t>(original.extent(1))),
+            LUGIZMO_ASSERT_TRACE(begin <= end && end <= (isFieldView ? static_cast<std::size_t>(original.extent(0)) : static_cast<std::size_t>(original.extent(1))),
                             "DFView sub-range constructor received invalid begin/end bounds.");
             std::size_t const newExtent_sz = end - begin;
 

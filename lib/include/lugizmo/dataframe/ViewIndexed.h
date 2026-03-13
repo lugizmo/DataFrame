@@ -74,7 +74,7 @@ namespace lugizmo {
 
             constexpr IteratorValue(T* v, KeyType* i) noexcept : val(v), idx(i)
             {
-                LUGIZMO_ASSERT_EXP(v != nullptr && i != nullptr, "IteratorValue requires non-null value and index pointers.");
+                LUGIZMO_ASSERT_TRACE(v != nullptr && i != nullptr, "IteratorValue requires non-null value and index pointers.");
             }
             constexpr ~IteratorValue() noexcept = default;
 
@@ -111,7 +111,7 @@ namespace lugizmo {
 
             void SetCurrent(DIt& p, IIt& i)
             {
-                LUGIZMO_ASSERT_EXP(current.has_value(), "IteratorIdx expected current value storage to be initialized.");
+                LUGIZMO_ASSERT_TRACE(current.has_value(), "IteratorIdx expected current value storage to be initialized.");
                 current.emplace(Val(p.operator->(), i.operator->()));
             }
 
@@ -382,7 +382,7 @@ namespace lugizmo {
             auto pos = std::ranges::find(indexSpan, key);
             if(pos == indexSpan.end()) return nullptr;
 
-            LUGIZMO_ASSERT_EXP(indexSpan.size() == dataView.Size(), "DFViewIndexed invariant failed: index and data view size mismatch.");
+            LUGIZMO_ASSERT_TRACE(indexSpan.size() == dataView.Size(), "DFViewIndexed invariant failed: index and data view size mismatch.");
             return &dataView[static_cast<size_t>(std::distance(indexSpan.begin(), pos))];
         }
 
@@ -394,7 +394,7 @@ namespace lugizmo {
             auto pos = std::ranges::find(indexSpan, key);
             if(pos == indexSpan.end()) return nullptr;
 
-            LUGIZMO_ASSERT_EXP(indexSpan.size() == dataView.Size(), "DFViewIndexed invariant failed: index and data view size mismatch.");
+            LUGIZMO_ASSERT_TRACE(indexSpan.size() == dataView.Size(), "DFViewIndexed invariant failed: index and data view size mismatch.");
             return &dataView[static_cast<size_t>(std::distance(indexSpan.begin(), pos))];
         }
 

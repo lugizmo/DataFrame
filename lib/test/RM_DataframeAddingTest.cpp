@@ -29,8 +29,11 @@
 //     SetRecordRange(std::optional<RecT> lower, std::optional<RecT> upper, std::initializer_list<std::initializer_list<T>> records) -> bool requires DFSeqIndex<FldI>
 //     SetRecordRange(DFRangeIndexBounds<RecT>, std::initializer_list<std::initializer_list<T>> records) -> bool requires DFSeqIndex<FldI>
 //
+// ✅ assign_value
+// - AssignValue(FldT const& field, RecT const& record, U&& value) -> bool
+//
 // ✅ upsert_value
-// - UpsertValue(FldT const& field, RecT const& record, T const& value);
+// - UpsertValue(FldT const& field, RecT const& record, U&& value);
 
 #include <string>
 #include <array>
@@ -174,8 +177,9 @@ TEST(lugizmo_dataframe_adding_row_major, add_records_val)
  *  @brief Upsert value in the dataframe.
  *         If the field is not present and/or the record, they will be added and value will be assigned.
  *         If both are already present, value will be replaced.
+ *         Also validates forwarding with explicitly constructible sources.
  *
- *  @see   lugizmo::Dataframe.UpsertValue(FldT const& field, RecT const& record, T const& value);
+ *  @see   lugizmo::Dataframe.UpsertValue(FldT const& field, RecT const& record, U&& value);
  */
 TEST(lugizmo_dataframe_adding_row_major, upsert_value)
 {
@@ -229,5 +233,102 @@ TEST(lugizmo_dataframe_adding_row_major, upsert_value)
 
     {
         // TODO add for sequence index
+    }
+
+    {
+        struct ExplicitIntValue
+        {
+            int value = 0;
+
+            ExplicitIntValue() = default;
+            explicit ExplicitIntValue(int const v) : value(v) {}
+        };
+
+        auto df = DataFrame<ExplicitIntValue, std::string, std::string>();
+
+        // explicit-constructor source type should be accepted on insert
+        df.UpsertValue("field1", "record1", 5);
+        auto val = df.GetValue("field1", "record1");
+        ASSERT_TRUE(val.HasValue());
+        EXPECT_EQ(val->value, 5);
+
+        // explicit-constructor source type should be accepted on replace
+        df.UpsertValue("field1", "record1", 11);
+        val = df.GetValue("field1", "record1");
+        ASSERT_TRUE(val.HasValue());
+        EXPECT_EQ(val->value, 11);
+    }
+}
+
+/**
+ *  @brief Assign value in the dataframe.
+ *         Replaces the value when field and record are present.
+ *         If field and/or record are missing, returns false and does not add indices.
+ *         Also validates forwarding with explicitly constructible sources.
+ *
+ *  @see   lugizmo::Dataframe.AssignValue(FldT const& field, RecT const& record, U&& value) -> bool;
+ */
+TEST(lugizmo_dataframe_adding_row_major, assign_value)
+{
+    using namespace lugizmo;
+
+    {
+        auto df = DataFrame<int, std::string, std::string>();
+
+        // no data yet -> assign fails
+        EXPECT_FALSE(df.AssignValue("field1", "record1", 1));
+
+        // missing record -> assign fails
+        ASSERT_TRUE(df.AddField("field1"));
+        EXPECT_FALSE(df.AssignValue("field1", "record1", 1));
+
+        // missing field -> assign fails
+        ASSERT_TRUE(df.AddRecord("record1"));
+        EXPECT_FALSE(df.AssignValue("field2", "record1", 2));
+
+        // both present -> assign succeeds
+        ASSERT_TRUE(df.AssignValue("field1", "record1", 3));
+        auto val = df.GetValue("field1", "record1");
+        ASSERT_TRUE(val.HasValue());
+        EXPECT_EQ(val, 3);
+
+        // assigning must not add missing indices
+        EXPECT_FALSE(df.AssignValue("field1", "record2", 4));
+        EXPECT_EQ(df.FieldSize(), 1);
+        EXPECT_EQ(df.RecordSize(), 1);
+
+        ASSERT_TRUE(df.AssignValue("field1", "record1", 7));
+        val = df.GetValue("field1", "record1");
+        ASSERT_TRUE(val.HasValue());
+        EXPECT_EQ(val, 7);
+    }
+
+    {
+        struct ExplicitIntValue
+        {
+            int value = 0;
+
+            ExplicitIntValue() = default;
+            explicit ExplicitIntValue(int const v) : value(v) {}
+        };
+
+        auto df = DataFrame<ExplicitIntValue, std::string, std::string>();
+        ASSERT_TRUE(df.AddField("field1"));
+        ASSERT_TRUE(df.AddRecord("record1"));
+
+        ASSERT_TRUE(df.AssignValue("field1", "record1", 9));
+        auto val = df.GetValue("field1", "record1");
+        ASSERT_TRUE(val.HasValue());
+        EXPECT_EQ(val->value, 9);
+
+        ASSERT_TRUE(df.AssignValue("field1", "record1", 13));
+        val = df.GetValue("field1", "record1");
+        ASSERT_TRUE(val.HasValue());
+        EXPECT_EQ(val->value, 13);
+
+        EXPECT_FALSE(df.AssignValue("field2", "record1", 17));
+        EXPECT_FALSE(df.AssignValue("field1", "record2", 17));
+        EXPECT_EQ(df.FieldSize(), 1);
+        EXPECT_EQ(df.RecordSize(), 1);
     }
 }

@@ -274,7 +274,7 @@ namespace lugizmo {
         constexpr auto Size() const noexcept -> size_t
         {
             // TODO ensure this is never < 0
-            LUGIZMO_ASSERT_EXP(bounds.lower <= bounds.upper, "DFRangeIndex invariant failed: lower bound must not exceed upper bound.");
+            LUGIZMO_ASSERT_TRACE(bounds.lower <= bounds.upper, "DFRangeIndex invariant failed: lower bound must not exceed upper bound.");
             return static_cast<size_t>(bounds.upper - bounds.lower);
         }
 

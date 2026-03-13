@@ -8,6 +8,7 @@
 #define LUGIZMO_DF_DATAFRAME_H
 
 #include <cstddef>
+#include <concepts>
 #include <format>
 #include <functional>
 #include <iostream>
@@ -59,7 +60,8 @@ namespace lugizmo {
         // dataframe basic options and types
         static_assert(std::is_same_v<L, RowMajor>, "Currently only layout_right is supported");
         static_assert(std::is_default_constructible_v<T>, "Currently only default constructable values are supported");
-        static_assert(std::is_trivially_copyable_v<T>, "Assumes trivially copyable element type");
+        static_assert(std::is_copy_constructible_v<T>, "DataFrame currently requires copy-constructible element types.");
+        static_assert(std::is_copy_assignable_v<T>, "DataFrame currently requires copy-assignable element types.");
 
         using Layout = std::conditional_t<std::is_same_v<L, RowMajor>, DFRowMajor<T>, void>;
 
@@ -109,6 +111,9 @@ namespace lugizmo {
 
     private:
 
+        static_assert(std::is_trivially_copyable_v<Flds>, "Fields() returns this.");
+        static_assert(std::is_trivially_copyable_v<Recs>, "Records() returns this.");
+
         // data section
         MemRsc     backingRes;     // memory resource to use
         size_t     capacity;       // capacity of data
@@ -121,7 +126,7 @@ namespace lugizmo {
 
     public:
 
-        // ======== CONSTRUCTION ===========================================================================================================
+        // ======== CONSTRUCTION ===================================================================================================================================================
 
         /**
          *  @brief   Default constructor that creates an empty
@@ -141,7 +146,7 @@ namespace lugizmo {
          */
         explicit DataFrame(size_t reservedValues, MemRsc res = internal::BackingResDefault()) noexcept;
 
-        // ======== CONSTRUCTION FUNCTIONS =================================================================================================
+        // ======== CONSTRUCTION FUNCTIONS =========================================================================================================================================
 
         /**
          * @brief Empty Dataframe with field definitions optionally reserving memory
@@ -223,7 +228,7 @@ namespace lugizmo {
                                          size_t capacity = 0,
                                          MemRsc res      = internal::BackingResDefault()) noexcept -> DataFrame;
 
-        // ======== COPY, MOVE & DELETE ====================================================================================================
+        // ======== COPY, MOVE & DELETE ============================================================================================================================================
 
         DataFrame(DataFrame const&) noexcept = delete;      // TODO or should I !?
         auto operator=(DataFrame const&) noexcept = delete; // TODO or should I !?
@@ -233,7 +238,7 @@ namespace lugizmo {
 
         ~DataFrame() noexcept;
 
-        // ======== MANIPULATION UNIQUE INDEX ==============================================================================================
+        // ======== MANIPULATION UNIQUE INDEX ======================================================================================================================================
 
         /**
          * @brief Add a new field to the dataframe.
@@ -346,40 +351,44 @@ namespace lugizmo {
          *
          * @return       True if value was replaced.
          */
-        auto AssignValue(FldT const& field, RecT const& record, T const& value) -> bool;
+        template<typename U>
+        requires std::constructible_from<T, U&&>
+        auto AssignValue(FldT const& field, RecT const& record, U&& value) -> bool;
 
         /**
         * @brief Adds the value or replaces it if already present.
-        *        If field and/or record is not present yet, they are added and the value is set.
+        *        If field and/or record are not present yet, they are added and the value is set.
         *        If already present value gets replaced.
         *
         * @param field  The field name to insert if not present yet.
         * @param record The record name to insert if not present yet.
         * @param value  The value to assign.
         */
-        void UpsertValue(FldT const& field, RecT const& record, T const& value) requires DFValIndex<FldI> and DFValIndex<RecI>; // TODO remove requirement
+        template<typename U>
+        requires std::constructible_from<T, U&&>
+        void UpsertValue(FldT const& field, RecT const& record, U&& value) requires DFValIndices<FldI, RecI>;
 
         // ======== DROP ===========================================================================================================================================================
 
         /**
          *  @brief Drop a field index from the dataframe.
-         *  @see   SetFieldRange to shrink the dataframe when range index is used.
+         *  @see   SetFieldRange to shrink the dataframe when the range index is used.
          *
          *  @param index the index to drop from the dataframe.
-         *  @return true when index was removed otherwise such index wasn't present in the dataframe.
+         *  @return true when index was removed otherwise, such an index wasn't present in the dataframe.
          */
         auto DropField(F const& index) -> bool requires DFValIndex<FldI>;
 
         /**
          *  @brief Drop a record index from the dataframe.
-         *  @see   SetRecordRange to shrink the dataframe when range index is used.
+         *  @see   SetRecordRange to shrink the dataframe when the range index is used.
          *
          *  @param index the index to drop from the dataframe.
-         *  @return true when index was removed otherwise such index wasn't present in the dataframe.
+         *  @return true when index was removed otherwise, such an index wasn't present in the dataframe.
          */
         auto DropRecord(R const& index) -> bool requires DFValIndex<RecI>;
 
-        // ======== VIEWS ==================================================================================================================
+        // ======== VIEWS ==========================================================================================================================================================
 
         /**
          * @return      View into a field (handling layout) if field found in dataframe.
@@ -391,7 +400,6 @@ namespace lugizmo {
         /**
          * @return      View into a field (handling layout) if field found in dataframe.
          *              Row index is available while iterating.
-         * TODO as mentioned in the README this interface is currently not 100% as expected. Changes my come.
          * @param index field index to try getting data for.
          */
         [[nodiscard]]
@@ -407,25 +415,36 @@ namespace lugizmo {
         /**
          * @return      View into a record (handling layout) if record found in dataframe.
          *              Field index is available while iterating.
-         * TODO as mentioned in the README this interface is currently not 100% as expected. Changes my come.
          * @param index record index to try getting data for.
          */
         [[nodiscard]]
         auto ViewRecordIndexed(this auto& self, RecT const& index) noexcept -> RecordViewIndexedT<decltype(self)>;
 
-        /// @brief Alternative syntax for GetField()
+        /**
+         *  @brief   Alternative syntax for ViewField().
+         *  @copydoc ViewField
+         */
         auto operator|(this auto& self, SelectField<F> const& index) noexcept -> FieldViewT<decltype(self)> requires DFValIndex<FldI> { return self.ViewField(index.val); }
 
-        /// @brief Alternative syntax for GetRecord()
+        /**
+         * @brief   Alternative syntax for ViewRecord()
+         * @copydoc ViewRecord
+         */
         auto operator|(this auto& self, SelectRecord<R> const& index) noexcept -> RecordViewT<decltype(self)> requires DFValIndex<RecI> { return self.ViewRecord(index.val); }
 
-        /// @brief Alternative syntax for GetFieldIndexed()
+        /**
+         * @brief   Alternative syntax for ViewFieldIndexed()
+         * @copydoc ViewFieldIndexed
+         */
         auto operator|(this auto& self, SelectFieldIndexed<F> const& index) noexcept -> FieldViewIndexedT<decltype(self)> requires DFValIndex<FldI> { return self.ViewFieldIndexed(index.val); }
 
-        /// @brief Alternative syntax for GetRecordIndexed()
+        /**
+         * @brief   Alternative syntax for GetRecordIndexed()
+         * @copydoc ViewRecordIndexed
+         */
         auto operator|(this auto& self, SelectRecordIndexed<R> const& index) noexcept -> RecordViewIndexedT<decltype(self)> requires DFValIndex<RecI> { return self.ViewRecordIndexed(index.val); }
 
-        // ======== FUNCTIONAL =============================================================================================================
+        // ======== FUNCTIONAL =====================================================================================================================================================
 
         /**
          * @brief       Apply a function on each value in a field.
@@ -449,7 +468,7 @@ namespace lugizmo {
         template<typename Func>
         auto ForEachOnRecord(this auto& self, R const& index, Func&& func) -> RecordViewT<decltype(self)> requires DFValIndex<RecI>;
 
-        // ======== PRINT ==================================================================================================================
+        // ======== PRINT ==========================================================================================================================================================
 
         /**
          *  @brief Prints content of the dataframe to std-out.
@@ -475,53 +494,75 @@ namespace lugizmo {
          */
         void PrintCSV(std::ostream& stream, char sep = ',') const;
 
-        /// @return The size of all elements stored in the dataframe.
+        // ======== STATS ==========================================================================================================================================================
+
+        /**
+         * @return The size of all elements stored in the dataframe.
+         */
         [[nodiscard]] auto Size() const noexcept -> size_t { return recsData.size(); }
 
-        /// @return The count of fields.
+        /**
+         * @return The count of fields.
+         */
         [[nodiscard]] auto FieldSize() const noexcept -> size_t { return fldIndex.Size(); }
 
-        /// @return The count of records.
+        /**
+         * @return The count of records.
+         */
         [[nodiscard]] auto RecordSize() const noexcept -> size_t { return recIndex.Size(); }
 
-        /// @attention It's a view so can be invalidated when adding/removing fields/records.
-        /// @return A view into the current fields (indices) stored in the dataframe.
+        /**
+         * @attention It's a view so can be invalidated when adding/removing fields/records.
+         * @return A view into the current fields (indices) stored in the dataframe.
+         */
         [[nodiscard]] auto Fields() const noexcept -> Flds { return fldIndex.Keys(); }
 
-        /// @attention It's a view so can be invalidated when adding/removing fields/records.
-        /// @return A view into the current records (indices) stored in the dataframe.
+        /**
+         * @attention It's a view so can be invalidated when adding/removing fields/records.
+         * @return A view into the current records (indices) stored in the dataframe.
+         */
         [[nodiscard]] auto Records() const noexcept -> Recs { return recIndex.Keys(); }
 
-        /// @attention It's a pointer so can be invalidated when adding/removing fields/records.
-        ///            Only keep this pointer alive as long as this dataframe wasn't mutated.
-        /// @return    Pointer to the currently stored dataframe->data.
+        /**
+         * @attention It's a pointer so can be invalidated when adding/removing fields/records.
+         *            Only keep this pointer alive as long as this dataframe wasn't mutated.
+         * @return    Pointer to the currently stored dataframe->data.
+         */
         [[nodiscard]] auto Data() const noexcept -> T const* { return data; }
 
-        /// @attention It's a pointer so can be invalidated when adding/removing fields/records.
-        ///            Only keep this pointer alive as long as this dataframe wasn't mutated.
-        /// @return    View as std::mdspan into the data.
+        /**
+         * @attention It's a pointer so can be invalidated when adding/removing fields/records.
+         *            Only keep this pointer alive as long as this dataframe wasn't mutated.
+         * @return    View as std::mdspan into the data.
+         */
         [[nodiscard]] auto MDSpan() const noexcept -> ConstDataMatrix { return recsData; };
 
-        /// @attention It's a view so can be invalidated when adding/removing fields/records.
-        /// @return    A view into the current records (indices) stored in the dataframe.
+        /**
+         * @attention It's a view so can be invalidated when adding/removing fields/records.
+         * @return    A view into the current records (indices) stored in the dataframe.
+         */
         [[nodiscard]] auto Values(this auto& self) noexcept -> meta::ThisValueSpanT<decltype(self), T> { return std::span(self.data, self.recsData.size()); }
 
-        /// @return True when no values are stored in the dataframe.
+        /**
+         * @return True when no values are stored in the dataframe.
+         */
         [[nodiscard]] auto Empty() const noexcept -> bool { return recsData.empty(); }
 
-        /// @return Shared reference to the memory resource used by the dataframe.
-        /// @note   No assumptions about the resource. E.g., no thread safety.
-        [[nodiscard]] auto MemoryResource() const noexcept -> MemRsc { return this->backingRes; }
+        /**
+         * @return Shared reference to the memory resource used by the dataframe.
+         * @note   No assumptions about the resource. E.g., no thread safety.
+         */
+        [[nodiscard]] auto MemoryResource() const noexcept -> std::shared_ptr<std::pmr::memory_resource> { return backingRes; }
 
-        /// @return Default memory resource as used by the Dataframe if non is passed.
-        /// @note   Not thread safe.
-        /// @see    MemoryResource() to get a reference to the current used resource.
+        /**
+         * @return Default memory resource as used by the Dataframe if non is passed.
+         * @note   Not thread safe.
+         * @see    MemoryResource() to get a reference to the current used resource.
+         */
         [[nodiscard]] static auto DefaultMemoryResource() noexcept -> MemRsc { return internal::BackingResDefault(); }
-
-        static_assert(std::is_trivially_copyable_v<Flds>, "Fields() returns this.");
     };
 
-    // ======== CONSTRUCTION ===============================================================================================================
+    // ======== CONSTRUCTION =======================================================================================================================================================
 
     template <typename T, typename F, typename R, typename L>
     DataFrame<T, F, R, L>::DataFrame(MemRsc res) noexcept :
@@ -551,7 +592,7 @@ namespace lugizmo {
         else                              recIndex = RecI{};
     }
 
-    // ======== CONSTRUCTION FUNCTIONS =====================================================================================================
+    // ======== CONSTRUCTION FUNCTIONS =============================================================================================================================================
 
     template <typename T, typename F, typename R, typename L>
     auto DataFrame<T, F, R, L>::FromFields(std::conditional_t<IsFISeq, DFRangeIndexBounds<FldT>, std::span<FldT const>> const fields, size_t const reservedValues, MemRsc res) noexcept -> DataFrame
@@ -696,7 +737,7 @@ namespace lugizmo {
         return df;
     }
 
-    // ======== COPY, MOVE & DELETE ========================================================================================================
+    // ======== COPY, MOVE & DELETE ================================================================================================================================================
 
     template <typename T, typename F, typename R, typename L>
     DataFrame<T, F, R, L>::DataFrame(DataFrame &&other) noexcept
@@ -724,10 +765,21 @@ namespace lugizmo {
     {
         if(this != &other)
         {
+            if(data != nullptr)
+            {
+                LUGIZMO_ASSERT_TRACE(backingRes != nullptr, "DataFrame move assignment cannot release data without a memory resource.");
+                Layout::Free(data, capacity, recsData, *backingRes.get());
+            }
+            else
+            {
+                capacity = 0;
+                recsData = {};
+            }
+
             backingRes = std::move(other.backingRes);
             capacity   = other.capacity;
-            data       = std::move(other.data);
-            recsData   = std::move(other.recsData);
+            data       = other.data;
+            recsData   = other.recsData;
             fldIndex   = std::move(other.fldIndex);
             recIndex   = std::move(other.recIndex);
 
@@ -745,11 +797,15 @@ namespace lugizmo {
     template <typename T, typename F, typename R, typename L>
     DataFrame<T, F, R, L>::~DataFrame() noexcept
     {
-        LUGIZMO_ASSERT_EXP(not (data != nullptr && capacity == 0), "DataFrame invariant failed: non-null data with zero capacity.");
-        if(data != nullptr && capacity) backingRes->deallocate(static_cast<void*>(data), capacity * sizeof(T), internal::Alignment<T>());
+        LUGIZMO_ASSERT_TRACE(not (data != nullptr && capacity == 0), "DataFrame invariant failed: non-null data with zero capacity.");
+        if(data != nullptr)
+        {
+            LUGIZMO_ASSERT_TRACE(backingRes != nullptr, "DataFrame cannot release data without a memory resource.");
+            Layout::Free(data, capacity, recsData, *backingRes.get());
+        }
     }
 
-    // ======== MANIPULATION UNIQUE INDEX ==================================================================================================
+    // ======== MANIPULATION UNIQUE INDEX ==========================================================================================================================================
 
     template <typename T, typename F, typename R, typename L>
     auto DataFrame<T, F, R, L>::AddField(F index, T const& defaultValue) -> bool requires DFValIndex<FldI>
@@ -814,7 +870,7 @@ namespace lugizmo {
         return true;
     }
 
-    // ======== MANIPULATION SEQUENCE INDEX ================================================================================================
+    // ======== MANIPULATION SEQUENCE INDEX ========================================================================================================================================
 
     template <typename T, typename F, typename R, typename L>
     auto DataFrame<T, F, R, L>::SetFieldRange(std::optional<FldT> const lower, std::optional<FldT> const upper, T const& defaultVal) noexcept -> bool requires DFSeqIndex<FldI>
@@ -1000,12 +1056,15 @@ namespace lugizmo {
     // ======== SETTERS ============================================================================================================================================================
 
     template<typename T, typename F, typename R, typename L>
-    auto DataFrame<T, F, R, L>::AssignValue(FldT const& field, RecT const& record, T const& value) -> bool
+    template<typename U>
+    requires std::constructible_from<T, U&&>
+    auto DataFrame<T, F, R, L>::AssignValue(FldT const& field, RecT const& record, U&& value) -> bool
     {
         if(auto get = GetValue(field, record); get.HasValue())
         {
             T& g = *get;
-            g    = value;
+            if constexpr(std::assignable_from<T&, U&&>) g = std::forward<U>(value);
+            else                                        g = T(std::forward<U>(value));
             return true;
         }
 
@@ -1013,7 +1072,9 @@ namespace lugizmo {
     }
 
     template <typename T, typename F, typename R, typename L>
-    void DataFrame<T, F, R, L>::UpsertValue(FldT const& field, RecT const& record, T const& value) requires DFValIndex<FldI> and DFValIndex<RecI> // TODO remove requirement
+    template <typename U>
+    requires std::constructible_from<T, U&&>
+    void DataFrame<T, F, R, L>::UpsertValue(FldT const& field, RecT const& record, U&& value) requires DFValIndices<FldI, RecI>
     {
         // check if field and record are present
         auto const hasFld = fldIndex.Position(field);
@@ -1022,8 +1083,8 @@ namespace lugizmo {
         // assign
         if(hasFld and hasRec)
         {
-            [[maybe_unused]] auto const assigned = AssignValue(field, record, value);
-            LUGIZMO_ASSERT_EXP(assigned, "UpsertValue expected AssignValue to succeed.");
+            [[maybe_unused]] auto const assigned = AssignValue(field, record, std::forward<U>(value));
+            LUGIZMO_ASSERT_TRACE(assigned, "UpsertValue expected AssignValue to succeed.");
 
             return;
         }
@@ -1033,18 +1094,18 @@ namespace lugizmo {
         {
             // the field is not present
             [[maybe_unused]] auto const fieldAdded = AddField(field);
-            LUGIZMO_ASSERT_EXP(fieldAdded, "UpsertValue expected AddField to succeed.");
+            LUGIZMO_ASSERT_TRACE(fieldAdded, "UpsertValue expected AddField to succeed.");
         }
 
         if(not hasRec)
         {
             // the record is not present
             [[maybe_unused]] auto const recordAdded = AddRecord(record);
-            LUGIZMO_ASSERT_EXP(recordAdded, "UpsertValue expected AddRecord to succeed.");
+            LUGIZMO_ASSERT_TRACE(recordAdded, "UpsertValue expected AddRecord to succeed.");
         }
 
-        [[maybe_unused]] auto const valueSet = AssignValue(field, record, value);
-        LUGIZMO_ASSERT_EXP(valueSet, "UpsertValue expected AssignValue to succeed.");
+        [[maybe_unused]] auto const valueSet = AssignValue(field, record, std::forward<U>(value));
+        LUGIZMO_ASSERT_TRACE(valueSet, "UpsertValue expected AssignValue to succeed.");
     }
 
     // ======== DROP ===============================================================================================================================================================
@@ -1073,7 +1134,7 @@ namespace lugizmo {
         return true;
     }
 
-    // ======== VIEWS ======================================================================================================================
+    // ======== VIEWS ==============================================================================================================================================================
 
     template <typename T, typename F, typename R, typename L>
     auto DataFrame<T, F, R, L>::ViewField(this auto& self, FldT const& index) noexcept -> FieldViewT<decltype(self)>
@@ -1189,7 +1250,7 @@ namespace lugizmo {
         }
     }
 
-    // ======== FUNCTIONAL =================================================================================================================
+    // ======== FUNCTIONAL =========================================================================================================================================================
 
     template <typename T, typename F, typename R, typename L>
     template <typename Func>
@@ -1211,7 +1272,7 @@ namespace lugizmo {
         return view;
     }
 
-    // ======== PRINT ======================================================================================================================
+    // ======== PRINT ==============================================================================================================================================================
 
     template <typename T, typename F, typename R, typename L>
     void DataFrame<T, F, R, L>::Print() const
@@ -1246,7 +1307,7 @@ namespace lugizmo {
             for (size_t pos = 0; pos < colCount; ++pos)
             {
                 auto fld = fldIndex.Key(pos);
-                LUGIZMO_ASSERT_EXP(fld.has_value(), "Print expected a valid field key for every field position.");
+                LUGIZMO_ASSERT_TRACE(fld.has_value(), "Print expected a valid field key for every field position.");
                 stream << std::format("{:<15}", *fld);
             }
         }
@@ -1296,7 +1357,7 @@ namespace lugizmo {
             for (size_t i = 0; i < rowCount; ++i)
             {
                 auto recKey = recIndex.Key(i);
-                LUGIZMO_ASSERT_EXP(recKey.has_value(), "Print expected a valid record key for every record position.");
+                LUGIZMO_ASSERT_TRACE(recKey.has_value(), "Print expected a valid record key for every record position.");
                 stream << std::format("{:<15}", *recKey);
 
                 if constexpr (IsFISeq)

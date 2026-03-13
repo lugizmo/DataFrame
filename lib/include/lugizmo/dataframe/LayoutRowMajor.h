@@ -10,10 +10,10 @@
 #include <memory>
 #include <memory_resource>
 #include <algorithm>
-#include <span>
-#include <tuple>
+#include <iterator>
 #include <mdspan>
-#include <cmath>
+#include <type_traits>
+#include <utility>
 
 #include "lugizmo/Assert.h"
 #include "lugizmo/memory/Memory.h"
@@ -23,71 +23,38 @@ namespace lugizmo {
 
     /**
      * @class DFRowMajor
-     * @brief Storage controller for 2-D, row-major–ordered datasets used by the DataFrame.
+     * @brief Row-major storage backend for `DataFrame`.
      *
      * @details
-     *   This layout manages memory for rectangular data blocks consisting of `records` (rows)
-     *   and `fields` (columns). All values are stored contiguously in a single, aligned buffer
-     *   (`T* data`), optimized for iteration over rows. It operates directly on raw memory
-     *   managed through a polymorphic allocator (`std::pmr::memory_resource`).
+     * `DFRowMajor` manages a contiguous `T*` buffer interpreted as a 2D matrix
+     * (`rowCount × colCount`) in row-major order (`layout_right`):
      *
-     *   Reallocations use a geometric growth strategy and aligned allocations
-     *   (`internal::Alignment<T>()`), ensuring predictable cache-friendly access patterns.
+     *   - row 0: `data[0 ... colCount-1]`
+     *   - row 1: `data[colCount ... 2*colCount-1]`
+     *   - ...
      *
-     *   ┌───────────────────────────────┐
-     *   │ Layout: Row-major order       │
-     *   │ (rows contiguous in memory)   │
-     *   ├───────────────────────────────┤
-     *   │ Field_0  Field_1  Field_2 ... │
-     *   │───────────────────────────────│
-     *   │ Row_0 → [ v00 , v01 , v02 ]   │
-     *   │ Row_1 → [ v10 , v11 , v12 ]   │
-     *   │ Row_2 → [ v20 , v21 , v22 ]   │
-     *   └───────────────────────────────┘
+     * The accompanying `MDSpan` is the authoritative shape (`rows`, `cols`), while
+     * `capacity` is the number of allocated elements in the backing buffer.
      *
-     *   Memory layout (for M rows × N columns):
+     * @par Lifetime model
+     *   - Elements in the active range (`rows * cols`) are fully constructed.
+     *   - Resize/reallocate paths construct destination elements first.
+     *   - Removed/moved-from active elements are destroyed before deallocation.
+     *   - For trivially destructible types, destruction loops compile out.
      *
-     *       data[0] ............... data[N-1]        → row 0
-     *       data[N] ............... data[2*N-1]      → row 1
-     *       data[2*N] ............. data[3*N-1]      → row 2
-     *       ...
-     *       data[(M-1)*N] ......... data[M*N - 1]    → row M-1
+     * @par Supported operations
+     *   - Add/remove rows from begin/end (`ResizeRows`).
+     *   - Add/remove columns from begin/end (`ResizeCols`).
+     *   - Populate inserted rows with one value set (`span`/iterators) or row-by-row input.
+     *   - Drop one row/column in-place.
+     *   - Explicit free/reset of storage.
      *
-     *   The internal mdspan view wraps this buffer:
-     *
-     *       MDSpan{ data, rows, cols }  // layout_right → row-major
-     *
-     * @tparam T  The element type. Must be trivially copyable and trivially destructible.
+     * @tparam T element type stored in the layout.
      *
      * @note
-     *   - All operations are exception-free and assert-based.
-     *   - Iterators and references are invalidated after any resize or reallocation.
-     *   - Thread safety: not safe for concurrent mutation.
-     *   - `capacity` always represents the total number of elements (not bytes).
-     *   - `ResizeRows()` and `ResizeCols()` may reallocate memory if capacity is not enough.
-     *
-     * @section Example Example usage
-     *
-     *   ```cpp
-     *   using namespace lugizmo;
-     *
-     *   std::pmr::monotonic_buffer_resource res;
-     *   double* data = nullptr;
-     *   std::size_t capacity = 0;
-     *   DFRowMajor<double>::MDSpan view{nullptr, 0, 0};
-     *
-     *   // Create 3×4 matrix initialized with zeros
-     *   DFRowMajor<double>::ResizeRows(data, capacity, res, view, +3, 0, 0.0);
-     *   DFRowMajor<double>::ResizeCols(data, capacity, res, view, +0, +4, 0.0);
-     *
-     *   // Access row 1, column 2:
-     *   double val = view(1, 2);
-     *   ```
-     *
-     * @section Design Design decisions
-     *   - Uses `std::layout_right` (row-major) for predictable cache access.
-     *   - Grows geometrically using `internal::GrowthFactorDefault`.
-     *   - Uses `internal::Alignment<T>()` for consistent cacheline-aware alignment.
+     *   - Exception-free design, guarded by `LUGIZMO_ASSERT(_TRACE)`.
+     *   - Not thread-safe for concurrent mutation.
+     *   - Any reallocation or dimension-changing mutation invalidates references/views/iterators.
      */
     template <typename T>
     struct DFRowMajor final
@@ -99,195 +66,525 @@ namespace lugizmo {
         static constexpr bool IsRowMajor = true;
         static constexpr bool IsColMajor = false;
 
-        // ======= ADJUST COLUMNS/ROWS BY COUNT ============================================================================================
+    private:
+
+        // ======= HELPERS: SHAPE AND CAPACITY HELPERS =============================================================================================================================
 
         /**
-         * TODO test
-         * @brief Adds column at the beginning and end of the current columns.
+         * @brief     Returns the current row count from mdspan extents.
+         * @param[in] dataView Current data view.
          *
-         * @param data          pointer to the data storing all data. (in/out)
-         * @param capacity      the current capacity of data. (in/out)
-         * @param res           the memory resources used to create/manage the data. (in/out)
-         * @param dataView      the view into the data specifying the current extends. (in/out)
-         * @param adjCountByBeg the count of columns to add/remove from the beginning.
-         * @param adjCountByEnd the count of columns to add/remove from the end.
-         * @param defaultValue  the default value to set in the new columns.
-         */ // TODO this function should also take ssize_t to remove columns. It might already work.
+         * TODO Is it actually possible that the row is negative? Maybe just do a static_cast.
+         * @return Non-negative row size as `size_t`.
+         */
+        static auto RowCount(MDSpan const& dataView) noexcept -> size_t
+        {
+            LUGIZMO_ASSERT_TRACE(dataView.extent(0) >= 0, "DFRowMajor should not have a negative row count.");
+            return dataView.extent(0) < 0 ? 0UZ : static_cast<size_t>(dataView.extent(0));
+        }
+
+        /**
+         * @brief     Returns the current column count from mdspan extents.
+         * @param[in] dataView Current data view.
+         *
+         * TODO Is it actually possible that the row is negative? Maybe just do a static_cast.
+         * @return Non-negative column count as `size_t`.
+         */
+        static auto ColCount(MDSpan const& dataView) noexcept -> size_t
+        {
+            LUGIZMO_ASSERT_TRACE(dataView.extent(0) >= 0, "DFRowMajor should not have a negative column count.");
+            return dataView.extent(1) < 0 ? 0UZ : static_cast<size_t>(dataView.extent(1));
+        }
+
+        /**
+         * @brief Returns the number of active elements for the given shape.
+         *
+         * @param[in] rowCount The row count.
+         * @param[in] colCount The column count.
+         * @return `rowCount * colCount`.
+         */
+        static auto ActiveCount(size_t const rowCount, size_t const colCount) noexcept -> size_t
+        {
+            return rowCount * colCount;
+        }
+
+        /**
+         * @brief Returns the  number of active elements for the current mdspan shape.
+         *
+         * @param[in] dataView Current data view.
+         * @return Number of active constructed elements.
+         */
+        static auto ActiveCount(MDSpan const& dataView) noexcept -> size_t
+        {
+            return ActiveCount(RowCount(dataView), ColCount(dataView));
+        }
+
+        /**
+         * @brief Computes target capacity for a required element count.
+         *
+         * @details
+         * Reuses existing capacity if it already fits; otherwise uses the internal
+         * growth policy and clamps to at least `requiredCount`.
+         *
+         * @param[in] currentCapacity Currently allocated element count.
+         * @param[in] requiredCount   Required element count.
+         * @return Next capacity in elements.
+         */
+        static auto NextCapacity(size_t const currentCapacity, size_t const requiredCount) noexcept -> size_t
+        {
+            if(requiredCount == 0) return 0;
+            if(currentCapacity >= requiredCount && currentCapacity != 0) return currentCapacity;
+
+            auto nextCapacity = internal::GrowthFactorDefault(requiredCount);
+            if(nextCapacity < requiredCount) nextCapacity = requiredCount;
+
+            return nextCapacity;
+        }
+
+        // ======= HELPERS: LIFETIME ===============================================================================================================================================
+
+        /**
+         * @brief Destroys `count` elements when `T` is non-trivially destructible.
+         *
+         * @param[in,out] data  Pointer to the first element of the range.
+         * @param[in]     count Number of elements to destroy.
+         */
+        static void DestroyRange(T* const data, size_t const count) noexcept
+        {
+            if constexpr(not std::is_trivially_destructible_v<T>)
+            {
+                if(data == nullptr || count == 0) return;
+                std::destroy_n(data, count);
+            }
+        }
+
+        /**
+         * @brief Destroys active elements and deallocates the backing buffer.
+         *
+         * @param[in,out] data        Pointer to backing storage.
+         * @param[in]     activeCount Number of active constructed elements.
+         * @param[in]     capacity    Allocated element count.
+         * @param[in,out] res         Memory resource used for deallocation.
+         */
+        static void DestroyAndDeallocate(T*& data, size_t const activeCount, size_t const capacity, Memory& res) noexcept
+        {
+            DestroyRange(data, activeCount);
+            if(data != nullptr && capacity != 0) res.deallocate(data, capacity * sizeof(T), internal::Alignment<T>());
+        }
+
+        // ======= HELPERS: ASSIGNMENT/MOVE ON CONSTRUCTED RANGES ==================================================================================================================
+
+        /**
+         * @brief Assigns/moves `count` elements from `src` to `dst` in forward order.
+         *
+         * @details
+         * Uses move-assignment when available, otherwise copy-assignment.
+         *
+         * @param[in,out] dst   Destination range start.
+         * @param[in,out] src   Source range start.
+         * @param[in]     count Number of elements to assign.
+         */
+        static void AssignForward(T* const dst, T* const src, size_t const count) noexcept
+        {
+            if(count == 0 || dst == src) return;
+
+            if constexpr(std::is_move_assignable_v<T>)
+            {
+                for(size_t i = 0; i < count; ++i) dst[i] = std::move(src[i]);
+            }
+            else
+            {
+                static_assert(std::is_copy_assignable_v<T>, "DFRowMajor requires move-assignable or copy-assignable element types.");
+                for(size_t i = 0; i < count; ++i) dst[i] = src[i];
+            }
+        }
+
+        /**
+         * @brief Assigns/moves `count` elements from `src` to `dst` in backward order.
+         *
+         * @details
+         * Backward order is used for overlapping ranges when the destination starts after
+         * the source. Uses move-assignment when available, otherwise copy-assignment.
+         *
+         * @param[in,out] dst   Destination range start.
+         * @param[in,out] src   Source range start.
+         * @param[in]     count Number of elements to assign.
+         */
+        static void AssignBackward(T* const dst, T* const src, size_t const count) noexcept
+        {
+            if(count == 0 || dst == src) return;
+
+            if constexpr(std::is_move_assignable_v<T>)
+            {
+                for(size_t i = count; i > 0; --i) dst[i - 1] = std::move(src[i - 1]);
+            }
+            else
+            {
+                static_assert(std::is_copy_assignable_v<T>, "DFRowMajor requires move-assignable or copy-assignable element types.");
+                for(size_t i = count; i > 0; --i) dst[i - 1] = src[i - 1];
+            }
+        }
+
+        // ======= HELPERS: CONSTRUCTION HELPERS ON UNINITIALIZED RANGES ===========================================================================================================
+
+        /**
+         * @brief Constructs `count` destination elements from source range.
+         *
+         * @details
+         * Uses move-construction when available, otherwise copy-construction.
+         *
+         * @param[in,out] src   Source range start.
+         * @param[in]     count Number of elements to construct.
+         * @param[in,out] dst   Destination range start (uninitialized memory).
+         */
+        static void UninitializedMoveOrCopy(T* const src, size_t const count, T* const dst)
+        {
+            if(count == 0) return;
+
+            if constexpr(std::is_move_constructible_v<T>)
+            {
+                std::uninitialized_move_n(src, count, dst);
+            }
+            else
+            {
+                static_assert(std::is_copy_constructible_v<T>, "DFRowMajor requires move-constructible or copy-constructible element types.");
+                std::uninitialized_copy_n(src, count, dst);
+            }
+        }
+
+        /**
+         * @brief Constructs rows filled with one scalar value.
+         *
+         * @param[in,out] data         Destination storage (uninitialized for target rows).
+         * @param[in]     startRow     First destination row index.
+         * @param[in]     numRows      Number of rows to construct.
+         * @param[in]     colCount     Columns per row.
+         * @param[in]     defaultValue Value copied into each element.
+         */
+        static void ConstructRowsDefault(T* const data, size_t const startRow, size_t const numRows, size_t const colCount, T const& defaultValue)
+        {
+            if(colCount == 0 || numRows == 0) return;
+
+            for(size_t row = 0; row < numRows; ++row)
+            {
+                auto* const start = data + (startRow + row) * colCount;
+                std::uninitialized_fill_n(start, colCount, defaultValue);
+            }
+        }
+
+        /**
+         * @brief Constructs rows by copying one source row range for each row.
+         *
+         * @param[in,out] data     Destination storage (uninitialized for target rows).
+         * @param[in]     startRow First destination row index.
+         * @param[in]     numRows  Number of rows to construct.
+         * @param[in]     colCount Columns per row.
+         * @param[in]     begin    Iterator to first source value.
+         * @param[in]     end      Iterator one-past-last source value.
+         */
+        template <typename InputIterator>
+        static void ConstructRowsFromValues(T* const data, size_t const startRow, size_t const numRows, size_t const colCount, InputIterator const begin, InputIterator const end)
+        {
+            if(colCount == 0 || numRows == 0) return;
+
+            auto const valueCount = std::distance(begin, end);
+            LUGIZMO_ASSERT_TRACE(valueCount == static_cast<std::ptrdiff_t>(colCount), "ConstructRowsFromValues received mismatched column count.");
+
+            for(size_t row = 0; row < numRows; ++row)
+            {
+                auto* const start = data + (startRow + row) * colCount;
+                std::uninitialized_copy(begin, end, start);
+            }
+        }
+
+        /**
+         * @brief Constructs rows from an iterator-of-rows source.
+         *
+         * @details
+         * Consumes at most `numRows` entries from `[rowBegin, rowEnd)` and advances
+         * `rowBegin` by the number of rows consumed.
+         *
+         * @tparam RowsIterator Iterator over row containers.
+         *
+         * @param[in,out] data     Destination storage (uninitialized for target rows).
+         * @param[in]     startRow First destination row index.
+         * @param[in]     numRows  Maximum number of rows to construct.
+         * @param[in]     colCount Columns per row.
+         * @param[in,out] rowBegin Current input row iterator; advanced as rows are consumed.
+         * @param[in]     rowEnd   End iterator of the row input range.
+         *
+         * @return Number of rows actually constructed.
+         */
+        template <typename RowsIterator>
+        static auto ConstructRowsByRow(T* const data, size_t const startRow, size_t const numRows, size_t const colCount, RowsIterator& rowBegin, RowsIterator const rowEnd) -> size_t
+        {
+            if(colCount == 0 || numRows == 0) return 0;
+
+            auto constructedRows = 0UZ;
+            for(size_t row = 0; row < numRows; ++row)
+            {
+                if(rowBegin == rowEnd) break;
+
+                ConstructRowsFromValues(data, startRow + row, 1, colCount, rowBegin->begin(), rowBegin->end());
+                ++rowBegin;
+                ++constructedRows;
+            }
+
+            return constructedRows;
+        }
+
+    public:
+
+        // ======= ADJUST COLUMNS/ROWS BY COUNT ====================================================================================================================================
+
+        /**
+         * @brief Resizes columns by applying to begin/end adjustments.
+         *
+         * @details
+         * Positive adjustment adds columns, negative adjustment removes columns.
+         * The function computes the overlap between old and new column ranges,
+         * allocates destination storage, then:
+         *   1. constructs prefix added columns with `defaultValue`,
+         *   2. moves/copies overlapping source columns,
+         *   3. constructs suffix added columns with `defaultValue`.
+         *
+         * Old active elements are destroyed and old storage is deallocated after
+         * destination construction has completed.
+         *
+         * @param[in,out] data          Pointer to backing storage.
+         * @param[in,out] capacity      Number of allocated elements in `data`.
+         * @param[in,out] res           Memory resource used for allocation/deallocation.
+         * @param[in,out] dataView      Current matrix view; updated to the new shape.
+         * @param[in]     adjCountByBeg Signed adjustment at the column beginning.
+         * @param[in]     adjCountByEnd Signed adjustment at the column end.
+         * @param[in]     defaultValue  Value used to initialize newly added columns.
+         */
         static void ResizeCols(T*& data, size_t& capacity, Memory& res, MDSpan& dataView,
                                ssize_t const adjCountByBeg, ssize_t const adjCountByEnd,
                                T const& defaultValue) noexcept
         {
+            // Step 0: early-out for no-op requests
             if(adjCountByBeg == 0 && adjCountByEnd == 0) return;
 
-            auto const colCount = dataView.extent(1) < 0 ? 0UZ : static_cast<size_t>(dataView.extent(1));
-            auto const rowCount = dataView.extent(0) < 0 ? 0UZ : static_cast<size_t>(dataView.extent(0));
-
+            // Step 1: read the current shape and validate the requested new column count
+            auto const rowCount    = RowCount(dataView);
+            auto const colCount    = ColCount(dataView);
             auto const newColCount = static_cast<ssize_t>(colCount) + adjCountByBeg + adjCountByEnd;
 
-            // This is considered an error.
-            if(newColCount < 0) return;
-
-            // clear data if zero count
-            if(newColCount == 0)
+            if(newColCount < 0)
             {
-                // TODO check if this is like expected
-                if(data != nullptr) res.deallocate(data, capacity * sizeof(T), internal::Alignment<T>());
+                LUGIZMO_ASSERT_TRACE(newColCount >= 0, "ResizeCols computed a negative column count.");
+                return; // NOLINT
+            }
+
+            // Step 2: derived size values for old/new active element ranges
+            auto const newColCountPos = static_cast<size_t>(newColCount);
+            auto const oldActiveCount = ActiveCount(rowCount, colCount);
+            auto const newActiveCount = ActiveCount(rowCount, newColCountPos);
+
+            // Step 3a: if all columns are removed, fully free active storage
+            if(newColCountPos == 0)
+            {
+                DestroyAndDeallocate(data, oldActiveCount, capacity, res);
 
                 data     = nullptr;
                 capacity = 0;
-                dataView = MDSpan{nullptr, 0, 0};
-
+                dataView = MDSpan{nullptr, rowCount, 0};
                 return;
             }
 
-            auto uNewColCount = static_cast<size_t>(newColCount);
-            if(rowCount * uNewColCount> capacity || capacity == 0)
+            // Step 3b: shape-only change when there are no rows to materialize
+            if(rowCount == 0)
             {
-                // Expand storage and shift data
-                auto const newCapacity = std::max<size_t>(2 * capacity, uNewColCount * (rowCount + 1));  // TODO better strategy
-                auto* const newData    = static_cast<T*>(res.allocate(newCapacity * sizeof(T), internal::Alignment<T>()));
-
-                for(size_t row = 0; row < rowCount; ++row)
-                {
-                    // New row starting position
-                    T* newRowStart = newData + row * uNewColCount;
-
-                    // Fill new columns at the beginning
-                    std::uninitialized_fill_n(newRowStart, adjCountByBeg, defaultValue);
-
-                    // Copy existing columns
-                    std::uninitialized_copy_n(data + row * colCount, colCount, newRowStart + adjCountByBeg);
-
-                    // Fill new columns at the end
-                    std::uninitialized_fill_n(newRowStart + adjCountByBeg + colCount, adjCountByEnd, defaultValue);
-                }
-
-                // Deallocate old memory
-                if(data != nullptr) res.deallocate(data, capacity * sizeof(T), internal::Alignment<T>());
-
-                // Update pointer and capacity
-                data = newData;
-                capacity = newCapacity;
-            }
-            else
-            {
-                // If no expansion is needed
-                for(size_t row = rowCount; row > 0; --row)
-                {
-                    // Old row start and new row start
-                    T* oldRowStart = data + (row - 1) * colCount;
-                    T* newRowStart = data + (row - 1) * uNewColCount;
-
-                    // Move existing data to the new position
-                    std::move_backward(oldRowStart, oldRowStart + colCount, newRowStart + adjCountByBeg + colCount);
-
-                    // Fill new columns at the beginning
-                    std::fill(newRowStart, newRowStart + adjCountByBeg, defaultValue);
-
-                    // Fill new columns at the end
-                    std::fill(newRowStart + adjCountByBeg + colCount, newRowStart + uNewColCount, defaultValue);
-                }
+                dataView = MDSpan{data, rowCount, newColCountPos};
+                return;
             }
 
-            // Update the view to reflect the new column count
-            dataView = std::mdspan<T, std::dextents<std::ptrdiff_t, 2>, Layout>(data, rowCount, uNewColCount);
+            // Step 4: compute overlap mapping between old and new column ranges
+            // Group A: source overlap [srcStartS, safeSrcEndS) in the old column space
+            auto const colCountS   = static_cast<ssize_t>(colCount);
+            auto const srcStartS   = std::max<ssize_t>(0, -adjCountByBeg);
+            auto const srcEndS     = std::min<ssize_t>(colCountS, newColCount - adjCountByBeg);
+            auto const safeSrcEndS = std::max(srcStartS, srcEndS);
+
+            // Group B: compact derived overlap lengths/offsets
+            auto const movedColCount = static_cast<size_t>(safeSrcEndS - srcStartS);
+            auto const srcStart      = static_cast<size_t>(srcStartS);
+
+            // Group C: destination prefix/suffix added regions
+            auto const dstOldStartS = srcStartS + adjCountByBeg;
+            auto const addBeg       = static_cast<size_t>(std::clamp<ssize_t>(dstOldStartS, 0, newColCount));
+            auto const addEndS      = newColCount - static_cast<ssize_t>(addBeg) - static_cast<ssize_t>(movedColCount);
+            if(addEndS < 0)
+            {
+                LUGIZMO_ASSERT_TRACE(addEndS >= 0, "ResizeCols produced an invalid trailing column count.");
+                return; // NOLINT
+            }
+            auto const addEnd = static_cast<size_t>(addEndS);
+
+            LUGIZMO_ASSERT_TRACE(addBeg + movedColCount + addEnd == newColCountPos, "ResizeCols produced inconsistent column mapping.");
+
+            // Step 5: allocate destination buffer
+            auto const newCapacity = NextCapacity(capacity, newActiveCount);
+            auto* const newData    = static_cast<T*>(res.allocate(newCapacity * sizeof(T), internal::Alignment<T>()));
+            LUGIZMO_ASSERT_TRACE(newData != nullptr, "ResizeCols failed to allocate destination buffer.");
+
+            // Step 6: build each destination row (prefix defaults, overlap move/copy, suffix defaults)
+            for(size_t row = 0; row < rowCount; ++row)
+            {
+                auto* const srcRow = data + row * colCount + srcStart;
+                auto* const dstRow = newData + row * newColCountPos;
+
+                std::uninitialized_fill_n(dstRow, addBeg, defaultValue);
+                UninitializedMoveOrCopy(srcRow, movedColCount, dstRow + addBeg);
+                std::uninitialized_fill_n(dstRow + addBeg + movedColCount, addEnd, defaultValue);
+            }
+
+            // Step 7: tear down the old active range and publish new storage/view
+            DestroyAndDeallocate(data, oldActiveCount, capacity, res);
+
+            data     = newData;
+            capacity = newCapacity;
+            dataView = MDSpan{data, rowCount, newColCountPos};
         }
 
 
         /**
-         * @brief Adjusts the number of rows in the dataset, filling new rows with a default value.
+         * @brief Resizes rows and initializes added rows with one default value.
          *
-         * @details This function resizes the row count by adding or removing rows from the beginning
-         *          and/or end. If rows are added, they are initialized with the provided 'defaultValue'.
-         *          If the new row count exceeds the allocated capacity, memory is reallocated.
-         *          If rows are removed, no additional cleanup is performed.
+         * @details
+         * Positive adjustments add rows, negative adjustments remove rows.
+         * The function computes overlap between old and new row ranges, allocates
+         * destination storage, then:
+         *   1. constructs new leading rows with `defaultValue`,
+         *   2. moves/copies overlapping old rows,
+         *   3. constructs new trailing rows with `defaultValue`.
          *
-         * @param[in,out] data           Pointer to the allocated memory, updated if reallocation occurs.
-         * @param[in,out] capacity       The total memory capacity, updated if reallocation occurs.
-         * @param[in]     res            The memory resource used for allocation and de-allocation.
-         * @param[in,out] dataView       The mdspan view representing the data, updated to reflect changes.
-         * @param[in]     adjCountByBeg  Number of rows to add/remove at the beginning.
-         * @param[in]     adjCountByEnd  Number of rows to add/remove at the end.
-         * @param[in]     defaultValue   The default value used to initialize new rows.
+         * Old active elements are destroyed after destination construction.
          *
-         * @note
-         * - If 'adjCountByBeg' or 'adjCountByEnd' is negative, rows are removed instead of added.
-         * - If 'newRowCount == 0', the function deallocates all memory.
-         * - If expansion is required, the function reallocates memory with a growth strategy.
+         * Difference to `ResizeRows(..., Values const&)`:
+         *   - this overload uses one scalar `defaultValue` for each inserted element,
+         *   - no row-input shape validation is required.
+         *
+         * @param[in,out] data          Pointer to backing storage.
+         * @param[in,out] capacity      Number of allocated elements in `data`.
+         * @param[in,out] res           Memory resource used for allocation/deallocation.
+         * @param[in,out] dataView      Current matrix view; updated to the new shape.
+         * @param[in]     adjCountByBeg Signed adjustment at row begin.
+         * @param[in]     adjCountByEnd Signed adjustment at row end.
+         * @param[in]     defaultValue  Value used to initialize newly added rows.
          */
         static void ResizeRows(T*& data, size_t& capacity, Memory& res, MDSpan& dataView,
                                ssize_t const adjCountByBeg, ssize_t const adjCountByEnd, T const& defaultValue) noexcept
         {
-            // nothing to change
+            // Step 0: early-out for no-op requests
             if(adjCountByBeg == 0 && adjCountByEnd == 0) return;
 
-            // store current and compute change size
-            auto const colCount    = dataView.extent(1) < 0 ? 0UZ : static_cast<size_t>(dataView.extent(1));
-            auto const rowCount    = dataView.extent(0) < 0 ? 0UZ : static_cast<size_t>(dataView.extent(0));
+            // Step 1: read the current shape and validate the requested new row count
+            auto const colCount    = ColCount(dataView);
+            auto const rowCount    = RowCount(dataView);
             auto const newRowCount = static_cast<ssize_t>(rowCount) + adjCountByBeg + adjCountByEnd;
 
-            // free memory when empty data
             if(newRowCount == 0)
             {
                 Free(data, capacity, dataView, res);
                 return;
             }
 
-            // non-empty size
-            // check inputs first
             if(newRowCount < 0)
             {
-                LUGIZMO_ASSERT_EXP(newRowCount >= 0, "ResizeRows computed a negative row count.");
+                LUGIZMO_ASSERT_TRACE(newRowCount >= 0, "ResizeRows computed a negative row count.");
+                return; // NOLINT
+            }
+
+            // Step 2: derived size values for old/new active element ranges
+            auto const newRowCountPos = static_cast<size_t>(newRowCount);
+            auto const oldActiveCount = ActiveCount(rowCount, colCount);
+            auto const newActiveCount = ActiveCount(newRowCountPos, colCount);
+
+            // Step 3: compute overlap mapping between old and new row ranges
+            // Group A: source overlap [srcStartS, safeSrcEndS) in old row space
+            auto const rowCountS   = static_cast<ssize_t>(rowCount);
+            auto const srcStartS   = std::max<ssize_t>(0, -adjCountByBeg);
+            auto const srcEndS     = std::min<ssize_t>(rowCountS, newRowCount - adjCountByBeg);
+            auto const safeSrcEndS = std::max(srcStartS, srcEndS);
+
+            // Group B: compact derived overlap lengths/offsets
+            auto const keptRows   = static_cast<size_t>(safeSrcEndS - srcStartS);
+            auto const srcStart   = static_cast<size_t>(srcStartS);
+
+            // Group C: destination prefix/suffix added regions
+            auto const dstOldStartS = srcStartS + adjCountByBeg;
+            auto const addBeg     = static_cast<size_t>(std::clamp<ssize_t>(dstOldStartS, 0, newRowCount));
+            auto const addEndS    = newRowCount - static_cast<ssize_t>(addBeg) - static_cast<ssize_t>(keptRows);
+            if(addEndS < 0)
+            {
+                LUGIZMO_ASSERT_TRACE(addEndS >= 0, "ResizeRows produced an invalid trailing row count.");
+                return; // NOLINT
+            }
+            auto const addEnd = static_cast<size_t>(addEndS);
+
+            LUGIZMO_ASSERT_TRACE(addBeg + keptRows + addEnd == newRowCountPos, "ResizeRows produced inconsistent row mapping.");
+
+            // Step 4: shape-only change for zero-column views
+            if(colCount == 0)
+            {
+                dataView = MDSpan{data, newRowCountPos, colCount};
                 return;
             }
 
-            // row count cannot be negative here anymore
-            auto const newRowCountPos = static_cast<size_t>(newRowCount);
+            // Step 5: allocate destination buffer
+            auto const newCapacity = NextCapacity(capacity, newActiveCount);
+            auto* const newData    = static_cast<T*>(res.allocate(newCapacity * sizeof(T), internal::Alignment<T>()));
+            LUGIZMO_ASSERT_TRACE(newData != nullptr, "ResizeRows failed to allocate destination buffer.");
 
-            // 1. allocate & expand memory if needed
-            // 2. shift data as needed to accommodate new data
-            ReallocAndShift(data, res, capacity, colCount, rowCount, newRowCountPos, adjCountByBeg);
+            // Step 6a: construct inserted leading rows
+            ConstructRowsDefault(newData, 0, addBeg, colCount, defaultValue);
 
-            // fill data at beginning and/or end
-            if(rowCount == 0)
+            // Step 6b: move/copy overlapping rows
+            for(size_t row = 0; row < keptRows; ++row)
             {
-                // fill all with default value as nothing was in previously
-                FillRows(data, 0, newRowCountPos, colCount, defaultValue);
-            }
-            else
-            {
-                if(adjCountByBeg > 0) FillRows(data, 0, static_cast<size_t>(adjCountByBeg), colCount, defaultValue);
-                if(adjCountByEnd > 0) FillRows(data, newRowCountPos - static_cast<size_t>(adjCountByEnd), static_cast<size_t>(adjCountByEnd), colCount, defaultValue);
+                auto* const srcRow = data + (srcStart + row) * colCount;
+                auto* const dstRow = newData + (addBeg + row) * colCount;
+                UninitializedMoveOrCopy(srcRow, colCount, dstRow);
             }
 
-            // update the view
-            dataView = std::mdspan<T, std::dextents<std::ptrdiff_t, 2>, Layout>(data, newRowCountPos, colCount);
+            // Step 6c: construct inserted trailing rows
+            ConstructRowsDefault(newData, addBeg + keptRows, addEnd, colCount, defaultValue);
+
+            // Step 7: tear down the old active range and publish new storage/view
+            DestroyAndDeallocate(data, oldActiveCount, capacity, res);
+
+            data     = newData;
+            capacity = newCapacity;
+            dataView = MDSpan{data, newRowCountPos, colCount};
         }
 
         /**
-         * @brief Adjusts the number of rows in the dataset using provided row values.
+         * @brief Resizes rows and initializes added rows from provided value rows.
          *
-         * @details This function resizes the row count by adding or removing rows at the beginning
-         *          and/or end. If rows are added, they are initialized using values from `values`.
-         *          If the new row count exceeds the allocated capacity, memory is reallocated.
-         *          If rows are removed, no additional cleanup is performed.
+         * @details
+         * Supports two input forms:
+         *   - one row of values reused for each inserted row,
+         *   - iterable of rows consumed in order for inserted rows.
          *
-         * @tparam Values                A container type representing one or more rows of data.
+         * Structural flow mirrors `ResizeRows(..., defaultValue)`: compute overlap,
+         * allocate destination, construct inserted rows from `values`, move/copy overlap,
+         * then destroy old active elements.
          *
-         * @param[in,out] data           Pointer to the allocated memory, updated if reallocation occurs.
-         * @param[in,out] capacity       The total memory capacity, updated if reallocation occurs.
-         * @param[in]     res            The memory resource used for allocation and de-allocation.
-         * @param[in,out] dataView       The mdspan view representing the data, updated to reflect changes.
-         * @param[in]     adjCountByBeg  Number of rows to add/remove at the beginning.
-         * @param[in]     adjCountByEnd  Number of rows to add/remove at the end.
-         * @param[in]     values         Iterable containing row values (either a single row repeated or multiple rows for direct init.).
+         * Difference to `ResizeRows(..., T const& defaultValue)`:
+         *   - this overload initializes inserted rows from caller-provided row values,
+         *   - input row count/width is validated before construction.
          *
-         * @note
-         * - If `adjCountByBeg` or `adjCountByEnd` is negative, rows are removed instead of added.
-         * - If `values` is a single iterable, all added rows are initialized using it.
-         * - If `values` is an iterable of iterables, each new row is initialized with corresponding values.
-         * - If `newRowCount == 0`, the function deallocates all memory.
-         * - If expansion is required, the function reallocates memory with a growth strategy.
+         * @tparam Values row-source container or iterable.
+         *
+         * @param[in,out] data          Pointer to backing storage.
+         * @param[in,out] capacity      Number of allocated elements in `data`.
+         * @param[in,out] res           Memory resource used for allocation/deallocation.
+         * @param[in,out] dataView      Current matrix view; updated to the new shape.
+         * @param[in]     adjCountByBeg Signed adjustment at the row beginning.
+         * @param[in]     adjCountByEnd Signed adjustment at the row end.
+         * @param[in]     values        Source row data used for newly inserted rows.
          */
         template <typename Values> requires MinimalIterable<Values>
         static void ResizeRows(T*& data, size_t& capacity, Memory& res, MDSpan& dataView,
@@ -295,303 +592,396 @@ namespace lugizmo {
         {
             constexpr bool isItOfIt = MinimalIterableOfIterable<Values>;
 
-            // nothing to change
+            // Step 0: early-out for no-op requests
             if(adjCountByBeg == 0 && adjCountByEnd == 0) return;
 
-            // store current extends
-            auto const colCount = dataView.extent(1) < 0 ? 0UZ : static_cast<size_t>(dataView.extent(1));
-            auto const rowCount = dataView.extent(0) < 0 ? 0UZ : static_cast<size_t>(dataView.extent(0));
+            // Step 1: read the current shape and validate the requested new row count
+            auto const colCount      = ColCount(dataView);
+            auto const rowCount      = RowCount(dataView);
+            auto const newRowCountS  = static_cast<ssize_t>(rowCount) + adjCountByBeg + adjCountByEnd;
 
-            // row count (signed)
-            auto const rowCountS    = static_cast<ssize_t>(rowCount);
-            auto const newRowCountS = rowCountS + adjCountByBeg + adjCountByEnd;
-
-            // free memory when empty data
             if(newRowCountS == 0)
             {
                 Free(data, capacity, dataView, res);
                 return;
             }
 
-            // non-empty size
-            // check inputs first
             if(newRowCountS < 0)
             {
+                LUGIZMO_ASSERT_TRACE(newRowCountS >= 0, "ResizeRows(values) computed a negative row count.");
+                return; // NOLINT
+            }
+
+            // Step 2: derive overlap/prefix/suffix ranges
+            // Group A: source overlap [srcStartS, safeSrcEndS) in the old row space
+            auto const newRowCountPos = static_cast<size_t>(newRowCountS);
+            auto const rowCountS      = static_cast<ssize_t>(rowCount);
+            auto const srcStartS      = std::max<ssize_t>(0, -adjCountByBeg);
+            auto const srcEndS        = std::min<ssize_t>(rowCountS, newRowCountS - adjCountByBeg);
+            auto const safeSrcEndS    = std::max(srcStartS, srcEndS);
+
+            // Group B: compact derived overlap lengths/offsets
+            auto const keptRows       = static_cast<size_t>(safeSrcEndS - srcStartS);
+            auto const srcStart       = static_cast<size_t>(srcStartS);
+
+            // Group C: destination prefix/suffix added regions
+            auto const dstOldStartS   = srcStartS + adjCountByBeg;
+            auto const addBeg         = static_cast<size_t>(std::clamp<ssize_t>(dstOldStartS, 0, newRowCountS));
+            auto const addEndS        = newRowCountS - static_cast<ssize_t>(addBeg) - static_cast<ssize_t>(keptRows);
+            if(addEndS < 0)
+            {
+                LUGIZMO_ASSERT_TRACE(addEndS >= 0, "ResizeRows(values) produced an invalid trailing row count.");
+                return; // NOLINT
+            }
+            auto const addEnd         = static_cast<size_t>(addEndS);
+            auto const rowsToAdd      = addBeg + addEnd;
+
+            // Step 3: validate input row data only when rows are being inserted
+            if(rowsToAdd > 0)
+            {
+                if constexpr(isItOfIt)
+                {
+                    auto const valuesCount = static_cast<size_t>(std::ranges::distance(values));
+                    if(valuesCount < rowsToAdd) return;
+                    if(valuesCount == 0) return;
+                    if(std::ranges::distance(*std::begin(values)) != static_cast<std::ptrdiff_t>(colCount)) return;
+                    if(not std::ranges::all_of(values, [&](auto const& row) { return row.size() == colCount; })) return;
+                }
+                else if(values.size() != colCount) return;
+            }
+
+            // Step 4: derived size values for old/new active element ranges
+            auto const oldActiveCount = ActiveCount(rowCount, colCount);
+            auto const newActiveCount = ActiveCount(newRowCountPos, colCount);
+
+            LUGIZMO_ASSERT_TRACE(addBeg + keptRows + addEnd == newRowCountPos, "ResizeRows(values) produced inconsistent row mapping.");
+
+            // Step 5: shape-only change for zero-column views
+            if(colCount == 0)
+            {
+                dataView = MDSpan{data, newRowCountPos, colCount};
                 return;
             }
 
-            if constexpr(isItOfIt)
-            {
-                if(std::ranges::distance(values) == 0) return;
-                if(std::ranges::distance(*std::begin(values)) != static_cast<std::ptrdiff_t>(colCount)) return;
-                if(!std::ranges::all_of(values, [&](auto const& row) { return row.size() == colCount; })) return;
-            }
-            else if(values.size() != colCount) return;
+            // Step 6: allocate destination buffer
+            auto const newCapacity = NextCapacity(capacity, newActiveCount);
+            auto* const newData    = static_cast<T*>(res.allocate(newCapacity * sizeof(T), internal::Alignment<T>()));
+            LUGIZMO_ASSERT_TRACE(newData != nullptr, "ResizeRows(values) failed to allocate destination buffer.");
 
-            // 1. allocate and expand memory if needed
-            // 2. shift data as needed to accommodate new data
-            ReallocAndShift(data, res, capacity, colCount, rowCount, static_cast<size_t>(newRowCountS), adjCountByBeg);
-
-            if constexpr(isItOfIt)
+            // Step 7a: construct inserted rows from an input value source
+            if(rowsToAdd > 0)
             {
-                // fill each row individually with a different row of values .
-                auto inputRowIt = std::begin(values);
-                if(adjCountByBeg > 0) FillRowByRow(data, 0, static_cast<size_t>(adjCountByBeg), colCount, inputRowIt, std::end(values));
-                if(adjCountByEnd > 0) FillRowByRow(data, static_cast<size_t>(newRowCountS - adjCountByEnd), static_cast<size_t>(adjCountByEnd), colCount, inputRowIt, std::end(values));
-            }
-            else
-            {
-                // fill the entire row with a single set of values
-                if(adjCountByBeg > 0) FillRows(data, 0, static_cast<size_t>(adjCountByBeg), colCount, values.begin(), values.end());
-                if(adjCountByEnd > 0) FillRows(data, static_cast<size_t>(newRowCountS - adjCountByEnd), static_cast<size_t>(adjCountByEnd), colCount, values.begin(), values.end());
+                if constexpr(isItOfIt)
+                {
+                    auto inputRowIt = std::begin(values);
+                    auto const begRows = ConstructRowsByRow(newData, 0, addBeg, colCount, inputRowIt, std::end(values));
+                    auto const endRows = ConstructRowsByRow(newData, addBeg + keptRows, addEnd, colCount, inputRowIt, std::end(values));
+                    LUGIZMO_ASSERT_TRACE(begRows == addBeg && endRows == addEnd, "ResizeRows(values) did not receive enough rows to initialize inserted records.");
+                }
+                else
+                {
+                    ConstructRowsFromValues(newData, 0, addBeg, colCount, values.begin(), values.end());
+                    ConstructRowsFromValues(newData, addBeg + keptRows, addEnd, colCount, values.begin(), values.end());
+                }
             }
 
-            // update the view
-            dataView = std::mdspan<T, std::dextents<std::ptrdiff_t, 2>, Layout>(data, static_cast<size_t>(newRowCountS), colCount);
+            // Step 7b: move/copy overlap from old data
+            for(size_t row = 0; row < keptRows; ++row)
+            {
+                auto* const srcRow = data + (srcStart + row) * colCount;
+                auto* const dstRow = newData + (addBeg + row) * colCount;
+                UninitializedMoveOrCopy(srcRow, colCount, dstRow);
+            }
+
+            // Step 8: tear down the old active range and publish new storage/view
+            DestroyAndDeallocate(data, oldActiveCount, capacity, res);
+
+            data     = newData;
+            capacity = newCapacity;
+            dataView = MDSpan{data, newRowCountPos, colCount};
         }
 
-        // ======= DROP COLUMNS/ROWS =======================================================================================================
-
-        static void DropRow(T*& data, size_t& /*capacity*/, Memory& /*res*/, MDSpan& dataView, size_t const rowToRemove) noexcept
-        {
-            auto const& extents = dataView.extents();
-            auto const colCount = static_cast<size_t>(extents.extent(1));
-            auto const rowCount = static_cast<size_t>(extents.extent(0));
-
-            LUGIZMO_ASSERT_EXP(rowToRemove < rowCount, "DropRow received a row index out of bounds.");
-
-            if(rowToRemove < rowCount - 1)
-            {
-                // calculate the starting index of the row to remove &
-                // shift subsequent rows up by one row to fill the gap
-                auto const removeStartIndex = rowToRemove * colCount;
-                std::move(data + removeStartIndex + colCount, data + rowCount * colCount, data + removeStartIndex);
-            }
-
-            // update dataView to reflect the reduced row count
-            dataView = MDSpan(data, rowCount - 1, colCount);
-            // TODO think about reducing capacity
-        }
-
-        static void DropColumn(T*& data, size_t& /*capacity*/, Memory& /*res*/, MDSpan& dataView, size_t const colToRemove) noexcept
-        {
-            auto const& extents = dataView.extents();
-            auto const colCount = static_cast<size_t>(extents.extent(1));
-            auto const rowCount = static_cast<size_t>(extents.extent(0));
-
-            LUGIZMO_ASSERT_EXP(colToRemove < colCount, "DropColumn received a column index out of bounds.");
-
-            auto const newColCount = colCount - 1;
-            for (size_t row = 0; row < rowCount; ++row)
-            {
-                // calculate the starting index of the old row
-                auto const oldRowStart = row * colCount;
-
-                // move data from columns before colToRemove
-                std::move(data + oldRowStart, data + oldRowStart + colToRemove, data + row * newColCount);
-
-                // move data from columns after colToRemove
-                std::move(data + oldRowStart + colToRemove + 1, data + oldRowStart + colCount, data + row * newColCount + colToRemove);
-            }
-
-            dataView = MDSpan(data, rowCount, newColCount);
-            // TODO think about reducing capacity
-        }
-
-    public: // TODO make private + test dependency
-
-        // ======= MEMORY ==================================================================================================================
+        // ======= DROP COLUMNS/ROWS ===============================================================================================================================================
 
         /**
-         *  @brief   Allocates a new buffer with increased capacity and moves existing rows to their new positions.
+         * @brief Removes one row by index and compacts the remaining rows.
          *
-         *  @details This function reallocates memory when the new row count exceeds the current capacity.
-         *           It calculates an optimal growth factor for memory expansion and allocates a new buffer.
-         *           If `rowCount > 0`, it moves existing data to the appropriate offset in the new buffer
-         *           (taking `adjCountByBeg` into account). The old buffer is then deallocated.
+         * @details
+         * The trailing row range is moved one row toward the front, then the now-unused
+         * last row is destroyed. Capacity is unchanged.
          *
-         *  @param[in,out]  data          Reference to the pointer holding the current allocated buffer.
-         *                                This will be updated to point to the newly allocated buffer.
-         *  @param[in,out]  res           Memory resource used for allocation and de-allocation.
-         *  @param[in,out]  capacity      Reference to the current capacity of the buffer in elements.
-         *                                This will be updated to the new capacity after reallocation.
-         *  @param[in]      colCount      Number of columns in the data structure.
-         *  @param[in]      rowCount      Current number of rows in the data structure.
-         *  @param[in]      newRowCount   New number of rows after resizing.
-         *  @param[in]      adjCountByBeg Number of rows added or removed at the beginning.
+         * @param[in,out] data        Pointer to backing storage.
+         * @param[in,out] dataView    Current matrix view; row extent is decremented.
+         * @param[in]     rowToRemove Row index to remove.
+         */
+        static void DropRow(T*& data, size_t& /*capacity*/, Memory& /*res*/, MDSpan& dataView, size_t const rowToRemove) noexcept
+        {
+            // Step 1: read and validate the current shape
+            auto const colCount = ColCount(dataView);
+            auto const rowCount = RowCount(dataView);
+
+            LUGIZMO_ASSERT_TRACE(rowToRemove < rowCount, "DropRow received a row index out of bounds.");
+            if(rowToRemove >= rowCount) return;
+
+            // Step 2: zero-column views only need a shape update
+            if(colCount == 0)
+            {
+                dataView = MDSpan{data, rowCount - 1, colCount};
+                return;
+            }
+
+            // Step 3: shift the trailing rows forward and destroy the last row
+            auto const removeStart = rowToRemove * colCount;
+            auto const tailCount   = (rowCount - rowToRemove - 1) * colCount;
+
+            if(tailCount > 0) AssignForward(data + removeStart, data + removeStart + colCount, tailCount);
+            DestroyRange(data + (rowCount - 1) * colCount, colCount);
+
+            // Step 4: publish updated shape
+            dataView = MDSpan{data, rowCount - 1, colCount};
+        }
+
+        /**
+         * @brief Removes one column by index and compacts each row.
          *
-         *  @note This function does **not** handle filling newly allocated rows with default values.
-         *        It only ensures correct memory layout and preserves existing data.
+         * @details
+         * For each row, values after the removed column are shifted left by one slot.
+         * The trailing compacted tail is destroyed. Capacity is unchanged.
          *
-         *  @warning The caller must ensure that any newly allocated rows are properly initialized.
+         * @param[in,out] data        Pointer to backing storage.
+         * @param[in,out] dataView    Current matrix view; column extent is decremented.
+         * @param[in]     colToRemove Column index to remove.
+         */
+        static void DropColumn(T*& data, size_t& /*capacity*/, Memory& /*res*/, MDSpan& dataView, size_t const colToRemove) noexcept
+        {
+            // Step 1: read and validate the current shape
+            auto const colCount = ColCount(dataView);
+            auto const rowCount = RowCount(dataView);
+
+            LUGIZMO_ASSERT_TRACE(colToRemove < colCount, "DropColumn received a column index out of bounds.");
+            if(colToRemove >= colCount) return;
+
+            // Step 2: derived size values for old/new active element ranges
+            auto const newColCount = colCount - 1;
+            auto const oldActive   = ActiveCount(rowCount, colCount);
+            auto const newActive   = ActiveCount(rowCount, newColCount);
+
+            // Step 3: compact each row in-place
+            for(size_t row = 0; row < rowCount; ++row)
+            {
+                auto* const oldRow = data + row * colCount;
+                auto* const newRow = data + row * newColCount;
+
+                AssignForward(newRow, oldRow, colToRemove);
+                AssignForward(newRow + colToRemove, oldRow + colToRemove + 1, colCount - colToRemove - 1);
+            }
+
+            // Step 4: destroy trailing now-unused elements and publish the updated shape
+            DestroyRange(data + newActive, oldActive - newActive);
+            dataView = MDSpan{data, rowCount, newColCount};
+        }
+
+        // ======= MEMORY ==========================================================================================================================================================
+
+        /**
+         * @brief Reallocates backing storage and moves/copies current active elements.
+         *
+         * @details
+         * Existing active elements are moved/copied into the newly allocated buffer at
+         * an offset derived from `adjCountByBeg` (used for begin-side row insertions),
+         * then old active elements are destroyed, and old storage is deallocated.
+         *
+         * Difference to `ReallocAndShift(...)`:
+         *   - this function always allocates a new buffer,
+         *   - no in-place shift path is attempted.
+         *
+         * @param[in,out] data          Pointer to backing storage.
+         * @param[in,out] res           Memory resource used for allocation/deallocation.
+         * @param[in,out] capacity      Number of allocated elements in `data`.
+         * @param[in]     colCount      Current column count.
+         * @param[in]     rowCount      Current row count.
+         * @param[in]     newRowCount   Target row count.
+         * @param[in]     adjCountByBeg Signed begin-side row adjustment.
          */
         static void Realloc(T*& data, Memory& res, size_t& capacity, size_t const colCount, size_t const rowCount,
                             size_t const newRowCount, ssize_t const adjCountByBeg) noexcept
         {
-            auto const required    = capacity + colCount * (newRowCount + 1);
-            auto const newCapacity = internal::GrowthFactorDefault(required);
+            // Step 1: compute old/new active sizes and target capacity
+            auto const oldActiveCount = ActiveCount(rowCount, colCount);
+            auto const required       = ActiveCount(newRowCount, colCount);
+            auto const newCapacity    = NextCapacity(capacity, required);
             if(newCapacity == 0) return;
 
+            // Step 2: allocate destination buffer
             auto* const newData = static_cast<T*>(res.allocate(newCapacity * sizeof(T), internal::Alignment<T>()));
 
-            LUGIZMO_ASSERT_EXP(newCapacity > capacity || colCount == 0, "Realloc did not increase capacity while columns exist.");
-            LUGIZMO_ASSERT_EXP(newData != nullptr, "Memory allocation returned nullptr in Realloc.");
+            LUGIZMO_ASSERT_TRACE(newData != nullptr, "Memory allocation returned nullptr in Realloc.");
 
-            // move existing data to the new buffer at the correct offset
-            if(rowCount > 0)
+            // Step 3: move/copy old active range into destination at begin-offset
+            if(oldActiveCount > 0)
             {
-                auto* const destBeg = newData + std::max<ssize_t>(0, adjCountByBeg) * static_cast<ssize_t>(colCount);
-                LUGIZMO_ASSERT_EXP((destBeg + rowCount * colCount /* destEnd */) <= newData + newCapacity,
+                auto const destOffset = static_cast<size_t>(std::max<ssize_t>(0, adjCountByBeg));
+                auto* const destBeg   = newData + destOffset * colCount;
+
+                LUGIZMO_ASSERT_TRACE((destBeg + oldActiveCount) <= (newData + newCapacity),
                                 "Realloc destination range is out of bounds.");
-                std::uninitialized_copy_n(data, rowCount * colCount, destBeg);
+                UninitializedMoveOrCopy(data, oldActiveCount, destBeg);
             }
 
-            // deallocate old memory
-            if(data != nullptr) res.deallocate(data, capacity * sizeof(T), internal::Alignment<T>());
+            // Step 4: tear down old storage and publish new pointer/capacity
+            DestroyAndDeallocate(data, oldActiveCount, capacity, res);
 
-            // update the pointer and capacity
             data     = newData;
             capacity = newCapacity;
         }
 
         /**
-         *  @brief   Ensures that the data buffer has enough capacity and adjusts the row positions.
+         * @brief Ensures capacity and applies begin-side row shifts.
          *
-         *  @details This function handles memory expansion and row shifting:
-         *           - If the new row count exceeds capacity, it reallocates memory and shifts data within `Realloc()`.
-         *           - If no reallocation is needed, it shifts rows forward or backward in-place as required.
+         * @details
+         * Behavior by case:
+         *   - capacity insufficient: delegates to `Realloc` (which also applies offset),
+         *   - begin expansion in-place: creates space by backward shift,
+         *   - begin to shrink in-place: compacts remaining rows forward.
          *
-         *  @param[in,out] data          Pointer to the allocated buffer holding the row-major data.
-         *  @param[in,out] res           Memory resource used for allocation and de-allocation.
-         *  @param[in,out] capacity      Current capacity of the buffer in elements, updated if reallocated.
-         *  @param[in]     colCount      Number of columns in the data structure.
-         *  @param[in]     rowCount      Current number of rows in the data structure.
-         *  @param[in]     newRowCount   New number of rows after resizing.
-         *  @param[in]     adjCountByBeg Number of rows added or removed at the beginning.
+         * Only begin-side shifts are handled here; end-side adjustments are handled by
+         * higher-level resize construction paths.
          *
-         *  @note  If reallocation is performed, `Realloc()` also handles shifting data accordingly.
-         *         If no reallocation is required, the function shifts existing rows forward or backward
-         *         to accommodate changes at the beginning.
+         * Difference to `Realloc(...)`:
+         *   - can avoid allocation and mutate in-place when capacity is enough,
+         *   - acts as a strategy entry point (choose reallocating vs. in-place shift).
+         *
+         * @param[in,out] data          Pointer to backing storage.
+         * @param[in,out] res           Memory resource used for allocation/deallocation.
+         * @param[in,out] capacity      Number of allocated elements in `data`.
+         * @param[in]     colCount      Current column count.
+         * @param[in]     rowCount      Current row count.
+         * @param[in]     newRowCount   Target row count.
+         * @param[in]     adjCountByBeg Signed begin-side row adjustment.
          */
         static void ReallocAndShift(T*& data, Memory& res, size_t& capacity,
                                     size_t const colCount, size_t const rowCount, size_t const newRowCount,
                                     ssize_t const adjCountByBeg) noexcept
         {
+            // 1: allocate-and-move the path when active data no longer fits
             if(newRowCount * colCount > capacity || capacity == 0)
             {
-                // if new data size exceeds capacity or there's no allocated memory, perform reallocation
-                // this also handles shifting as part of the reallocation process
                 Realloc(data, res, capacity, colCount, rowCount, newRowCount, adjCountByBeg);
             }
-            else if(adjCountByBeg > 0 && rowCount > 0)
+            // 2: in-place expansion at the beginning (create a gap before row 0)
+            else if(adjCountByBeg > 0 && rowCount > 0 && colCount > 0)
             {
-                // expanding at the beginning: Shift existing rows backward to make space for new rows
-                auto const begin  = data;
-                auto const end    = data + rowCount * colCount;
-                auto const newEnd = data + (rowCount + static_cast<size_t>(adjCountByBeg)) * colCount;
+                auto const shiftElements = static_cast<size_t>(adjCountByBeg) * colCount;
+                auto const totalElements = rowCount * colCount;
 
-                LUGIZMO_ASSERT_EXP(newEnd > end && begin <= end, "ReallocAndShift detected invalid move_backward range.");
-                std::move_backward(begin, end, newEnd);
-            }
-            else if(adjCountByBeg < 0 && static_cast<ssize_t>(rowCount) + adjCountByBeg > 0)
-            {
-                // shrinking at the beginning: compute remaining rows in signed domain
-                const ssize_t remSigned = static_cast<ssize_t>(rowCount) + adjCountByBeg;
-                if (remSigned <= 0) {
-                    // nothing to move (all rows removed or invalid); caller handles zeroing if needed
+                // the entire active range is shifted beyond the old end
+                if(shiftElements >= totalElements)
+                {
+                    UninitializedMoveOrCopy(data, totalElements, data + shiftElements);
+                    DestroyRange(data, totalElements);
                     return;
                 }
 
-                auto const remainRows    = static_cast<size_t>(remSigned);           // rows to keep
-                auto const shrinkRows    = static_cast<size_t>(-adjCountByBeg);      // rows removed at begin
-                auto const elemsPerRow   = colCount;
-                auto const moveElemCount = remainRows * elemsPerRow;
+                // move trailing overlap to uninitialized tail, then backward-assign the rest
+                UninitializedMoveOrCopy(data + (totalElements - shiftElements), shiftElements, data + totalElements);
+                AssignBackward(data + shiftElements, data, totalElements - shiftElements);
+                DestroyRange(data, shiftElements);
+            }
+            // 3: in-place shrink at the beginning (drop leading rows and compact)
+            else if(adjCountByBeg < 0 && static_cast<ssize_t>(rowCount) + adjCountByBeg > 0)
+            {
+                auto const shrinkRows    = static_cast<size_t>(-adjCountByBeg);
+                auto const remainRows    = rowCount - shrinkRows;
+                auto const moveElemCount = remainRows * colCount;
+                auto const dropElemCount = shrinkRows * colCount;
 
-                T* const src = data + shrinkRows * elemsPerRow;
-                T* const dst = data;
-
-                LUGIZMO_ASSERT_EXP((dst + moveElemCount /* dstEnd */) >= dst, "ReallocAndShift detected invalid shrink move range.");
-                std::move(src, src + moveElemCount, dst);
+                AssignForward(data, data + dropElemCount, moveElemCount);
+                DestroyRange(data + moveElemCount, dropElemCount);
             }
         }
 
         /**
-         * @brief Frees allocated memory and resets associated data structures.
+         * @brief Destroys active elements, deallocates storage, and resets shape/capacity.
          *
-         * @param[in,out] data       Pointer to the allocated memory, set to 'nullptr' after de-allocation.
-         * @param[in,out] capacity   The capacity of the allocated memory, reset to zero.
-         * @param[in,out] dataView   The mdspan view representing the data, reset to an empty state.
-         * @param[in]     res        The memory resource used for de-allocation.
+         * @param[in,out] data      Pointer to backing storage.
+         * @param[in,out] capacity  Number of allocated elements in `data`.
+         * @param[in,out] dataView  Current matrix view; reset to an empty view.
+         * @param[in,out] res       Memory resource used for deallocation.
          */
         static void Free(T*& data, size_t& capacity, MDSpan& dataView, Memory& res)
         {
-            if(data != nullptr) res.deallocate(data, capacity * sizeof(T), internal::Alignment<T>());
+            DestroyAndDeallocate(data, ActiveCount(dataView), capacity, res);
 
             data     = nullptr;
             capacity = 0;
             dataView = MDSpan{nullptr, 0, 0};
         }
 
-        // TODO doc
-        // Utility function: Copy default values into newly allocated rows
-        // TODO make private add compiler flags for non nullable pointers then
-        // TODO move to other context this is probably also useful in non count adj.
-        // TODO add test
+        /**
+         * @brief Constructs `numRows` rows with one default value in uninitialized storage.
+         *
+         * Difference to `FillRows(..., begin, end)`:
+         *   - this overload repeats one scalar value for every element.
+         *
+         * @param[in,out] data         Destination pointer to uninitialized row-major storage.
+         * @param[in]     startRow     First destination row index.
+         * @param[in]     numRows      Number of rows to construct.
+         * @param[in]     colCount     Columns per row.
+         * @param[in]     defaultValue Value to copy into each created element.
+         */
         static void FillRows(T* data, size_t const startRow, size_t const numRows, size_t const colCount, T const& defaultValue)
         {
-            if(colCount == 0) return;
-
-            for(size_t row = 0; row < numRows; ++row)
-            {
-                auto* start = data + (startRow + row) * colCount;
-                auto* end   = start + colCount;
-
-                LUGIZMO_ASSERT_EXP(start < end, "FillRows default overload detected invalid destination range.");
-                std::fill(start, end, defaultValue);
-            }
-        }
-
-        // TODO doc
-        // Utility function: Copy rows from an input iterable
-        // TODO make private add compiler flags for non nullable pointers then
-        // TODO move to other context this is probably also useful in non count adj.
-        // TODO add test
-        template <typename InputIterator>
-        static void FillRows(T* data, size_t const startRow, size_t const numRows, size_t const colCount, InputIterator const begin, InputIterator const end)
-        {
-            if(colCount == 0) return;
-
-            for(size_t row = 0; row < numRows; ++row)
-            {
-                auto* start  = data + (startRow + row) * colCount;
-
-                LUGIZMO_ASSERT_EXP(start < (start + colCount /* finish */), "FillRows iterator overload detected invalid destination range.");
-                LUGIZMO_ASSERT_EXP(std::distance(begin, end) == static_cast<std::ptrdiff_t>(colCount), "FillRows iterator overload received mismatched column count.");
-                std::copy(begin, end, start);
-            }
+            ConstructRowsDefault(data, startRow, numRows, colCount, defaultValue);
         }
 
         /**
-         * TODO doc
-         * TODO test
-         * @tparam RowsIterator
-         * @param data
-         * @param startRow
-         * @param numRows
-         * @param colCount
-         * @param rowBegin
-         * @param rowEnd
+         * @brief Constructs `numRows` rows from one source row iterator range.
+         *
+         * Difference to `FillRows(..., defaultValue)`:
+         *   - this overload copies one provided row pattern into each created row.
+         *
+         * Difference to `FillRowByRow(...)`:
+         *   - one row pattern is reused for all destination rows instead of consuming
+         *     a different input row per destination row.
+         *
+         * @param[in,out] data     Destination pointer to uninitialized row-major storage.
+         * @param[in]     startRow First destination row index.
+         * @param[in]     numRows  Number of rows to construct.
+         * @param[in]     colCount Columns per row.
+         * @param[in]     begin    Iterator to first source value.
+         * @param[in]     end      Iterator one-past-last source value.
+         */
+        template <typename InputIterator>
+        static void FillRows(T* data, size_t const startRow, size_t const numRows, size_t const colCount, InputIterator const begin, InputIterator const end)
+        {
+            ConstructRowsFromValues(data, startRow, numRows, colCount, begin, end);
+        }
+
+        /**
+         * @brief Constructs rows from an iterator-of-rows source.
+         *
+         * @details
+         * Consumes at most `numRows` row entries from `[rowBegin, rowEnd)`.
+         * Stops early if input rows are exhausted.
+         *
+         * Difference to `FillRows(..., begin, end)`:
+         *   - consumes potentially different row content for each destination row
+         *     instead of reusing one row pattern.
+         *
+         * @tparam RowsIterator iterator over row containers.
+         *
+         * @param[in,out] data     Destination pointer to uninitialized row-major storage.
+         * @param[in]     startRow First destination row index.
+         * @param[in]     numRows  Maximum number of rows to construct.
+         * @param[in]     colCount Columns per row.
+         * @param[in,out] rowBegin Current input row iterator; advanced by consumed rows.
+         * @param[in]     rowEnd   Input row end iterator.
          */
         template <typename RowsIterator>
         static void FillRowByRow(T *const data, size_t const startRow, size_t const numRows, size_t const colCount,
                                  RowsIterator& rowBegin, RowsIterator const rowEnd)
         {
-            if(colCount == 0) return;
-
-            for(size_t row = 0; row < numRows && rowBegin != rowEnd; ++row, ++rowBegin)
-            {
-                FillRows(data, startRow + row, 1, colCount, rowBegin->begin(), rowBegin->end());
-            }
+            (void)ConstructRowsByRow(data, startRow, numRows, colCount, rowBegin, rowEnd);
         }
     };
 }

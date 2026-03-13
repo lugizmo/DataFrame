@@ -148,7 +148,7 @@ namespace lugizmo {
         {
             if(values.Empty()) return std::nullopt;
 
-            LUGIZMO_ASSERT_EXP(nextIndex > 0, "DFUniqueIndex invariant failed: non-empty index must have nextIndex > 0.");
+            LUGIZMO_ASSERT_TRACE(nextIndex > 0, "DFUniqueIndex invariant failed: non-empty index must have nextIndex > 0.");
             return nextIndex - 1;
         }
 
