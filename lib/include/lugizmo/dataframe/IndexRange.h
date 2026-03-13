@@ -10,10 +10,10 @@
 #include <type_traits>
 #include <utility>
 #include <optional>
-#include <cassert>
 
 #include "IndexBase.h"
 
+#include "lugizmo/Assert.h"
 #include "lugizmo/container/Concepts.h"
 
 namespace lugizmo {
@@ -27,8 +27,16 @@ namespace lugizmo {
         T upper;
 
         // TODO support other types like chrono, here should be fine but what about dataframe + use std::abs when constexpr
-        [[nodiscard]] constexpr auto Size() const noexcept -> size_t { assert(lower <= upper); return static_cast<size_t>(upper - lower); }
-        [[nodiscard]] constexpr auto size() const noexcept -> size_t { assert(lower <= upper); return Size(); }         // TODO support other types like chrono, here should be fine but what about dataframe
+        [[nodiscard]] constexpr auto Size() const noexcept -> size_t
+        {
+            LUGIZMO_ASSERT(lower <= upper, "DFRangeIndexBounds requires lower <= upper.");
+            return static_cast<size_t>(upper - lower);
+        }
+        [[nodiscard]] constexpr auto size() const noexcept -> size_t
+        {
+            LUGIZMO_ASSERT(lower <= upper, "DFRangeIndexBounds requires lower <= upper.");
+            return Size();
+        } // TODO support other types like chrono, here should be fine but what about dataframe
 
         [[nodiscard]] constexpr auto Empty() const noexcept -> bool { return Size() == T(0); }  // TODO support other types like chrono, here should be fine but what about dataframe
         [[nodiscard]] constexpr auto empty() const noexcept -> bool { return Empty(); }         // TODO support other types like chrono, here should be fine but what about dataframe
@@ -266,7 +274,7 @@ namespace lugizmo {
         constexpr auto Size() const noexcept -> size_t
         {
             // TODO ensure this is never < 0
-            assert(bounds.lower <= bounds.upper);
+            LUGIZMO_ASSERT_EXP(bounds.lower <= bounds.upper, "DFRangeIndex invariant failed: lower bound must not exceed upper bound.");
             return static_cast<size_t>(bounds.upper - bounds.lower);
         }
 

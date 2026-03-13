@@ -355,7 +355,7 @@ TEST(lugizmo_dataframe_construct_row_major, from_fields_and_records_iterable)
             ASSERT_TRUE(countFld < dfFromFldAndRecs.FieldSize());
 
             auto const dfVal = dfFromFldAndRecs.GetValue(field, record);
-            ASSERT_TRUE(dfVal.has_value());
+            ASSERT_TRUE(dfVal.HasValue());
             ASSERT_EQ(RecsAllData[countRec][countFld], *dfVal);
 
             ++countFld;
@@ -412,7 +412,7 @@ TEST(lugizmo_dataframe_construct_row_major, from_fields_and_records_initializer_
             ASSERT_TRUE(countFld < dfFromInitList.FieldSize());
 
             auto const dfVal = dfFromInitList.GetValue(field, record);
-            ASSERT_TRUE(dfVal.has_value());
+            ASSERT_TRUE(dfVal.HasValue());
             ASSERT_EQ(RecsAllData[countRec][countFld], *dfVal);
 
             ++countFld;

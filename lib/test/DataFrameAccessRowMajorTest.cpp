@@ -29,7 +29,7 @@ TEST(lugizmo_dataframe_access_row_major, get_value)
             {
                 // function to test
                 auto const val = df.GetValue(fld, rec);
-                ASSERT_TRUE(val.has_value());
+                ASSERT_TRUE(val.HasValue());
                 ASSERT_EQ(*val, count);
 
                 ++count;

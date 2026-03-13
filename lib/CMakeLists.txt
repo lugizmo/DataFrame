@@ -6,14 +6,15 @@
 
 set(LUGIZMO_DF_INCLUDES
         include/lugizmo/memory/Memory.h
-        include/lugizmo/memory/References.h
 #        include/lugizmo/memory/DFMemory.h
 
         include/lugizmo/container/Concepts.h
         include/lugizmo/container/DataFrameMap.h
+        include/lugizmo/container/OptionalRef.h
 
         include/lugizmo/meta/DeducingThis.h
 
+        include/lugizmo/Assert.h
         include/lugizmo/dataframe/LayoutColMajor.h
         include/lugizmo/dataframe/LayoutRowMajor.h
         include/lugizmo/dataframe/IndexBase.h
@@ -34,6 +35,10 @@ set(LUGIZMO_DF_SOURCES
 add_library(DataFrame ${LUGIZMO_DF_SOURCES})
 target_sources(DataFrame PUBLIC ${LUGIZMO_DF_INCLUDES})
 target_include_directories(DataFrame PUBLIC include/)
+target_compile_definitions(DataFrame PUBLIC
+        LUGIZMO_DF_ENABLE_ASSERT=$<IF:$<BOOL:${LUGIZMO_DF_ENABLE_ASSERT}>,1,0>
+        LUGIZMO_DF_ENABLE_ASSERT_EXPENSIVE=$<IF:$<BOOL:${LUGIZMO_DF_ENABLE_ASSERT_EXPENSIVE}>,1,0>
+)
 
 target_compile_options(DataFrame PRIVATE ${LUGIZMO_CXX_FLAGS})
 target_link_options(DataFrame PRIVATE ${LUGIZMO_LINK_FLAGS})

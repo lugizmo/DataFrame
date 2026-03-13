@@ -12,6 +12,8 @@
 #include <mdspan>
 #include <optional>
 
+#include "lugizmo/Assert.h"
+#include "lugizmo/container/OptionalRef.h"
 #include "IndexUnique.h"
 
 namespace lugizmo {
@@ -90,7 +92,8 @@ namespace lugizmo {
         DFView(MDSpanDF<Layout> original, IndexT const originalIndex, size_t const index, size_t const begin, size_t const end, bool const isFieldView) noexcept :
             dfIndex(originalIndex)
         {
-            assert(begin <= end && end <= (isFieldView ? static_cast<std::size_t>(original.extent(0)) : static_cast<std::size_t>(original.extent(1))));
+            LUGIZMO_ASSERT_EXP(begin <= end && end <= (isFieldView ? static_cast<std::size_t>(original.extent(0)) : static_cast<std::size_t>(original.extent(1))),
+                            "DFView sub-range constructor received invalid begin/end bounds.");
             std::size_t const newExtent_sz = end - begin;
 
             using IIdx           = Extents::index_type;
@@ -224,8 +227,17 @@ namespace lugizmo {
         [[nodiscard]] constexpr auto operator[](size_t i) noexcept -> T& { return view[i]; }
         [[nodiscard]] constexpr auto operator[](size_t i) const noexcept -> const T& { return view[i]; }
 
-        [[nodiscard]] constexpr auto operator()(size_t i) noexcept -> std::optional<T*> { return i < static_cast<size_t>(view.extent(0)) ? &view[i] : std::nullopt; }
-        [[nodiscard]] constexpr auto operator()(size_t i) const noexcept -> std::optional<T const*> { return i < static_cast<size_t>(view.extent(0)) ? &view[i] : std::nullopt; }
+        [[nodiscard]]
+        constexpr auto operator()(size_t i) noexcept -> OptionalRef<T>
+        {
+            return i < static_cast<size_t>(view.extent(0)) ? OptionalRef<T>(view[i]) : OptionalRef<T>();
+        }
+
+        [[nodiscard]]
+        constexpr auto operator()(size_t i) const noexcept -> OptionalRef<T const>
+        {
+            return i < static_cast<size_t>(view.extent(0)) ? OptionalRef<T const>(view[i]) : OptionalRef<T const>();
+        }
 
         [[nodiscard]] auto Contains(KeyType const& key) -> bool;
 

@@ -8,14 +8,14 @@
 #define LUGIZMO_DF_VIEW_INDEXED_H
 
 #include <cstddef>
-#include <cassert>
 #include <iterator>
 #include <utility>
 #include <span>
 
+#include "lugizmo/Assert.h"
 #include "lugizmo/Error.h"
-#include "lugizmo/memory/References.h"
 #include "lugizmo/container/Concepts.h"
+#include "lugizmo/container/OptionalRef.h"
 
 #include "View.h"
 #include "IndexRange.h"
@@ -69,10 +69,13 @@ namespace lugizmo {
          */
         struct IteratorValue
         {
-            NullableAssignableReferenceWrapper<T>       val;
-            NullableAssignableReferenceWrapper<KeyType> idx;
+            OptionalRef<T>       val;
+            OptionalRef<KeyType> idx;
 
-            constexpr IteratorValue(T* v, KeyType* i) noexcept : val(v), idx(i) { assert(v != nullptr && i != nullptr); }
+            constexpr IteratorValue(T* v, KeyType* i) noexcept : val(v), idx(i)
+            {
+                LUGIZMO_ASSERT_EXP(v != nullptr && i != nullptr, "IteratorValue requires non-null value and index pointers.");
+            }
             constexpr ~IteratorValue() noexcept = default;
 
             constexpr IteratorValue(IteratorValue const& other) noexcept                    = default;
@@ -80,13 +83,13 @@ namespace lugizmo {
             constexpr auto operator=(IteratorValue&& other) noexcept -> IteratorValue&      = default;
             constexpr auto operator=(IteratorValue const& other) noexcept -> IteratorValue& = default;
 
-            constexpr auto first()        noexcept -> T*             { return val; }
-            constexpr auto first()  const noexcept -> T const*       { return val; }
-            constexpr auto second() const noexcept -> KeyType const* { return idx; }
+            constexpr auto first()        noexcept -> T*             { return val.Pointer(); }
+            constexpr auto first()  const noexcept -> T const*       { return val.Pointer(); }
+            constexpr auto second() const noexcept -> KeyType const* { return idx.Pointer(); }
 
-            constexpr auto First()        noexcept -> T*             { return val; }
-            constexpr auto First()  const noexcept -> T const*       { return val; }
-            constexpr auto Second() const noexcept -> KeyType const* { return idx; }
+            constexpr auto First()        noexcept -> T*             { return val.Pointer(); }
+            constexpr auto First()  const noexcept -> T const*       { return val.Pointer(); }
+            constexpr auto Second() const noexcept -> KeyType const* { return idx.Pointer(); }
         };
 
         static_assert(std::is_trivially_copyable_v<IteratorValue>, "Iterator value should just point/reference to the actual value.");
@@ -108,7 +111,7 @@ namespace lugizmo {
 
             void SetCurrent(DIt& p, IIt& i)
             {
-                assert(current.has_value());
+                LUGIZMO_ASSERT_EXP(current.has_value(), "IteratorIdx expected current value storage to be initialized.");
                 current.emplace(Val(p.operator->(), i.operator->()));
             }
 
@@ -140,11 +143,27 @@ namespace lugizmo {
             IteratorIdx(IteratorIdx const& other) noexcept = default;
             auto operator=(IteratorIdx const& other) noexcept -> IteratorIdx& = default;
 
-            auto operator*()  const noexcept -> reference { assert(current.has_value()); return *current; }
-            auto operator->() const noexcept -> pointer   { assert(current.has_value()); return &*current; }
+            auto operator*()  const noexcept -> reference
+            {
+                LUGIZMO_ASSERT(current.has_value(), "Cannot dereference DFViewIndexed end iterator.");
+                return *current;
+            }
+            auto operator->() const noexcept -> pointer
+            {
+                LUGIZMO_ASSERT(current.has_value(), "Cannot dereference DFViewIndexed end iterator.");
+                return &*current;
+            }
 
-            auto operator*()  noexcept -> reference { assert(current.has_value()); return *current; }
-            auto operator->() noexcept -> pointer   { assert(current.has_value()); return &*current; }
+            auto operator*()  noexcept -> reference
+            {
+                LUGIZMO_ASSERT(current.has_value(), "Cannot dereference DFViewIndexed end iterator.");
+                return *current;
+            }
+            auto operator->() noexcept -> pointer
+            {
+                LUGIZMO_ASSERT(current.has_value(), "Cannot dereference DFViewIndexed end iterator.");
+                return &*current;
+            }
 
             auto operator++() -> IteratorIdx&
             {
@@ -214,7 +233,8 @@ namespace lugizmo {
             // TODO: check why argument is not used
             auto operator[](difference_type const) const -> reference
             {
-                return {.val = *current.val, .idx = *current.idx};
+                LUGIZMO_ASSERT(current.has_value(), "Cannot index DFViewIndexed iterator without a current value.");
+                return *current;
             }
 
             friend auto operator+(difference_type n, const IteratorIdx& it) -> IteratorIdx
@@ -257,24 +277,24 @@ namespace lugizmo {
 
         [[nodiscard]] auto operator[](size_t const i) noexcept -> IteratorValue
         {
-            return {.val = dataView[i], .idx = indexSpan[i]};
+            return IteratorValue(&dataView[i], &indexSpan[i]);
         }
 
         [[nodiscard]] auto operator[](size_t const i) const noexcept -> IteratorValue
         {
-            return {.val = dataView[i], .idx = indexSpan[i]};
+            return IteratorValue(&dataView[i], &indexSpan[i]);
         }
 
         [[nodiscard]] auto operator()(size_t const i) noexcept -> std::optional<IteratorValue>
         {
             if(i >= dataView.Size()) return std::nullopt;
-            return {.val = dataView[i], .idx = indexSpan[i]};
+            return IteratorValue(&dataView[i], &indexSpan[i]);
         }
 
         [[nodiscard]] auto operator()(size_t const i) const noexcept -> std::optional<IteratorValue>
         {
             if(i >= dataView.Size()) return std::nullopt;
-            return {.val = dataView[i], .idx = indexSpan[i]};
+            return IteratorValue(&dataView[i], &indexSpan[i]);
         }
 
         [[nodiscard]]
@@ -362,7 +382,7 @@ namespace lugizmo {
             auto pos = std::ranges::find(indexSpan, key);
             if(pos == indexSpan.end()) return nullptr;
 
-            assert(indexSpan.size() == dataView.Size());
+            LUGIZMO_ASSERT_EXP(indexSpan.size() == dataView.Size(), "DFViewIndexed invariant failed: index and data view size mismatch.");
             return &dataView[static_cast<size_t>(std::distance(indexSpan.begin(), pos))];
         }
 
@@ -374,7 +394,7 @@ namespace lugizmo {
             auto pos = std::ranges::find(indexSpan, key);
             if(pos == indexSpan.end()) return nullptr;
 
-            assert(indexSpan.size() == dataView.Size());
+            LUGIZMO_ASSERT_EXP(indexSpan.size() == dataView.Size(), "DFViewIndexed invariant failed: index and data view size mismatch.");
             return &dataView[static_cast<size_t>(std::distance(indexSpan.begin(), pos))];
         }
 

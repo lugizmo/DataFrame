@@ -194,7 +194,7 @@ TEST(lugizmo_dataframe_adding_row_major, insert_value)
         EXPECT_EQ(df.Records()[0], "record1");
 
         auto val = df.GetValue("field1", "record1");
-        ASSERT_TRUE(val.has_value());
+        ASSERT_TRUE(val.HasValue());
         EXPECT_EQ(val, 1);
 
         // insert field but the record is already present
@@ -206,7 +206,7 @@ TEST(lugizmo_dataframe_adding_row_major, insert_value)
         EXPECT_EQ(df.Values()[1], 2);
 
         val = df.GetValue("field1", "record2");
-        ASSERT_TRUE(val.has_value());
+        ASSERT_TRUE(val.HasValue());
         EXPECT_EQ(val, 2);
 
         // insert record but the field is already present
@@ -217,7 +217,7 @@ TEST(lugizmo_dataframe_adding_row_major, insert_value)
         EXPECT_EQ(df.Records()[0], "record1");
 
         val = df.GetValue("field2", "record1");
-        ASSERT_TRUE(val.has_value());
+        ASSERT_TRUE(val.HasValue());
         EXPECT_EQ(val, 3);
 
         // field and value already present
@@ -250,7 +250,7 @@ TEST(lugizmo_dataframe_adding_row_major, insert_or_assign_value)
         EXPECT_EQ(df.RecordSize(), 1);
 
         auto val = df.GetValue("field1", "record1");
-        ASSERT_TRUE(val.has_value());
+        ASSERT_TRUE(val.HasValue());
         EXPECT_EQ(val, 1);
 
         // insert not existing field
@@ -259,7 +259,7 @@ TEST(lugizmo_dataframe_adding_row_major, insert_or_assign_value)
         EXPECT_EQ(df.RecordSize(), 1);
 
         val = df.GetValue("field2", "record1");
-        ASSERT_TRUE(val.has_value());
+        ASSERT_TRUE(val.HasValue());
         EXPECT_EQ(val, 2);
 
         // insert not existing record
@@ -268,7 +268,7 @@ TEST(lugizmo_dataframe_adding_row_major, insert_or_assign_value)
         EXPECT_EQ(df.RecordSize(), 2);
 
         val = df.GetValue("field2", "record2");
-        ASSERT_TRUE(val.has_value());
+        ASSERT_TRUE(val.HasValue());
         EXPECT_EQ(val, 3);
 
         // assign existing field and record
@@ -277,7 +277,7 @@ TEST(lugizmo_dataframe_adding_row_major, insert_or_assign_value)
         EXPECT_EQ(df.RecordSize(), 2);
 
         val = df.GetValue("field2", "record2");
-        ASSERT_TRUE(val.has_value());
+        ASSERT_TRUE(val.HasValue());
         EXPECT_EQ(val, 4);
     }
 

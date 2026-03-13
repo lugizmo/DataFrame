@@ -9,6 +9,7 @@ if(LUGIZMO_BUILD_TESTING)
     add_executable(DataFrameTest
             container/ConceptsTest.cpp
             container/DataFrameMapTest.cpp
+            container/OptionalRefTest.cpp
             dataframe/IndexBaseTest.cpp
             dataframe/IndexRangeTest.cpp
             dataframe/IndexUniqueTest.cpp

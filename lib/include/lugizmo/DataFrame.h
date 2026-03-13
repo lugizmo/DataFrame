@@ -7,7 +7,6 @@
 #ifndef LUGIZMO_DF_DATAFRAME_H
 #define LUGIZMO_DF_DATAFRAME_H
 
-#include <cassert>
 #include <cstddef>
 #include <format>
 #include <functional>
@@ -24,9 +23,11 @@
 #include <utility>
 #include <ostream>
 
+#include "Assert.h"
 #include "memory/Memory.h"
 
 #include "container/Concepts.h"
+#include "container/OptionalRef.h"
 #include "meta/DeducingThis.h"
 
 #include "dataframe/IndexBase.h"
@@ -92,10 +93,7 @@ namespace lugizmo {
         using ViewValueT = meta::ThisValueT<Self, T>;
 
         template<typename Self>
-        using ValueRefT = meta::ThisRefWrapperT<Self, T>;
-
-        template<typename Self>
-        using ValueRefOptT = meta::ThisRefWrapperOptT<Self, T>;
+        using ValueRefOptT = OptionalRef<ViewValueT<Self>>;
 
         template<typename Self>
         using FieldViewT = DFView<ViewValueT<Self>, RecI>;
@@ -606,7 +604,7 @@ namespace lugizmo {
 
         size_t const fldIndicesSize = fldIndices.size();
         size_t const recIndicesSize = recIndices.size();
-        assert(recIndicesSize == recValues.size() || recValues.empty());
+        LUGIZMO_ASSERT(recIndicesSize == recValues.size() || recValues.empty(), "FromFieldsAndRecord expects either no record values or exactly one record-size value span.");
 
         auto reserve = std::max<size_t>(fldIndicesSize * recIndicesSize, capacity);
         auto df      = DataFrame(reserve, std::move(res));
@@ -642,7 +640,7 @@ namespace lugizmo {
 
         size_t const fldIndicesSize = fldIndices.size();
         size_t const recIndicesSize = recIndices.size();
-        assert(recIndicesSize == recIndicesSize || recValues.empty());
+        LUGIZMO_ASSERT(recIndicesSize == recValues.size() || recValues.empty(), "FromFieldsAndRecords expects record count to match provided row-value count.");
 
         auto reserve = std::max<size_t>(fldIndicesSize *recIndicesSize, capacity);
         auto df      = DataFrame(reserve, std::move(res));
@@ -671,7 +669,7 @@ namespace lugizmo {
 
         size_t const fldIndicesSize = fldIndices.size();
         size_t const recIndicesSize = recIndices.size();
-        assert(recIndicesSize == recIndicesSize || recValues.size() == 0);
+        LUGIZMO_ASSERT(recIndicesSize == recValues.size() || recValues.size() == 0, "FromFieldsAndRecords expects record count to match initializer-list row count.");
 
         auto reserve = std::max<size_t>(fldIndicesSize * recIndicesSize, capacity);
         auto df      = DataFrame(reserve, std::move(res));
@@ -759,7 +757,7 @@ namespace lugizmo {
     template <typename T, typename F, typename R, typename L>
     DataFrame<T, F, R, L>::~DataFrame() noexcept
     {
-        assert(not (data != nullptr && capacity == 0));
+        LUGIZMO_ASSERT_EXP(not (data != nullptr && capacity == 0), "DataFrame invariant failed: non-null data with zero capacity.");
         if(data != nullptr && capacity) backingRes->deallocate(static_cast<void*>(data), capacity * sizeof(T), internal::Alignment<T>());
     }
 
@@ -998,7 +996,7 @@ namespace lugizmo {
         auto const fldPos = self.fldIndex.Position(field);
         auto const recPos = self.recIndex.Position(record);
 
-        return fldPos && recPos ? ValueRefOptT<decltype(self)>{self.recsData[*recPos, *fldPos]} : std::nullopt;
+        return fldPos && recPos ? ValueRefOptT<decltype(self)>{self.recsData[*recPos, *fldPos]} : ValueRefOptT<decltype(self)>{};
     }
 
     template<typename T, typename F, typename R, typename L>
@@ -1007,7 +1005,7 @@ namespace lugizmo {
         auto const fldPos = self.fldIndex.Position(field);
         auto const recPos = self.recIndex.Position(record);
 
-        assert(fldPos.has_value() && recPos.has_value());
+        LUGIZMO_ASSERT(fldPos.has_value() && recPos.has_value(), "DataFrame::operator[] requires existing field and record.");
         return self.recsData[*recPos, *fldPos];
     }
 
@@ -1016,7 +1014,7 @@ namespace lugizmo {
     template<typename T, typename F, typename R, typename L>
     auto DataFrame<T, F, R, L>::AssignValue(FldT const& field, RecT const& record, T const& value) -> bool
     {
-        if(auto get = GetValue(field, record); get.has_value())
+        if(auto get = GetValue(field, record); get.HasValue())
         {
             T& g = *get;
             g    = value;
@@ -1038,18 +1036,18 @@ namespace lugizmo {
         {
             // the field is not present
             [[maybe_unused]] auto const fieldAdded = AddField(field);
-            assert(fieldAdded && "Field should not be present yet.");
+            LUGIZMO_ASSERT_EXP(fieldAdded, "InsertValue expected AddField to succeed.");
         }
 
         if(not hasRec)
         {
             // the record is not present
             [[maybe_unused]] auto const recordAdded = AddRecord(record);
-            assert(recordAdded && "Record should not be present yet.");
+            LUGIZMO_ASSERT_EXP(recordAdded, "InsertValue expected AddRecord to succeed.");
         }
 
         [[maybe_unused]] auto const valueSet = AssignValue(field, record, value);
-        assert(valueSet   && "Field and record should be present.");
+        LUGIZMO_ASSERT_EXP(valueSet, "InsertValue expected AssignValue to succeed.");
 
         return true;
     }
@@ -1065,7 +1063,7 @@ namespace lugizmo {
         if(hasFld and hasRec)
         {
             [[maybe_unused]] auto const assigned = AssignValue(field, record, value);
-            assert(assigned && "Field and record should be present.");
+            LUGIZMO_ASSERT_EXP(assigned, "InsertOrAssignValue expected AssignValue to succeed.");
 
             return;
         }
@@ -1075,18 +1073,18 @@ namespace lugizmo {
         {
             // the field is not present
             [[maybe_unused]] auto const fieldAdded = AddField(field);
-            assert(fieldAdded && "Field should not be present yet.");
+            LUGIZMO_ASSERT_EXP(fieldAdded, "InsertOrAssignValue expected AddField to succeed.");
         }
 
         if(not hasRec)
         {
             // the record is not present
             [[maybe_unused]] auto const recordAdded = AddRecord(record);
-            assert(recordAdded && "Record should not be present yet.");
+            LUGIZMO_ASSERT_EXP(recordAdded, "InsertOrAssignValue expected AddRecord to succeed.");
         }
 
         [[maybe_unused]] auto const valueSet = AssignValue(field, record, value);
-        assert(valueSet   && "Field and record should be present.");
+        LUGIZMO_ASSERT_EXP(valueSet, "InsertOrAssignValue expected AssignValue to succeed.");
     }
 
     // ======== DROP ===============================================================================================================================================================
@@ -1288,7 +1286,7 @@ namespace lugizmo {
             for (size_t pos = 0; pos < colCount; ++pos)
             {
                 auto fld = fldIndex.Key(pos);
-                assert(fld.has_value());
+                LUGIZMO_ASSERT_EXP(fld.has_value(), "Print expected a valid field key for every field position.");
                 stream << std::format("{:<15}", *fld);
             }
         }
@@ -1338,7 +1336,7 @@ namespace lugizmo {
             for (size_t i = 0; i < rowCount; ++i)
             {
                 auto recKey = recIndex.Key(i);
-                assert(recKey.has_value());
+                LUGIZMO_ASSERT_EXP(recKey.has_value(), "Print expected a valid record key for every record position.");
                 stream << std::format("{:<15}", *recKey);
 
                 if constexpr (IsFISeq)

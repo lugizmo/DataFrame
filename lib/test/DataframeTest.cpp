@@ -22,7 +22,6 @@
 #include <compare>
 #include <functional>
 
-#include "lugizmo/memory/References.h"
 #include "lugizmo/dataframe/Selector.h"
 #include "lugizmo/dataframe/View.h"
 #include "lugizmo/dataframe/ViewIndexed.h"
@@ -815,7 +814,7 @@ TEST(lugizmo_dataframe_test, dev)
         {
             //auto const get = df.GetValue(std::format("col{}", col), row);
             auto const get = df.GetValue(col, row);
-            ASSERT_TRUE(get.has_value());
+            ASSERT_TRUE(get.HasValue());
 
             auto const con = get >= 0;
             ASSERT_TRUE(con);

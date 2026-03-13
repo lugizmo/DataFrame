@@ -13,6 +13,7 @@
 #include <optional>
 #include <span>
 
+#include "lugizmo/Assert.h"
 #include "lugizmo/container/Concepts.h"
 
 namespace lugizmo {
@@ -199,8 +200,8 @@ namespace lugizmo {
         values.push_back(value);
         keyOrder.insert(it, newIndex);
 
-        assert(keys.size() == values.size());
-        assert(keys.size() == keyOrder.size());
+        LUGIZMO_ASSERT_EXP(keys.size() == values.size(), "DataFrameMap invariant failed: keys and values size mismatch.");
+        LUGIZMO_ASSERT_EXP(keys.size() == keyOrder.size(), "DataFrameMap invariant failed: keys and keyOrder size mismatch.");
     }
 
     template<class K, class V>
@@ -300,8 +301,8 @@ namespace lugizmo {
         keyOrder.erase(it);
         for(auto& idx : keyOrder) if (idx > eraseIndex) --idx;
 
-        assert(keys.size() == values.size());
-        assert(keys.size() == keyOrder.size());
+        LUGIZMO_ASSERT_EXP(keys.size() == values.size(), "DataFrameMap invariant failed: keys and values size mismatch after erase.");
+        LUGIZMO_ASSERT_EXP(keys.size() == keyOrder.size(), "DataFrameMap invariant failed: keys and keyOrder size mismatch after erase.");
 
         return true;
     }

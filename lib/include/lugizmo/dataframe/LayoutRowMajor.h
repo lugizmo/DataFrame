@@ -10,12 +10,12 @@
 #include <memory>
 #include <memory_resource>
 #include <algorithm>
-#include <cassert>
 #include <span>
 #include <tuple>
 #include <mdspan>
 #include <cmath>
 
+#include "lugizmo/Assert.h"
 #include "lugizmo/memory/Memory.h"
 #include "lugizmo/container/Concepts.h"
 
@@ -237,7 +237,7 @@ namespace lugizmo {
             // check inputs first
             if(newRowCount < 0)
             {
-                assert(newRowCount >= 0 && "Record count is negative!");
+                LUGIZMO_ASSERT_EXP(newRowCount >= 0, "ResizeRows computed a negative row count.");
                 return;
             }
 
@@ -358,7 +358,7 @@ namespace lugizmo {
             auto const colCount = static_cast<size_t>(extents.extent(1));
             auto const rowCount = static_cast<size_t>(extents.extent(0));
 
-            assert(rowToRemove < rowCount && "Row index out of bounds");
+            LUGIZMO_ASSERT_EXP(rowToRemove < rowCount, "DropRow received a row index out of bounds.");
 
             if(rowToRemove < rowCount - 1)
             {
@@ -379,7 +379,7 @@ namespace lugizmo {
             auto const colCount = static_cast<size_t>(extents.extent(1));
             auto const rowCount = static_cast<size_t>(extents.extent(0));
 
-            assert(colToRemove < colCount && "Column index out of bounds");
+            LUGIZMO_ASSERT_EXP(colToRemove < colCount, "DropColumn received a column index out of bounds.");
 
             auto const newColCount = colCount - 1;
             for (size_t row = 0; row < rowCount; ++row)
@@ -434,14 +434,15 @@ namespace lugizmo {
 
             auto* const newData = static_cast<T*>(res.allocate(newCapacity * sizeof(T), internal::Alignment<T>()));
 
-            assert(newCapacity > capacity || colCount == 0);
-            assert(newData != nullptr && "Memory allocation failed");
+            LUGIZMO_ASSERT_EXP(newCapacity > capacity || colCount == 0, "Realloc did not increase capacity while columns exist.");
+            LUGIZMO_ASSERT_EXP(newData != nullptr, "Memory allocation returned nullptr in Realloc.");
 
             // move existing data to the new buffer at the correct offset
             if(rowCount > 0)
             {
                 auto* const destBeg = newData + std::max<ssize_t>(0, adjCountByBeg) * static_cast<ssize_t>(colCount);
-                assert((destBeg + rowCount * colCount /* destEnd */) <= newData + newCapacity && "Destination out of bounds for copying existing rows");
+                LUGIZMO_ASSERT_EXP((destBeg + rowCount * colCount /* destEnd */) <= newData + newCapacity,
+                                "Realloc destination range is out of bounds.");
                 std::uninitialized_copy_n(data, rowCount * colCount, destBeg);
             }
 
@@ -489,7 +490,7 @@ namespace lugizmo {
                 auto const end    = data + rowCount * colCount;
                 auto const newEnd = data + (rowCount + static_cast<size_t>(adjCountByBeg)) * colCount;
 
-                assert(newEnd > end && begin <= end && "Move backward memory in undefined range");
+                LUGIZMO_ASSERT_EXP(newEnd > end && begin <= end, "ReallocAndShift detected invalid move_backward range.");
                 std::move_backward(begin, end, newEnd);
             }
             else if(adjCountByBeg < 0 && static_cast<ssize_t>(rowCount) + adjCountByBeg > 0)
@@ -509,7 +510,7 @@ namespace lugizmo {
                 T* const src = data + shrinkRows * elemsPerRow;
                 T* const dst = data;
 
-                assert((dst + moveElemCount /* dstEnd */) >= dst && "Shrinking rows caused invalid range");
+                LUGIZMO_ASSERT_EXP((dst + moveElemCount /* dstEnd */) >= dst, "ReallocAndShift detected invalid shrink move range.");
                 std::move(src, src + moveElemCount, dst);
             }
         }
@@ -545,7 +546,7 @@ namespace lugizmo {
                 auto* start = data + (startRow + row) * colCount;
                 auto* end   = start + colCount;
 
-                assert(start < end && "Invalid memory range for filling default values");
+                LUGIZMO_ASSERT_EXP(start < end, "FillRows default overload detected invalid destination range.");
                 std::fill(start, end, defaultValue);
             }
         }
@@ -564,8 +565,8 @@ namespace lugizmo {
             {
                 auto* start  = data + (startRow + row) * colCount;
 
-                assert(start < (start + colCount /* finish */) && "Invalid memory range in FillRows");
-                assert(std::distance(begin, end) == static_cast<std::ptrdiff_t>(colCount) && "Column count mismatch");
+                LUGIZMO_ASSERT_EXP(start < (start + colCount /* finish */), "FillRows iterator overload detected invalid destination range.");
+                LUGIZMO_ASSERT_EXP(std::distance(begin, end) == static_cast<std::ptrdiff_t>(colCount), "FillRows iterator overload received mismatched column count.");
                 std::copy(begin, end, start);
             }
         }

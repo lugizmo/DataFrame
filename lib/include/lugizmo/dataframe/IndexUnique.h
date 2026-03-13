@@ -7,12 +7,12 @@
 #ifndef LUGIZMO_DF_INDEX_HASH_H
 #define LUGIZMO_DF_INDEX_HASH_H
 
-#include <cassert>
 #include <algorithm>
 #include <span>
 #include <optional>
 #include <ranges>
 
+#include "lugizmo/Assert.h"
 #include "lugizmo/container/DataFrameMap.h"
 
 #include "IndexBase.h"
@@ -148,7 +148,7 @@ namespace lugizmo {
         {
             if(values.Empty()) return std::nullopt;
 
-            assert(nextIndex > 0);
+            LUGIZMO_ASSERT_EXP(nextIndex > 0, "DFUniqueIndex invariant failed: non-empty index must have nextIndex > 0.");
             return nextIndex - 1;
         }
 

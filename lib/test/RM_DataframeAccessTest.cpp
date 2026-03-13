@@ -9,8 +9,8 @@
 // The following functions are tested here (with names of tests):
 //
 // ✅ get_val
-// - GetValue(FldT const& field, RecT const& record) const -> std::optional<std::reference_wrapper<T const>>
-// - GetValue(FldT const& field, RecT const& record) -> std::optional<std::reference_wrapper<T>>
+// - GetValue(FldT const& field, RecT const& record) const -> OptionalRef<T const>
+// - GetValue(FldT const& field, RecT const& record) -> OptionalRef<T>
 //
 // ✅ get_val_op
 // - operator[](FldT const& field, RecT const& record) -> T&
@@ -30,8 +30,8 @@
 
 /**
  *  @brief Getting individual values from the dataframe.
- *  @see   lugizmo::Dataframe.GetValue(FldT const& field, RecT const& record) const -> std::optional<std::reference_wrapper<T const>>
- *         lugizmo::Dataframe.GetValue(FldT const& field, RecT const& record) -> std::optional<std::reference_wrapper<T>>
+ *  @see   lugizmo::Dataframe.GetValue(FldT const& field, RecT const& record) const -> OptionalRef<T const>
+ *         lugizmo::Dataframe.GetValue(FldT const& field, RecT const& record) -> OptionalRef<T>
  */
 TEST(lugizmo_dataframe_access_row_major, get_val)
 {
@@ -52,7 +52,7 @@ TEST(lugizmo_dataframe_access_row_major, get_val)
             for(auto const recName : DFRecords)
             {
                 auto const val = df.GetValue(fldName, recName);
-                ASSERT_TRUE(val.has_value());
+                ASSERT_TRUE(val.HasValue());
                 EXPECT_EQ(*val, DFData[recCount][fldCount]);
                 recCount++;
             }
@@ -61,13 +61,13 @@ TEST(lugizmo_dataframe_access_row_major, get_val)
 
         // not present
         auto const valMiss = df.GetValue(1000, 1000);
-        ASSERT_FALSE(valMiss.has_value());
+        ASSERT_FALSE(valMiss.HasValue());
 
         // mutable version
         [[maybe_unused]] auto dfM = DefaultDataframe();
         [[maybe_unused]] auto val = dfM.GetValue(DFFields[0], DFRecords[0]);
         static_assert(not std::is_const_v<decltype(val)>);
-        static_assert(not std::is_const_v<decltype(val.value())>);
+        static_assert(not std::is_const_v<decltype(val.Value())>);
     }
 
     {
@@ -82,7 +82,7 @@ TEST(lugizmo_dataframe_access_row_major, get_val)
             for(auto const& recName : DFRecords)
             {
                 auto const val = df.GetValue(fldName, recName);
-                ASSERT_TRUE(val.has_value());
+                ASSERT_TRUE(val.HasValue());
                 EXPECT_EQ(*val, DFData[recCount][fldCount]);
                 recCount++;
             }
@@ -91,13 +91,13 @@ TEST(lugizmo_dataframe_access_row_major, get_val)
 
         // not present
         auto const valMiss = df.GetValue("1000", "1000");
-        ASSERT_FALSE(valMiss.has_value());
+        ASSERT_FALSE(valMiss.HasValue());
 
         // mutable version
         [[maybe_unused]] auto dfM = DefaultDataframe();
         [[maybe_unused]] auto val = dfM.GetValue(DFFields[0], DFRecords[0]);
         static_assert(not std::is_const_v<decltype(val)>);
-        static_assert(not std::is_const_v<decltype(val.value())>);
+        static_assert(not std::is_const_v<decltype(val.Value())>);
     }
 }
 
@@ -238,4 +238,3 @@ TEST(lugizmo_dataframe_access_row_major, get_mdspan)
         }
     }
 }
-

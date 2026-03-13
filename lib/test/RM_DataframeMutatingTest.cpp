@@ -52,7 +52,7 @@ TEST(lugizmo_dataframe_mutating_row_major, replace_val)
             for(auto const recName : DFRecords)
             {
                 auto const val = df.GetValue(fldName, recName);
-                ASSERT_TRUE(val.has_value());
+                ASSERT_TRUE(val.HasValue());
                 EXPECT_EQ(*val, DFData[recCount][fldCount] * 2);
                 recCount++;
             }
@@ -84,7 +84,7 @@ TEST(lugizmo_dataframe_mutating_row_major, replace_val)
             for(auto const& recName : DFRecords)
             {
                 auto const val = df.GetValue(fldName, recName);
-                ASSERT_TRUE(val.has_value());
+                ASSERT_TRUE(val.HasValue());
                 EXPECT_EQ(*val, DFData[recCount][fldCount] * 2);
                 recCount++;
             }
