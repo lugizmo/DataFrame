@@ -7,9 +7,9 @@
 #ifndef LUGIZMO_DF_LAYOUT_ROW_MAJOR_H
 #define LUGIZMO_DF_LAYOUT_ROW_MAJOR_H
 
+#include <algorithm>
 #include <memory>
 #include <memory_resource>
-#include <algorithm>
 #include <iterator>
 #include <mdspan>
 #include <type_traits>
@@ -63,8 +63,8 @@ namespace lugizmo {
         using Layout = std::layout_right;
         using MDSpan = std::mdspan<T, std::dextents<std::ptrdiff_t, 2>, Layout>;
 
-        static constexpr bool IsRowMajor = true;
-        static constexpr bool IsColMajor = false;
+        static constexpr bool IS_ROW_MAJOR = true;
+        static constexpr bool IS_COL_MAJOR = false;
 
     private:
 
@@ -135,10 +135,7 @@ namespace lugizmo {
             if(requiredCount == 0) return 0;
             if(currentCapacity >= requiredCount && currentCapacity != 0) return currentCapacity;
 
-            auto nextCapacity = internal::GrowthFactorDefault(requiredCount);
-            if(nextCapacity < requiredCount) nextCapacity = requiredCount;
-
-            return nextCapacity;
+            return std::max(requiredCount, internal::GrowthFactorDefault(requiredCount));
         }
 
         // ======= HELPERS: LIFETIME ===============================================================================================================================================
@@ -286,9 +283,7 @@ namespace lugizmo {
         static void ConstructRowsFromValues(T* const data, size_t const startRow, size_t const numRows, size_t const colCount, InputIterator const begin, InputIterator const end)
         {
             if(colCount == 0 || numRows == 0) return;
-
-            auto const valueCount = std::distance(begin, end);
-            LUGIZMO_ASSERT_TRACE(valueCount == static_cast<std::ptrdiff_t>(colCount), "ConstructRowsFromValues received mismatched column count.");
+            LUGIZMO_ASSERT_TRACE(std::distance(begin, end) == static_cast<std::ptrdiff_t>(colCount), "ConstructRowsFromValues received mismatched column count.");
 
             for(size_t row = 0; row < numRows; ++row)
             {
@@ -673,10 +668,13 @@ namespace lugizmo {
             {
                 if constexpr(isItOfIt)
                 {
-                    auto inputRowIt = std::begin(values);
-                    auto const begRows = ConstructRowsByRow(newData, 0, addBeg, colCount, inputRowIt, std::end(values));
-                    auto const endRows = ConstructRowsByRow(newData, addBeg + keptRows, addEnd, colCount, inputRowIt, std::end(values));
-                    LUGIZMO_ASSERT_TRACE(begRows == addBeg && endRows == addEnd, "ResizeRows(values) did not receive enough rows to initialize inserted records.");
+                    if constexpr(AssertTraceEnabled())
+                    {
+                        auto inputRowIt = std::begin(values);
+                        auto const begRows = ConstructRowsByRow(newData, 0, addBeg, colCount, inputRowIt, std::end(values));
+                        auto const endRows = ConstructRowsByRow(newData, addBeg + keptRows, addEnd, colCount, inputRowIt, std::end(values));
+                        LUGIZMO_ASSERT_TRACE(begRows == addBeg && endRows == addEnd, "ResizeRows(values) did not receive enough rows to initialize inserted records.");
+                    }
                 }
                 else
                 {
@@ -984,6 +982,7 @@ namespace lugizmo {
             (void)ConstructRowsByRow(data, startRow, numRows, colCount, rowBegin, rowEnd);
         }
     };
-}
+
+} // namespace lugizmo
 
 #endif // LUGIZMO_DF_LAYOUT_ROW_MAJOR_H

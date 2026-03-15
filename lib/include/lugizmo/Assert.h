@@ -61,54 +61,38 @@ namespace lugizmo {
 #endif
     }
 
-    /**
-     * @brief Backward-compatible alias for `AssertTraceEnabled()`.
-     */
-    [[nodiscard]]
-    consteval auto AssertExpensiveEnabled() noexcept -> bool
-    {
-        return AssertTraceEnabled();
-    }
-
 } // namespace lugizmo
 
 #if defined(LUGIZMO_DF_ENABLE_ASSERT) && LUGIZMO_DF_ENABLE_ASSERT
-#define LUGIZMO_ASSERT(condition, message)                                                                    \
-    do                                                                                                        \
-    {                                                                                                         \
-        if(!(condition))                                                                                      \
-        {                                                                                                     \
-            ::lugizmo::internal::PrintAndAbortAssertFailure((message), std::source_location::current());      \
-        }                                                                                                     \
-    } while(false)
+#define LUGIZMO_ASSERT(condition, message)                                                                     \
+    [&]() noexcept                                                                                             \
+    {                                                                                                          \
+        if(!(condition))                                                                                       \
+        {                                                                                                      \
+            ::lugizmo::internal::PrintAndAbortAssertFailure((message), std::source_location::current());       \
+        }                                                                                                      \
+    }()
 #else
-#define LUGIZMO_ASSERT(condition, message)                                                                    \
-    do                                                                                                        \
-    {                                                                                                         \
-        [[maybe_unused]] constexpr bool lugizmoAssertDisabled = true;                                         \
-        (void)lugizmoAssertDisabled;                                                                          \
-    } while(false)
+#define LUGIZMO_ASSERT(condition, message)                                                                     \
+    []() noexcept                                                                                              \
+    {                                                                                                          \
+    }()
 #endif
 
 #if defined(LUGIZMO_DF_ENABLE_ASSERT_TRACE) && LUGIZMO_DF_ENABLE_ASSERT_TRACE
-#define LUGIZMO_ASSERT_TRACE(condition, message)                                                              \
-    do                                                                                                        \
-    {                                                                                                         \
-        if(!(condition))                                                                                      \
-        {                                                                                                     \
-            ::lugizmo::internal::PrintAndAbortAssertFailure((message), std::source_location::current());      \
-        }                                                                                                     \
-    } while(false)
+#define LUGIZMO_ASSERT_TRACE(condition, message)                                                               \
+    [&]() noexcept                                                                                             \
+    {                                                                                                          \
+        if(!(condition))                                                                                       \
+        {                                                                                                      \
+            ::lugizmo::internal::PrintAndAbortAssertFailure((message), std::source_location::current());       \
+        }                                                                                                      \
+    }()
 #else
-#define LUGIZMO_ASSERT_TRACE(condition, message)                                                              \
-    do                                                                                                        \
-    {                                                                                                         \
-        [[maybe_unused]] constexpr bool lugizmoAssertTraceDisabled = true;                                    \
-        (void)lugizmoAssertTraceDisabled;                                                                     \
-    } while(false)
+#define LUGIZMO_ASSERT_TRACE(condition, message)                                                               \
+    []() noexcept                                                                                              \
+    {                                                                                                          \
+    }()
 #endif
-
-// Backward compatibility for previous naming.
-#define LUGIZMO_ASSERT_EXP(condition, message) LUGIZMO_ASSERT_TRACE((condition), (message))
 
 #endif // LUGIZMO_DF_ASSERT_H

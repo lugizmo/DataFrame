@@ -18,7 +18,7 @@ if(LUGIZMO_BUILD_BENCH)
         if(NOT LUGIZMO_DOWNLOAD_BENCHMARK)
             # Find local package
             message(STATUS "Lugizmo DF - Checking for system-installed Google Benchmark...")
-            find_package(benchmark ${LUGIZMO_BENCHMARK_MINIMUM}... EXACT QUIET)
+            find_package(benchmark ${LUGIZMO_BENCHMARK_MINIMUM} EXACT QUIET)
         endif()
 
         if(benchmark_FOUND AND NOT LUGIZMO_DOWNLOAD_BENCHMARK)
