@@ -117,6 +117,15 @@ namespace lugizmo {
         {
         }
 
+        constexpr DFRangeIndex(DFRangeIndex const&) noexcept = default;
+        constexpr auto operator=(DFRangeIndex const&) noexcept -> DFRangeIndex& = default;
+
+        constexpr DFRangeIndex(DFRangeIndex&&) noexcept = default;
+
+        constexpr auto operator=(DFRangeIndex&&) noexcept -> DFRangeIndex& = default;
+
+        ~DFRangeIndex() = default;
+
         /**
          * TODO doc + test
          */

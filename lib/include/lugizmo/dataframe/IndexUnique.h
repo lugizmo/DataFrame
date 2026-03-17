@@ -38,8 +38,21 @@ namespace lugizmo {
             values.Reserve(capacity); // TODO check when 0
         }
 
-        // constructors ...
-        // destructor
+        DFUniqueIndex(DFUniqueIndex const&) = default;
+        auto operator=(DFUniqueIndex const&) -> DFUniqueIndex& = default;
+
+        DFUniqueIndex(DFUniqueIndex&&) noexcept = default;
+        auto operator=(DFUniqueIndex&&) noexcept -> DFUniqueIndex& = default;
+
+        ~DFUniqueIndex() = default;
+
+        explicit DFUniqueIndex(DFUniqueIndex const& other, std::pmr::memory_resource* memResource) noexcept :
+            values(memResource),
+            nextIndex(other.nextIndex)
+        {
+            values.Reserve(other.Size());
+            values.Insert(other.Keys(), other.Positions());
+        }
 
         template<typename C>
         [[nodiscard]]
@@ -169,6 +182,7 @@ namespace lugizmo {
         DataFrameMap<T, size_t> values;      // keys and the associated position
         size_t nextIndex = 0;                // next index to use (when taken +1)
     };
-}
+
+} // namespace lugizmo
 
 #endif // LUGIZMO_DF_INDEX_HASH_H

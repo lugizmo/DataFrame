@@ -148,3 +148,16 @@ TEST(lugizmo_dataframe_index_range_test, int_change)
         ASSERT_TRUE(index.Size() == 10);
     }
 }
+
+TEST(lugizmo_dataframe_index_range_test, copy_constructor)
+{
+    auto const index = lugizmo::DFRangeIndex(-5, 7);
+    auto const copy  = lugizmo::DFRangeIndex(index);
+
+    ASSERT_EQ(copy.LowerBound(), -5);
+    ASSERT_EQ(copy.UpperBound(), 7);
+    ASSERT_EQ(copy.Size(), 12);
+    ASSERT_TRUE(copy.InBound(-5));
+    ASSERT_TRUE(copy.InBound(6));
+    ASSERT_FALSE(copy.InBound(7));
+}

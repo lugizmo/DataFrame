@@ -16,6 +16,7 @@
 #include <string>
 
 #include "lugizmo/DataFrame.h"
+#include "RM_DataframeTestData.h"
 
 /**
  *  Test if the default layout is row_major/std::layout_right.
@@ -96,6 +97,71 @@ TEST(lugizmo_dataframe_construct_row_major, reserved_constructor)
     ASSERT_EQ(df.FieldSize(), 0);
     ASSERT_EQ(df.RecordSize(), 0);
     ASSERT_NE(df.Data(), nullptr);
+}
+
+TEST(lugizmo_dataframe_construct_row_major, copy_constructor)
+{
+    using namespace lugizmo;
+
+    auto source = test::str::DefaultDataframe();
+    auto copy   = source;
+
+    ASSERT_EQ(copy.FieldSize(), source.FieldSize());
+    ASSERT_EQ(copy.RecordSize(), source.RecordSize());
+    ASSERT_EQ(copy.Size(), source.Size());
+    ASSERT_NE(copy.Data(), source.Data());
+
+    for(size_t fldPos = 0; fldPos < source.FieldSize(); ++fldPos) ASSERT_EQ(copy.Fields()[fldPos], source.Fields()[fldPos]);
+    for(size_t recPos = 0; recPos < source.RecordSize(); ++recPos) ASSERT_EQ(copy.Records()[recPos], source.Records()[recPos]);
+    for(size_t pos = 0; pos < source.Size(); ++pos) ASSERT_EQ(copy.Values()[pos], source.Values()[pos]);
+
+    ASSERT_TRUE(copy.AssignValue("2", "3", 999));
+
+    auto copied = copy.GetValue("2", "3");
+    auto original = source.GetValue("2", "3");
+    ASSERT_TRUE(copied.HasValue());
+    ASSERT_TRUE(original.HasValue());
+    EXPECT_EQ(copied, 999);
+    EXPECT_EQ(original, 17);
+}
+
+TEST(lugizmo_dataframe_construct_row_major, copy_assignment)
+{
+    using namespace lugizmo;
+
+    auto source = test::sequence::DefaultDataframe();
+    auto target = DataFrame<int, DFRangeIndex<int>, DFRangeIndex<int>>::FromFieldsAndRecords(
+        DFRangeIndexBounds<int>{.lower = 0, .upper = 2},
+        DFRangeIndexBounds<int>{.lower = 0, .upper = 2},
+        std::array{std::array{100, 101}, std::array{102, 103}});
+
+    target = source;
+
+    ASSERT_EQ(target.FieldSize(), source.FieldSize());
+    ASSERT_EQ(target.RecordSize(), source.RecordSize());
+    ASSERT_EQ(target.Size(), source.Size());
+    ASSERT_NE(target.Data(), source.Data());
+    ASSERT_EQ(target.Fields().lower, source.Fields().lower);
+    ASSERT_EQ(target.Fields().upper, source.Fields().upper);
+    ASSERT_EQ(target.Records().lower, source.Records().lower);
+    ASSERT_EQ(target.Records().upper, source.Records().upper);
+
+    for(size_t pos = 0; pos < source.Size(); ++pos) ASSERT_EQ(target.Values()[pos], source.Values()[pos]);
+
+    ASSERT_TRUE(source.AssignValue(-2, -5, 777));
+
+    auto copied = target.GetValue(-2, -5);
+    auto original = source.GetValue(-2, -5);
+    ASSERT_TRUE(copied.HasValue());
+    ASSERT_TRUE(original.HasValue());
+    EXPECT_EQ(copied, 0);
+    EXPECT_EQ(original, 777);
+
+    auto self = [&]() -> auto& { return target; };
+    self() = self();
+    auto selfAssigned = target.GetValue(-2, -5);
+    ASSERT_TRUE(selfAssigned.HasValue());
+    EXPECT_EQ(selfAssigned, 0);
 }
 
 /**

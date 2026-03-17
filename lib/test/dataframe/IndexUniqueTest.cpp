@@ -7,6 +7,7 @@
 #include "gtest/gtest.h"
 
 #include <array>
+#include <memory_resource>
 #include <string>
 
 #include "lugizmo/dataframe/IndexUnique.h"
@@ -102,4 +103,38 @@ TEST(lugizmo_dataframe_index_unqiue_test, drop_string)
     ASSERT_EQ(indexMiddle.Size(), 2);
     ASSERT_EQ(indexMiddle.Empty(), false);
     ASSERT_EQ(indexMiddle.MaxPosition(), 1);
+}
+
+TEST(lugizmo_dataframe_index_unqiue_test, copy_constructor)
+{
+    auto const index = CreateTestStringIndexUnique();
+    auto const copy  = lugizmo::DFUniqueIndex<std::string>(index);
+
+    ASSERT_EQ(copy.Size(), index.Size());
+    ASSERT_EQ(copy.Empty(), index.Empty());
+    ASSERT_EQ(copy.MaxPosition(), index.MaxPosition());
+    ASSERT_EQ(copy.Keys()[0], "first");
+    ASSERT_EQ(copy.Keys()[1], "second");
+    ASSERT_EQ(copy.Keys()[2], "third");
+    ASSERT_EQ(copy.Position("first"), 0);
+    ASSERT_EQ(copy.Position("second"), 1);
+    ASSERT_EQ(copy.Position("third"), 2);
+}
+
+TEST(lugizmo_dataframe_index_unqiue_test, copy_constructor_with_resource)
+{
+    auto const index = CreateTestStringIndexUnique();
+
+    std::array<std::byte, 2048> buffer{};
+    std::pmr::monotonic_buffer_resource mem(buffer.data(), buffer.size());
+    auto const copy = lugizmo::DFUniqueIndex<std::string>(index, &mem);
+
+    ASSERT_EQ(copy.Size(), index.Size());
+    ASSERT_EQ(copy.MaxPosition(), index.MaxPosition());
+    ASSERT_EQ(copy.Keys()[0], "first");
+    ASSERT_EQ(copy.Keys()[1], "second");
+    ASSERT_EQ(copy.Keys()[2], "third");
+    ASSERT_EQ(copy.Positions()[0], 0);
+    ASSERT_EQ(copy.Positions()[1], 1);
+    ASSERT_EQ(copy.Positions()[2], 2);
 }

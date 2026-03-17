@@ -230,8 +230,8 @@ namespace lugizmo {
 
         // ======== COPY, MOVE & DELETE ============================================================================================================================================
 
-        DataFrame(DataFrame const&) noexcept = delete;      // TODO or should I !?
-        auto operator=(DataFrame const&) noexcept = delete; // TODO or should I !?
+        DataFrame(DataFrame const&) noexcept;
+        auto operator=(DataFrame const&) noexcept -> DataFrame&;
 
         DataFrame(DataFrame &&other) noexcept;
         auto operator=(DataFrame&& other) noexcept -> DataFrame&;
@@ -783,6 +783,53 @@ namespace lugizmo {
     }
 
     // ======== COPY, MOVE & DELETE ================================================================================================================================================
+
+    template <typename T, typename F, typename R, typename L>
+    DataFrame<T, F, R, L>::DataFrame(DataFrame const& other) noexcept :
+        backingRes(other.backingRes != nullptr ? other.backingRes : internal::BackingResDefault()),
+        capacity(0),
+        data(nullptr),
+        recsData(data, 0, 0),
+        fldIndex([&]() -> FldI
+        {
+            if constexpr(DFValIndex<FldI>) return FldI(other.fldIndex, backingRes.get());
+            else                           return FldI(other.fldIndex);
+        }()),
+        recIndex([&]() -> RecI
+        {
+            if constexpr(DFValIndex<RecI>) return RecI(other.recIndex, backingRes.get());
+            else                           return RecI(other.recIndex);
+        }())
+    {
+        auto const rowCount    = other.RecordSize();
+        auto const colCount    = other.FieldSize();
+        auto const activeCount = other.Size();
+
+        if(other.capacity > 0)
+        {
+            data = static_cast<T*>(backingRes->allocate(other.capacity * sizeof(T), internal::Alignment<T>()));
+            capacity = other.capacity;
+        }
+
+        if(activeCount > 0)
+        {
+            if constexpr(std::is_trivially_copyable_v<T>) std::memcpy(data, other.data, activeCount * sizeof(T));
+            else                                          std::uninitialized_copy_n(other.data, activeCount, data);
+        }
+
+        recsData = DataMatrix{data, rowCount, colCount};
+    }
+
+    template <typename T, typename F, typename R, typename L>
+    auto DataFrame<T, F, R, L>::operator=(DataFrame const& other) noexcept -> DataFrame&
+    {
+        if(this == &other) return *this;
+
+        auto copy = DataFrame(other);
+        *this = std::move(copy);
+
+        return *this;
+    }
 
     template <typename T, typename F, typename R, typename L>
     DataFrame<T, F, R, L>::DataFrame(DataFrame &&other) noexcept
