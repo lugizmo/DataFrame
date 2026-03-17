@@ -1076,36 +1076,42 @@ namespace lugizmo {
     requires std::constructible_from<T, U&&>
     void DataFrame<T, F, R, L>::UpsertValue(FldT const& field, RecT const& record, U&& value) requires DFValIndices<FldI, RecI>
     {
-        // check if field and record are present
-        auto const hasFld = fldIndex.Position(field);
-        auto const hasRec = recIndex.Position(record);
+        auto fldPos = fldIndex.Position(field);
+        auto recPos = recIndex.Position(record);
 
-        // assign
-        if(hasFld and hasRec)
+        // fast path present
+        if(fldPos && recPos)
         {
-            [[maybe_unused]] auto const assigned = AssignValue(field, record, std::forward<U>(value));
-            LUGIZMO_ASSERT_TRACE(assigned, "UpsertValue expected AssignValue to succeed.");
+            T& cell = recsData[*recPos, *fldPos];
+
+            if constexpr(std::assignable_from<T&, U&&>) cell = std::forward<U>(value);
+            else cell = T(std::forward<U>(value));
 
             return;
         }
 
-        // insert and assign
-        if(not hasFld)
+        if(not fldPos)
         {
-            // the field is not present
             [[maybe_unused]] auto const fieldAdded = AddField(field);
             LUGIZMO_ASSERT_TRACE(fieldAdded, "UpsertValue expected AddField to succeed.");
+
+            fldPos = fldIndex.Position(field);
+            LUGIZMO_ASSERT_TRACE(fldPos.has_value(), "UpsertValue expected field position after AddField.");
         }
 
-        if(not hasRec)
+        if(not recPos)
         {
-            // the record is not present
             [[maybe_unused]] auto const recordAdded = AddRecord(record);
             LUGIZMO_ASSERT_TRACE(recordAdded, "UpsertValue expected AddRecord to succeed.");
+
+            recPos = recIndex.Position(record);
+            LUGIZMO_ASSERT_TRACE(recPos.has_value(), "UpsertValue expected record position after AddRecord.");
         }
 
-        [[maybe_unused]] auto const valueSet = AssignValue(field, record, std::forward<U>(value));
-        LUGIZMO_ASSERT_TRACE(valueSet, "UpsertValue expected AssignValue to succeed.");
+        T& cell = recsData[*recPos, *fldPos];
+
+        if constexpr(std::assignable_from<T&, U&&>) cell = std::forward<U>(value);
+        else cell = T(std::forward<U>(value));
     }
 
     // ======== DROP ===============================================================================================================================================================
