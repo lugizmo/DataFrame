@@ -668,13 +668,15 @@ namespace lugizmo {
             {
                 if constexpr(isItOfIt)
                 {
-                    if constexpr(AssertTraceEnabled())
+                    auto inputRowIt = std::begin(values);
+                    auto const begRows = ConstructRowsByRow(newData, 0, addBeg, colCount, inputRowIt, std::end(values));
+                    auto const endRows = ConstructRowsByRow(newData, addBeg + keptRows, addEnd, colCount, inputRowIt, std::end(values));
+                    if constexpr(not AssertTraceEnabled())
                     {
-                        auto inputRowIt = std::begin(values);
-                        auto const begRows = ConstructRowsByRow(newData, 0, addBeg, colCount, inputRowIt, std::end(values));
-                        auto const endRows = ConstructRowsByRow(newData, addBeg + keptRows, addEnd, colCount, inputRowIt, std::end(values));
-                        LUGIZMO_ASSERT_TRACE(begRows == addBeg && endRows == addEnd, "ResizeRows(values) did not receive enough rows to initialize inserted records.");
+                        (void)begRows;
+                        (void)endRows;
                     }
+                    LUGIZMO_ASSERT_TRACE(begRows == addBeg && endRows == addEnd, "ResizeRows(values) did not receive enough rows to initialize inserted records.");
                 }
                 else
                 {

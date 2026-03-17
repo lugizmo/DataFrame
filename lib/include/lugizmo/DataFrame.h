@@ -356,6 +356,51 @@ namespace lugizmo {
         auto AssignValue(FldT const& field, RecT const& record, U&& value) -> bool;
 
         /**
+         * @brief Replace all values in a field if the field exists and the value
+         *        count matches the record count.
+         *
+         * @note Try to use U == T as if U is a different type, it gets constructed
+         *       and this can prevent mem-cpy.
+         *
+         * @param field  The field to replace.
+         * @param values The values to assign. Must have size RecordSize().
+         *
+         * @return       True if the field existed and all values were assigned.
+         */
+        template<typename U, std::size_t Extent>
+        requires std::constructible_from<T, U const&>
+        auto AssignFieldValues(FldT const& field, std::span<U const, Extent> values) -> bool;
+
+        /**
+         * @note    Internally still const/no mutation.
+         * @copydoc AssignFieldValues(FldT const& field, std::span<U const, Extent> values).
+         */
+        template<typename U, std::size_t Extent>
+        requires std::constructible_from<T, U const&>
+        auto AssignFieldValues(FldT const& field, std::span<U, Extent> values) -> bool;
+
+        /**
+         * @brief Replace all values in a record if the record exists and the value
+         *        count matches the field count.
+         *
+         * @param record The record to replace.
+         * @param values The values to assign. Must have size FieldSize().
+         *
+         * @return       True if the record existed and all values were assigned.
+         */
+        template<typename U, std::size_t Extent>
+        requires std::constructible_from<T, U const&>
+        auto AssignRecordValues(RecT const& record, std::span<U const, Extent> values) -> bool;
+
+        /**
+         * @note    Internally still const/no mutation.
+         * @copydoc AssignRecordValues(RecT const& record, std::span<U const, Extent> values).
+         */
+        template<typename U, std::size_t Extent>
+        requires std::constructible_from<T, U const&>
+        auto AssignRecordValues(RecT const& record, std::span<U, Extent> values) -> bool;
+
+        /**
         * @brief Adds the value or replaces it if already present.
         *        If field and/or record are not present yet, they are added and the value is set.
         *        If already present value gets replaced.
@@ -1069,6 +1114,78 @@ namespace lugizmo {
         }
 
         return false;
+    }
+
+    template<typename T, typename F, typename R, typename L>
+    template<typename U, size_t Extent>
+    requires std::constructible_from<T, U const&>
+    auto DataFrame<T, F, R, L>::AssignFieldValues(FldT const& field, std::span<U const, Extent> const values) -> bool
+    {
+        auto const fldPos = fldIndex.Position(field);
+
+        if(not fldPos) return false;
+        if(values.size() != RecordSize()) return false;
+
+        if constexpr(std::same_as<U, T> && std::is_trivially_copyable_v<T> && std::is_same_v<L, ColMajor>)
+        {
+            auto* dst = data + static_cast<size_t>(*fldPos) * RecordSize();
+            std::memcpy(dst, values.data(), values.size_bytes());
+        }
+        else
+        {
+            for(size_t recPos = 0U; recPos < values.size(); ++recPos)
+            {
+                auto& g = recsData[static_cast<std::ptrdiff_t>(recPos), *fldPos];
+
+                if constexpr(std::assignable_from<T&, U const&>) g = values[recPos];
+                else g = T(values[recPos]);
+            }
+        }
+
+        return true;
+    }
+
+    template<typename T, typename F, typename R, typename L>
+    template<typename U, std::size_t Extent> requires std::constructible_from<T, U const&>
+    auto DataFrame<T, F, R, L>::AssignFieldValues(FldT const& field, std::span<U, Extent> values) -> bool
+    {
+        return AssignFieldValues(field, std::span<U const, Extent>(values));
+    }
+
+    template<typename T, typename F, typename R, typename L>
+    template<typename U, size_t Extent>
+    requires std::constructible_from<T, U const&>
+    auto DataFrame<T, F, R, L>::AssignRecordValues(RecT const& record, std::span<U const, Extent> const values) -> bool
+    {
+        auto const recPos = recIndex.Position(record);
+
+        if(not recPos) return false;
+        if(values.size() != FieldSize()) return false;
+
+        if constexpr(std::same_as<U, T> && std::is_trivially_copyable_v<T> && std::is_same_v<L, RowMajor>)
+        {
+            auto* dst = data + static_cast<size_t>(*recPos) * FieldSize();
+            std::memcpy(dst, values.data(), values.size_bytes());
+        }
+        else
+        {
+            for(size_t fldPos = 0U; fldPos < values.size(); ++fldPos)
+            {
+                auto& g = recsData[*recPos, static_cast<std::ptrdiff_t>(fldPos)];
+
+                if constexpr(std::assignable_from<T&, U const&>) g = values[fldPos];
+                else g = T(values[fldPos]);
+            }
+        }
+
+        return true;
+    }
+
+    template<typename T, typename F, typename R, typename L>
+    template<typename U, std::size_t Extent> requires std::constructible_from<T, U const&>
+    auto DataFrame<T, F, R, L>::AssignRecordValues(RecT const& record, std::span<U, Extent> values) -> bool
+    {
+        return AssignRecordValues(record, std::span<U const, Extent>(values));
     }
 
     template <typename T, typename F, typename R, typename L>

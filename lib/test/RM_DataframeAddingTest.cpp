@@ -332,3 +332,185 @@ TEST(lugizmo_dataframe_adding_row_major, assign_value)
         EXPECT_EQ(df.RecordSize(), 1);
     }
 }
+
+/**
+ * @brief Assign values to a field in the dataframe.
+ * Replaces all values in the field when the field exists and the input size
+ * matches the record count. If the field is missing or the size does not match,
+ * returns false and does not modify the dataframe.
+ * Also validates assignment via explicitly constructible sources.
+ *
+ * @see lugizmo::DataFrame.AssignValues(FldT const& field, std::span<U const> values) -> bool;
+ */
+TEST(lugizmo_dataframe_adding_row_major, assign_values_field)
+{
+    using namespace lugizmo;
+
+    {
+        auto df = DataFrame<int, std::string, std::string>();
+        ASSERT_EQ(df.AddFields(std::array<std::string, 2>{"field1", "field2"}), 2);
+        ASSERT_EQ(df.AddRecords(std::array<std::string, 3>{"record1", "record2", "record3"}), 3);
+
+        ASSERT_TRUE(df.AssignValue("field1", "record1", 1));
+        ASSERT_TRUE(df.AssignValue("field1", "record2", 2));
+        ASSERT_TRUE(df.AssignValue("field1", "record3", 3));
+        ASSERT_TRUE(df.AssignValue("field2", "record1", 10));
+        ASSERT_TRUE(df.AssignValue("field2", "record2", 20));
+        ASSERT_TRUE(df.AssignValue("field2", "record3", 30));
+
+        std::array<int, 3> values = {11, 12, 13};
+        ASSERT_TRUE(df.AssignFieldValues("field1", std::span{values}));
+
+        auto v11 = df.GetValue("field1", "record1");
+        auto v12 = df.GetValue("field1", "record2");
+        auto v13 = df.GetValue("field1", "record3");
+        auto v20 = df.GetValue("field2", "record2");
+
+        ASSERT_TRUE(v11.HasValue());
+        ASSERT_TRUE(v12.HasValue());
+        ASSERT_TRUE(v13.HasValue());
+        ASSERT_TRUE(v20.HasValue());
+
+        EXPECT_EQ(v11, 11);
+        EXPECT_EQ(v12, 12);
+        EXPECT_EQ(v13, 13);
+        EXPECT_EQ(v20, 20);
+
+        std::array<int, 2> wrongSize = {101, 102};
+        EXPECT_FALSE(df.AssignFieldValues("field1", std::span{wrongSize}));
+
+        v11 = df.GetValue("field1", "record1");
+        v12 = df.GetValue("field1", "record2");
+        v13 = df.GetValue("field1", "record3");
+        ASSERT_TRUE(v11.HasValue());
+        ASSERT_TRUE(v12.HasValue());
+        ASSERT_TRUE(v13.HasValue());
+        EXPECT_EQ(v11, 11);
+        EXPECT_EQ(v12, 12);
+        EXPECT_EQ(v13, 13);
+
+        EXPECT_FALSE(df.AssignFieldValues("field_missing", std::span{values}));
+        EXPECT_EQ(df.FieldSize(), 2);
+        EXPECT_EQ(df.RecordSize(), 3);
+    }
+
+    {
+        struct ExplicitIntValue
+        {
+            int value = 0;
+
+            ExplicitIntValue() = default;
+            explicit ExplicitIntValue(int const v) : value(v) {}
+        };
+
+        auto df = DataFrame<ExplicitIntValue, std::string, std::string>();
+        ASSERT_EQ(df.AddFields(std::array<std::string, 2>{"field1", "field2"}), 2);
+        ASSERT_EQ(df.AddRecords(std::array<std::string, 2>{"record1", "record2"}), 2);
+
+        std::array<int, 2> values = {31, 32};
+        ASSERT_TRUE(df.AssignFieldValues("field1", std::span{values}));
+
+        auto v1 = df.GetValue("field1", "record1");
+        auto v2 = df.GetValue("field1", "record2");
+        ASSERT_TRUE(v1.HasValue());
+        ASSERT_TRUE(v2.HasValue());
+        EXPECT_EQ(v1->value, 31);
+        EXPECT_EQ(v2->value, 32);
+
+        EXPECT_FALSE(df.AssignFieldValues("field_missing", std::span{values}));
+
+        std::array<int, 1> wrongSize = {99};
+        EXPECT_FALSE(df.AssignFieldValues("field1", std::span{wrongSize}));
+    }
+}
+
+/**
+ * @brief Assign values to a record in the dataframe.
+ * Replaces all values in the record when the record exists and the input size
+ * matches the field count. If the record is missing or the size does not match,
+ * returns false and does not modify the dataframe.
+ * Also validates assignment via explicitly constructible sources.
+ *
+ * @see lugizmo::DataFrame.AssignValues(RecT const& record, std::span<U const> values) -> bool;
+ */
+TEST(lugizmo_dataframe_adding_row_major, assign_values_record)
+{
+    using namespace lugizmo;
+
+    {
+        auto df = DataFrame<int, std::string, std::string>();
+        ASSERT_EQ(df.AddFields(std::array<std::string, 3>{"field1", "field2", "field3"}), 3);
+        ASSERT_EQ(df.AddRecords(std::array<std::string, 2>{"record1", "record2"}), 2);
+
+        ASSERT_TRUE(df.AssignValue("field1", "record1", 1));
+        ASSERT_TRUE(df.AssignValue("field2", "record1", 2));
+        ASSERT_TRUE(df.AssignValue("field3", "record1", 3));
+        ASSERT_TRUE(df.AssignValue("field1", "record2", 10));
+        ASSERT_TRUE(df.AssignValue("field2", "record2", 20));
+        ASSERT_TRUE(df.AssignValue("field3", "record2", 30));
+
+        std::array<int, 3> values = {41, 42, 43};
+        ASSERT_TRUE(df.AssignRecordValues("record2", std::span{values}));
+
+        auto v41 = df.GetValue("field1", "record2");
+        auto v42 = df.GetValue("field2", "record2");
+        auto v43 = df.GetValue("field3", "record2");
+        auto v01 = df.GetValue("field1", "record1");
+
+        ASSERT_TRUE(v41.HasValue());
+        ASSERT_TRUE(v42.HasValue());
+        ASSERT_TRUE(v43.HasValue());
+        ASSERT_TRUE(v01.HasValue());
+
+        EXPECT_EQ(v41, 41);
+        EXPECT_EQ(v42, 42);
+        EXPECT_EQ(v43, 43);
+        EXPECT_EQ(v01, 1);
+
+        std::array<int, 2> wrongSize = {71, 72};
+        EXPECT_FALSE(df.AssignRecordValues("record2", std::span{wrongSize}));
+
+        v41 = df.GetValue("field1", "record2");
+        v42 = df.GetValue("field2", "record2");
+        v43 = df.GetValue("field3", "record2");
+        ASSERT_TRUE(v41.HasValue());
+        ASSERT_TRUE(v42.HasValue());
+        ASSERT_TRUE(v43.HasValue());
+        EXPECT_EQ(v41, 41);
+        EXPECT_EQ(v42, 42);
+        EXPECT_EQ(v43, 43);
+
+        EXPECT_FALSE(df.AssignRecordValues("record_missing", std::span{values}));
+        EXPECT_EQ(df.FieldSize(), 3);
+        EXPECT_EQ(df.RecordSize(), 2);
+    }
+
+    {
+        struct ExplicitIntValue
+        {
+            int value = 0;
+
+            ExplicitIntValue() = default;
+            explicit ExplicitIntValue(int const v) : value(v) {}
+        };
+
+        auto df = DataFrame<ExplicitIntValue, std::string, std::string>();
+        ASSERT_EQ(df.AddFields(std::array<std::string, 2>{"field1", "field2"}), 2);
+        ASSERT_EQ(df.AddRecords(std::array<std::string, 2>{"record1", "record2"}), 2);
+
+        std::array<int, 2> values = {81, 82};
+        ASSERT_TRUE(df.AssignRecordValues("record1", std::span{values}));
+
+        auto v1 = df.GetValue("field1", "record1");
+        auto v2 = df.GetValue("field2", "record1");
+        ASSERT_TRUE(v1.HasValue());
+        ASSERT_TRUE(v2.HasValue());
+        EXPECT_EQ(v1->value, 81);
+        EXPECT_EQ(v2->value, 82);
+
+        EXPECT_FALSE(df.AssignRecordValues("record_missing", std::span{values}));
+
+        std::array<int, 1> wrongSize = {99};
+        EXPECT_FALSE(df.AssignRecordValues("record1", std::span{wrongSize}));
+    }
+}
