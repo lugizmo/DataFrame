@@ -58,7 +58,9 @@ namespace lugizmo {
         [[nodiscard]]
         auto Has(C const& key) const noexcept -> bool
         {
-            static_assert(ComparableType<C, T>);
+            static_assert(requires(DataFrameMap<T, size_t> const& map, C const& lookup) {{ map.Contains(lookup) } -> std::convertible_to<bool>;},
+                          "DFUniqueIndex lookup requires the exact key type or transparent hash/equality support.");
+
             return values.Contains(key);
         }
 
@@ -143,9 +145,13 @@ namespace lugizmo {
             return std::move(itVal);
         }
 
+        template<typename C>
         [[nodiscard]]
-        auto Position(T const& key) const -> std::optional<size_t>
+        auto Position(C const& key) const -> std::optional<size_t>
         {
+            static_assert(requires(DataFrameMap<T, size_t> const& map, C const& lookup) { map.Find(lookup); },
+                          "DFUniqueIndex lookup requires the exact key type or transparent hash/equality support.");
+
             auto const [_, valIt] = values.Find(key);
             return valIt != values.Values().end() ? std::make_optional(*valIt) : std::nullopt;
         }

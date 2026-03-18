@@ -10,6 +10,7 @@ set(LUGIZMO_DF_INCLUDES
 
         include/lugizmo/container/Concepts.h
         include/lugizmo/container/DataFrameMap.h
+        include/lugizmo/container/DataFrameMapSupport.h
         include/lugizmo/container/OptionalRef.h
 
         include/lugizmo/meta/DeducingThis.h
