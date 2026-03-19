@@ -427,8 +427,8 @@ namespace lugizmo {
          *  @brief Drop a field index from the dataframe.
          *  @see   SetFieldRange to shrink the dataframe when the range index is used.
          *
-         *  @param index the index to drop from the dataframe.
-         *  @return true when index was removed otherwise, such an index wasn't present in the dataframe.
+         *  @param index The index to drop from the dataframe.
+         *  @return      True, when the index was removed otherwise, such an index wasn't present in the dataframe.
          */
         auto DropField(F const& index) -> bool requires DFValIndex<FldI>;
 
@@ -436,10 +436,26 @@ namespace lugizmo {
          *  @brief Drop a record index from the dataframe.
          *  @see   SetRecordRange to shrink the dataframe when the range index is used.
          *
-         *  @param index the index to drop from the dataframe.
-         *  @return true when index was removed otherwise, such an index wasn't present in the dataframe.
+         *  @param index The index to drop from the dataframe.
+         *  @return      True, when the index was removed otherwise, such an index wasn't present in the dataframe.
          */
         auto DropRecord(R const& index) -> bool requires DFValIndex<RecI>;
+
+        // ======== SORT ===========================================================================================================================================================
+
+        /**
+         *  @brief Sort field indices and reorder the stored columns to match the new order.
+         *  @param comp comparator used to order fields.
+         */
+        template<typename Compare = std::less<FldT>>
+        void SortFields(Compare comp = {});
+
+        /**
+         *  @brief Sort record indices and reorder the stored rows to match the new order.
+         *  @param comp comparator used to order records.
+         */
+        template<typename Compare = std::less<RecT>>
+        void SortRecords(Compare comp = {});
 
         // ======== VIEWS ==========================================================================================================================================================
 
@@ -1344,6 +1360,30 @@ namespace lugizmo {
         // drop row from storage
         Layout::DropRow(data, capacity, *backingRes.get(), recsData, *dropped);
         return true;
+    }
+
+    // ======== SORT ===============================================================================================================================================================
+
+    template <typename T, typename F, typename R, typename L>
+    template<typename Compare>
+    void DataFrame<T, F, R, L>::SortFields(Compare comp)
+    {
+        if constexpr(DFValIndex<FldI>)
+        {
+            auto const permutation = fldIndex.Sort(std::move(comp));
+            Layout::ReorderColumns(data, capacity, *backingRes.get(), recsData, permutation);
+        }
+    }
+
+    template <typename T, typename F, typename R, typename L>
+    template<typename Compare>
+    void DataFrame<T, F, R, L>::SortRecords(Compare comp)
+    {
+        if constexpr(DFValIndex<RecI>)
+        {
+            auto const permutation = recIndex.Sort(std::move(comp));
+            Layout::ReorderRows(data, capacity, *backingRes.get(), recsData, permutation);
+        }
     }
 
     // ======== VIEWS ==============================================================================================================================================================

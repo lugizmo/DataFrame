@@ -12,8 +12,10 @@
 #include <memory_resource>
 #include <iterator>
 #include <mdspan>
+#include <span>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 #include "lugizmo/Assert.h"
 #include "lugizmo/memory/Memory.h"
@@ -68,6 +70,9 @@ namespace lugizmo {
 
     private:
 
+        /// @brief Maximum active byte size for which reorder prefers a full-buffer copy.
+        static constexpr size_t REORDER_FULL_COPY_THRESHOLD_BYTES = 64UZ * 1024UZ * 1024UZ;
+
         // ======= HELPERS: SHAPE AND CAPACITY HELPERS =============================================================================================================================
 
         /**
@@ -117,6 +122,18 @@ namespace lugizmo {
         static auto ActiveCount(MDSpan const& dataView) noexcept -> size_t
         {
             return ActiveCount(RowCount(dataView), ColCount(dataView));
+        }
+
+        /**
+         * @brief Returns the number of bytes occupied by the active element range.
+         *
+         * @param[in] rowCount The row count.
+         * @param[in] colCount The column count.
+         * @return `rowCount * colCount * sizeof(T)`.
+         */
+        static auto ActiveBytes(size_t const rowCount, size_t const colCount) noexcept -> size_t
+        {
+            return ActiveCount(rowCount, colCount) * sizeof(T);
         }
 
         /**
@@ -779,6 +796,153 @@ namespace lugizmo {
             // Step 4: destroy trailing now-unused elements and publish the updated shape
             DestroyRange(data + newActive, oldActive - newActive);
             dataView = MDSpan{data, rowCount, newColCount};
+        }
+
+        /**
+         * @brief Reorders rows according to a new-to-old permutation.
+         *
+         * @param[in,out] data      Pointer to backing storage.
+         * @param[in,out] capacity  Allocated element count.
+         * @param[in,out] res       Memory resource used for allocation.
+         * @param[in,out] dataView  Current mdspan view to rebuild after reordering.
+         * @param[in]     newToOld  Permutation where each new row points to its old row index.
+         */
+        static void ReorderRows(T*& data, size_t& capacity, Memory& res, MDSpan& dataView, std::span<size_t const> const newToOld) noexcept
+        {
+            auto const rowCount    = RowCount(dataView);
+            auto const colCount    = ColCount(dataView);
+            auto const activeCount = ActiveCount(rowCount, colCount);
+            auto const activeBytes = ActiveBytes(rowCount, colCount);
+
+            LUGIZMO_ASSERT_TRACE(newToOld.size() == rowCount, "ReorderRows received a permutation with mismatched row count.");
+            if(newToOld.size() != rowCount || activeCount == 0) return;
+
+            if(activeBytes <= REORDER_FULL_COPY_THRESHOLD_BYTES)
+            {
+                auto* const newData = static_cast<T*>(res.allocate(capacity * sizeof(T), internal::Alignment<T>()));
+                LUGIZMO_ASSERT_TRACE(newData != nullptr, "ReorderRows failed to allocate destination buffer.");
+
+                for(size_t newRow = 0; newRow < rowCount; ++newRow)
+                {
+                    auto const oldRow = newToOld[newRow];
+                    LUGIZMO_ASSERT_TRACE(oldRow < rowCount, "ReorderRows received an out-of-bounds row permutation entry.");
+
+                    auto* const srcRow = data + oldRow * colCount;
+                    auto* const dstRow = newData + newRow * colCount;
+                    UninitializedMoveOrCopy(srcRow, colCount, dstRow);
+                }
+
+                DestroyAndDeallocate(data, activeCount, capacity, res);
+                data     = newData;
+                dataView = MDSpan{data, rowCount, colCount};
+                return;
+            }
+
+            auto* const scratch = static_cast<T*>(res.allocate(colCount * sizeof(T), internal::Alignment<T>()));
+            LUGIZMO_ASSERT_TRACE(scratch != nullptr, "ReorderRows failed to allocate scratch row.");
+
+            auto visited = std::pmr::vector<unsigned char>(&res);
+            visited.resize(rowCount, 0);
+
+            for(size_t start = 0; start < rowCount; ++start)
+            {
+                if(visited[start] != 0 || newToOld[start] == start)
+                {
+                    visited[start] = 1;
+                    continue;
+                }
+
+                auto* const startRow = data + start * colCount;
+                UninitializedMoveOrCopy(startRow, colCount, scratch);
+
+                auto current = start;
+                while(newToOld[current] != start)
+                {
+                    auto const source = newToOld[current];
+                    LUGIZMO_ASSERT_TRACE(source < rowCount, "ReorderRows received an out-of-bounds row permutation entry.");
+
+                    auto* const srcRow = data + source * colCount;
+                    auto* const dstRow = data + current * colCount;
+                    AssignForward(dstRow, srcRow, colCount);
+
+                    visited[current] = 1;
+                    current = source;
+                }
+
+                auto* const dstRow = data + current * colCount;
+                AssignForward(dstRow, scratch, colCount);
+                visited[current] = 1;
+                DestroyRange(scratch, colCount);
+            }
+
+            res.deallocate(scratch, colCount * sizeof(T), internal::Alignment<T>());
+            dataView = MDSpan{data, rowCount, colCount};
+        }
+
+        /**
+         * @brief Reorders columns according to a new-to-old permutation.
+         *
+         * @param[in,out] data      Pointer to backing storage.
+         * @param[in,out] capacity  Allocated element count.
+         * @param[in,out] res       Memory resource used for allocation.
+         * @param[in,out] dataView  Current mdspan view to rebuild after reordering.
+         * @param[in]     newToOld  Permutation where each new column points to its old column index.
+         */
+        static void ReorderColumns(T*& data, size_t& capacity, Memory& res, MDSpan& dataView, std::span<size_t const> const newToOld) noexcept
+        {
+            auto const rowCount    = RowCount(dataView);
+            auto const colCount    = ColCount(dataView);
+            auto const activeCount = ActiveCount(rowCount, colCount);
+            auto const activeBytes = ActiveBytes(rowCount, colCount);
+
+            LUGIZMO_ASSERT_TRACE(newToOld.size() == colCount, "ReorderColumns received a permutation with mismatched column count.");
+            if(newToOld.size() != colCount || activeCount == 0) return;
+
+            if(activeBytes <= REORDER_FULL_COPY_THRESHOLD_BYTES)
+            {
+                auto* const newData = static_cast<T*>(res.allocate(capacity * sizeof(T), internal::Alignment<T>()));
+                LUGIZMO_ASSERT_TRACE(newData != nullptr, "ReorderColumns failed to allocate destination buffer.");
+
+                for(size_t row = 0; row < rowCount; ++row)
+                {
+                    auto* const srcRow = data + row * colCount;
+                    auto* const dstRow = newData + row * colCount;
+
+                    for(size_t newCol = 0; newCol < colCount; ++newCol)
+                    {
+                        auto const oldCol = newToOld[newCol];
+                        LUGIZMO_ASSERT_TRACE(oldCol < colCount, "ReorderColumns received an out-of-bounds column permutation entry.");
+                        UninitializedMoveOrCopy(srcRow + oldCol, 1, dstRow + newCol);
+                    }
+                }
+
+                DestroyAndDeallocate(data, activeCount, capacity, res);
+                data     = newData;
+                dataView = MDSpan{data, rowCount, colCount};
+                return;
+            }
+
+            auto* const scratch = static_cast<T*>(res.allocate(colCount * sizeof(T), internal::Alignment<T>()));
+            LUGIZMO_ASSERT_TRACE(scratch != nullptr, "ReorderColumns failed to allocate scratch row.");
+
+            for(size_t row = 0; row < rowCount; ++row)
+            {
+                auto* const currentRow = data + row * colCount;
+
+                for(size_t newCol = 0; newCol < colCount; ++newCol)
+                {
+                    auto const oldCol = newToOld[newCol];
+                    LUGIZMO_ASSERT_TRACE(oldCol < colCount, "ReorderColumns received an out-of-bounds column permutation entry.");
+                    UninitializedMoveOrCopy(currentRow + oldCol, 1, scratch + newCol);
+                }
+
+                DestroyRange(currentRow, colCount);
+                UninitializedMoveOrCopy(scratch, colCount, currentRow);
+                DestroyRange(scratch, colCount);
+            }
+
+            res.deallocate(scratch, colCount * sizeof(T), internal::Alignment<T>());
+            dataView = MDSpan{data, rowCount, colCount};
         }
 
         // ======= MEMORY ==========================================================================================================================================================

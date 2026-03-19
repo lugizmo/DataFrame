@@ -8,6 +8,8 @@
 #define LUGIZMO_DF_INDEX_HASH_H
 
 #include <algorithm>
+#include <functional>
+#include <numeric>
 #include <span>
 #include <optional>
 #include <ranges>
@@ -143,6 +145,46 @@ namespace lugizmo {
             nextIndex--;
 
             return std::move(itVal);
+        }
+
+        /**
+         * @brief Sort stored keys and rebuild positions in sorted order.
+         *
+         * @param comp comparator used to order keys.
+         * @return permutation mapping each new position to its previous position.
+         */
+        template<typename Compare = std::less<KeyType>>
+        auto Sort(Compare comp = {}) -> std::pmr::vector<size_t>
+        {
+            auto permutation = std::pmr::vector<size_t>(values.Allocator());
+            permutation.resize(values.Size());
+
+            std::iota(permutation.begin(), permutation.end(), 0UZ);
+            std::sort(permutation.begin(), permutation.end(), [&](size_t const lhs, size_t const rhs) { return comp(values.keys[lhs], values.keys[rhs]); });
+
+            auto sortedKeys      = std::pmr::vector<KeyType>(values.Allocator());
+            auto sortedPositions = std::pmr::vector<size_t>(values.Allocator());
+            sortedKeys.reserve(values.Size());
+            sortedPositions.reserve(values.Size());
+
+            for(size_t newPos = 0; newPos < permutation.size(); ++newPos)
+            {
+                auto const oldPos = permutation[newPos];
+                sortedKeys.emplace_back(std::move(values.keys[oldPos]));
+                sortedPositions.emplace_back(newPos);
+            }
+
+            values.keys   = std::move(sortedKeys);
+            values.values = std::move(sortedPositions);
+            values.keyToIndex.clear();
+            values.keyToIndex.reserve(values.keys.size());
+
+            for(size_t pos = 0; pos < values.keys.size(); ++pos)
+            {
+                values.keyToIndex.emplace(values.keys[pos], pos);
+            }
+
+            return permutation;
         }
 
         template<typename C>

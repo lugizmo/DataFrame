@@ -33,6 +33,7 @@ if(LUGIZMO_BUILD_TESTING)
             RM_DataframePropertiesTest.cpp
             RM_DataframeNonTrivialTypeTest.cpp
             RM_DataframeDropTest.cpp
+            RM_DataframeSortTest.cpp
 
             main.cpp
     )
