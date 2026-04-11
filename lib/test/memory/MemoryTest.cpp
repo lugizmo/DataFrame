@@ -34,12 +34,13 @@ TEST(lugizmo_dataframe_memory_align, typical_values)
 {
     using namespace lugizmo::internal;
 
-    constexpr auto aI32 = Alignment<std::int32_t>();
-    constexpr auto aF64 = Alignment<double>();
+    constexpr auto cache = std::hardware_destructive_interference_size;
+    constexpr auto aI32  = Alignment<std::int32_t>();
+    constexpr auto aF64  = Alignment<double>();
 
     // Typical cacheline / SIMD alignments are 16, 32, or 64 bytes.
-    EXPECT_TRUE(aI32 == 16 or aI32 == 32 or aI32 == 64 or aI32 == alignof(int));
-    EXPECT_TRUE(aF64 == 16 or aF64 == 32 or aF64 == 64 or aF64 == alignof(double));
+    EXPECT_TRUE(aI32 == cache or aI32 == 16 or aI32 == 32 or aI32 == 64 or aI32 == alignof(int));
+    EXPECT_TRUE(aF64 == cache or aF64 == 16 or aF64 == 32 or aF64 == 64 or aF64 == alignof(double));
 }
 
 TEST(lugizmo_dataframe_memory_align, non_arithmetic_types)

@@ -1,0 +1,39 @@
+# Filename: compose.yaml
+# Copyright 2024-2026 Lukas Guz
+# Licensed under the Apache License, Version 2.0.
+# See the LICENSE file in the project root or at
+# http://www.apache.org/licenses/LICENSE-2.0 for full license information.
+
+services:
+
+  # GCC debug build and test image.
+  gcc_debug:
+    image: lugizmo-dataframe:gcc-debug
+    build:
+      context: .
+      dockerfile: docker/linux_gcc.Dockerfile
+      target: debug
+
+  # GCC release build, test, install, and package-smoke image.
+  gcc_release:
+    image: lugizmo-dataframe:gcc-release
+    build:
+      context: .
+      dockerfile: docker/linux_gcc.Dockerfile
+      target: release
+
+  # LLVM debug build and test image.
+  llvm_debug:
+    image: lugizmo-dataframe:llvm-debug
+    build:
+      context: .
+      dockerfile: docker/linux_llvm.Dockerfile
+      target: debug
+
+  # LLVM release build, test, install, and package-smoke image.
+  llvm_release:
+    image: lugizmo-dataframe:llvm-release
+    build:
+      context: .
+      dockerfile: docker/linux_llvm.Dockerfile
+      target: release

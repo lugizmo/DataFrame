@@ -13,7 +13,6 @@
 #include <span>
 
 #include "lugizmo/Assert.h"
-#include "lugizmo/Error.h"
 #include "lugizmo/container/Concepts.h"
 #include "lugizmo/container/OptionalRef.h"
 

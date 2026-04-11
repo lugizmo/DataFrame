@@ -1,12 +1,12 @@
 # Filename: CMakeLists.txt
-# Copyright 2024 Lukas Guz
+# Copyright 2024-2026 Lukas Guz
 # Licensed under the Apache License, Version 2.0.
 # See the LICENSE file in the project root or at
 # http://www.apache.org/licenses/LICENSE-2.0 for full license information.
 
-if(LUGIZMO_BUILD_TESTING)
+if(LUGIZMO_DF_BUILD_TESTING)
 
-    add_executable(DataFrameTest
+    add_executable(LuDataFrameTest
             container/ConceptsTest.cpp
             container/DataFrameMapTest.cpp
             container/OptionalRefTest.cpp
@@ -38,13 +38,15 @@ if(LUGIZMO_BUILD_TESTING)
             main.cpp
     )
 
-    target_sources(DataFrameTest PUBLIC
+    target_sources(LuDataFrameTest PUBLIC
             RM_DataframeTestData.h
     )
 
-    target_link_libraries(DataFrameTest PUBLIC DataFrame gtest)
+    target_link_libraries(LuDataFrameTest PUBLIC Lugizmo::DataFrame gtest)
 
-    target_compile_options(DataFrameTest PRIVATE ${LUGIZMO_CXX_FLAGS})
-    target_link_options(DataFrameTest PRIVATE ${LUGIZMO_LINK_FLAGS})
+    target_compile_options(LuDataFrameTest PRIVATE ${LUGIZMO_DF_CXX_FLAGS})
+    target_link_options(LuDataFrameTest PRIVATE ${LUGIZMO_DF_LINK_FLAGS})
 
-endif(LUGIZMO_BUILD_TESTING)
+    add_test(NAME lugizmo_dataframe_tests COMMAND LuDataFrameTest)
+
+endif()

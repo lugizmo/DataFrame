@@ -36,6 +36,8 @@ namespace lugizmo::internal {
     template<typename T>
     consteval auto Alignment() noexcept -> std::size_t
     {
+        // TODO this is pretty aggressive alignment using hardware_destructive_interference_size
+        //      maybe split the alignment between scratch memory and dataframe memory
         constexpr std::size_t typeAlign = alignof(T);
 
         // SIMD-friendly baseline by target

@@ -1,0 +1,10 @@
+.git
+.idea
+.devcontainer.json
+
+bench_results
+build
+cmake-build-*
+
+docker/linux_gcc.Dockerfile
+docker/linux_llvm.Dockerfile
