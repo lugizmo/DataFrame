@@ -15,7 +15,7 @@
 #include <algorithm>
 #include <ranges>
 
-template <typename T, typename Layout>
+/*template <typename T, typename Layout>
 struct MatrixView
 {
     static_assert(std::is_same_v<Layout, std::layout_right> || std::is_same_v<Layout, std::layout_left>);
@@ -376,7 +376,7 @@ static void RowViewRangeBenchmark_Left(benchmark::State& state)
     }
 
     state.SetComplexityN(cols);
-}
+}*/
 
 //BENCHMARK(ColumnViewMDSpanBenchmark_Right)->RangeMultiplier(2)->Range(512, 512 * 1024)->Complexity();
 //BENCHMARK(ColumnViewMDSpanBenchmark_Left)->RangeMultiplier(2)->Range(512, 512 * 1024)->Complexity();
