@@ -36,6 +36,15 @@ constructor functions optionally accept a shared_memory resource and a capacity 
 - consecutive memory for storage
 - dataframes use field and record lookup but allow for range versions for instant lookup (see examples)
 
+### Fundamental Naming
+
+| Concept | Description                          |
+|---------|--------------------------------------|
+| Value   | Element type                         |
+| Field   | Field/Column type                    |
+| Record  | Record/Row type                      |
+| View    | Iterator, span, reference or pointer |
+
 ### Examples
 
 ## Creating
@@ -83,9 +92,26 @@ auto df = lugizmo::DataFrame<int, int, int>::FromFieldsAndRecords({1, 2, 3, 4}, 
 //     4   |   1    2    3    4
 ```
 
-## Accessing Values
+## Accessing, View, and Iteration
 
-## Iterating Fields and Records
+The access API keeps the public return types small and predictable.
+
+Plain pointer return types are non-null by contract. When an access operation may not yield a pointer, the nullable form
+is expressed explicitly as `std::optional<Value*>`.  
+Multi-value access uses standard library view types when the selected access pattern is contiguous and `ValueView` based
+types when iteration is non-contiguous or index-aware.
+
+TODO this needs an update see DataFrame.h for available types
+| Concept                     | Spelling                  | Description                                                                               |
+|-----------------------------|---------------------------|-------------------------------------------------------------------------------------------|
+| value type                  | `Value`                   | Copy of the underlying stored value.                                                      |
+| pointer                     | `Value*`                  | Non-null pointer to an underlying stored value.                                           |
+| maybe value                 | `std::optional<Value>`    | Optional copy of a single value.                                                          |
+| maybe pointer               | `std::optional<Value*>`   | Optional non-null pointer to an underlying stored value.                                  |
+| contiguous many             | `std::span<Value>`        | View over a contiguous sequence of values when the selected access pattern is contiguous. |
+| many / generic view         | `ValueView`               | Iterator over a sequence of values.                                                       |
+| many / generic indexed view | `IndexedValueView`        | Iterator over a sequence of values including the index (zip view).                        |
+| raw 2D                      | `std::mdspan<Value, ...>` | View over underlying data blob.                                                           |
 
 ### DataFrame targeted features
 

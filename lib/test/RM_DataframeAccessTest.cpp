@@ -164,7 +164,7 @@ TEST(lugizmo_dataframe_access_row_major, get_val_op)
 
 /**
  *  @brief Getting raw underlying memory of dataframe.
- *  @see   lugizmo::Dataframe.Data() const -> T const*
+ *  @see   lugizmo::Dataframe.Data() const -> std::optional<T const*>
  */
 TEST(lugizmo_dataframe_access_row_major, get_raw_mem)
 {
@@ -176,6 +176,7 @@ TEST(lugizmo_dataframe_access_row_major, get_raw_mem)
     // const version
     auto const df   = DefaultDataframe();
     auto const data = df.Data();
+    ASSERT_TRUE(data != nullptr);
 
     for(size_t rec = 0; rec < DFRecCount; rec++)
     {

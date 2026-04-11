@@ -22,7 +22,7 @@ set(LUGIZMO_DF_PUBLIC_HEADERS
         include/lugizmo/dataframe/View.h
         include/lugizmo/dataframe/ViewIndexed.h
         include/lugizmo/memory/Memory.h
-        include/lugizmo/memory/References.h
+        include/lugizmo/support/Compiler.h
         include/lugizmo/meta/DeducingThis.h
 )
 

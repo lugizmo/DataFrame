@@ -14,8 +14,10 @@
 
 namespace lugizmo::internal {
 
-    /// @brief TODO doc
-    ///
+    /**
+     *  @brief Creates the default backing resource provided by std::pmr::get_default_resource,
+     *         wrapped in a shared_ptr with a no-opt deleter no to destroy the global default allocator.
+     */
     inline auto BackingResDefault() noexcept -> std::shared_ptr<std::pmr::memory_resource>
     {
         // create a non-owning reference to the global default resource

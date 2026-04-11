@@ -27,9 +27,10 @@
 #include "Assert.h"
 #include "memory/Memory.h"
 
+#include "support/Compiler.h"
+#include "meta/DeducingThis.h"
 #include "container/Concepts.h"
 #include "container/OptionalRef.h"
-#include "meta/DeducingThis.h"
 
 #include "dataframe/IndexBase.h"
 #include "dataframe/IndexUnique.h"
@@ -69,68 +70,47 @@ namespace lugizmo {
         static_assert(DFSeqIndex<R> || requires(R const& record) {{ std::hash<R>{}(record) } -> std::convertible_to<std::size_t>;},
                      "DataFrame requires std::hash support for value-indexed record types.");
 
-        using Layout = std::conditional_t<std::is_same_v<L, RowMajor>, DFRowMajor<T>, void>;
+        using Layout          = std::conditional_t<std::is_same_v<L, RowMajor>, DFRowMajor<T>, void>;
+        using MemRsc          = std::shared_ptr<std::pmr::memory_resource>;
+        using DataMatrix      = std::mdspan<T, std::dextents<std::ptrdiff_t, 2>, L>;
+        using ConstDataMatrix = std::mdspan<T const, std::dextents<std::ptrdiff_t, 2>, L>;
 
     private:
 
         static constexpr bool IsFISeq = DFSeqIndex<F>;
         static constexpr bool IsRISeq = DFSeqIndex<R>;
 
-        using DataPt = T*;                                               // stored view into data
-        using MemRsc = std::shared_ptr<std::pmr::memory_resource>;       // backing memory resource type
-
         // field/record index and view types
         using FldI = std::conditional_t<IsFISeq, F, DFUniqueIndex<F>>;   // index for field values
         using RecI = std::conditional_t<IsRISeq, R, DFUniqueIndex<R>>;   // index for record values
 
-        template<typename MDT>
-        using RecsData = std::mdspan<MDT, std::dextents<std::ptrdiff_t, 2>, L>;      // stored view into data;
-
     public:
 
-        // public types
+        // ======== TYPES ==========================================================================================================================================================
+
         using FldT = FldI::KeyType;     // underlying type of field index
         using RecT = RecI::KeyType;     // underlying type of record index
-        using Flds = FldI::KeyView;     // stored view into field indices
-        using Recs = RecI::KeyView;     // stored view into record indices
+        using Flds = FldI::KeyView;     // stored view into field indices  TODO introduce IndexView?
+        using Recs = RecI::KeyView;     // stored view into record indices TODO introduce IndexView?
 
-        using DataMatrix      = RecsData<T>;
-        using ConstDataMatrix = RecsData<T const>;
-
+        /// @brief Value type generated from self distinguish const category.
         template<typename Self>
-        using ViewValueT = meta::ThisValueT<Self, T>;
+        using Value = meta::ThisValueT<Self, T>;
 
+        /// @brief     Optional value type generated from self distinguish const category.
+        /// @attention The stored reference is required to be valid if the optional has a value,
+        ///            but mutating the dataframe shape will invalidate the reference!
         template<typename Self>
-        using ValueRefOptT = OptionalRef<ViewValueT<Self>>;
+        using OptValue = OptionalRef<Value<Self>>;
 
-        template<typename Self>
-        using FieldViewT = DFView<ViewValueT<Self>, RecI>;
+        /// @brief View over values either on record or a field.
+        template<typename Self, typename Index>
+        using ValueView = DFView<Value<Self>, Index>;
 
-        template<typename Self>
-        using FieldViewIndexedT = DFViewIndexed<ViewValueT<Self>, RecI const>;
-
-        template<typename Self>
-        using RecordViewT = DFView<ViewValueT<Self>, FldI>;
-
-        template<typename Self>
-        using RecordViewIndexedT = DFViewIndexed<ViewValueT<Self>, FldI const>;
-
-    private:
-
-        static_assert(std::is_trivially_copyable_v<Flds>, "Fields() returns this.");
-        static_assert(std::is_trivially_copyable_v<Recs>, "Records() returns this.");
-
-        // data section
-        MemRsc     backingRes;     // memory resource to use
-        size_t     capacity;       // capacity of data
-        DataPt     data;           // pointer to allocated memory
-        DataMatrix recsData;       // view into whole stored data
-
-        // indices/view section
-        FldI fldIndex;              // index for fields
-        RecI recIndex;              // index for records
-
-    public:
+        /// @brief View over values with their index value either on record or a field.
+        ///        If viewing a field, you get record indices and vise versa.
+        template<typename Self, typename Index>
+        using IndexedValueView = DFViewIndexed<Value<Self>, Index const>;
 
         // ======== CONSTRUCTION ===================================================================================================================================================
 
@@ -335,7 +315,7 @@ namespace lugizmo {
          */
         template<typename FieldLookup, typename RecordLookup>
         [[nodiscard]]
-        auto GetValue(this auto& self, FieldLookup const& field, RecordLookup const& record) -> ValueRefOptT<decltype(self)>;
+        auto GetValue(this auto& self, FieldLookup const& field, RecordLookup const& record) -> OptValue<decltype(self)>;
 
         /**
          * TODO doc
@@ -345,7 +325,7 @@ namespace lugizmo {
          */
         template<typename FieldLookup, typename RecordLookup>
         [[nodiscard]]
-        auto operator[](this auto& self, FieldLookup const& field, RecordLookup const& record) -> ViewValueT<decltype(self)>&;
+        auto operator[](this auto& self, FieldLookup const& field, RecordLookup const& record) -> Value<decltype(self)>&;
 
         // ======== SETTERS ========================================================================================================================================================
 
@@ -465,7 +445,7 @@ namespace lugizmo {
          */
         template<typename FieldLookup>
         [[nodiscard]]
-        auto ViewField(this auto& self, FieldLookup const& index) noexcept -> FieldViewT<decltype(self)>;
+        auto ViewField(this auto& self, FieldLookup const& index) noexcept -> ValueView<decltype(self), RecI>;
 
         /**
          * @return      View into a field (handling layout) if field found in dataframe.
@@ -474,7 +454,7 @@ namespace lugizmo {
          */
         template<typename FieldLookup>
         [[nodiscard]]
-        auto ViewFieldIndexed(this auto& self, FieldLookup const& index) noexcept -> FieldViewIndexedT<decltype(self)>;
+        auto ViewFieldIndexed(this auto& self, FieldLookup const& index) noexcept -> IndexedValueView<decltype(self), RecI>;
 
         /**
          * @return      View into a record (handling layout) if record found in dataframe.
@@ -482,7 +462,7 @@ namespace lugizmo {
          */
         template<typename RecordLookup>
         [[nodiscard]]
-        auto ViewRecord(this auto& self, RecordLookup const& index) noexcept -> RecordViewT<decltype(self)> requires DFValIndex<FldI>;
+        auto ViewRecord(this auto& self, RecordLookup const& index) noexcept -> ValueView<decltype(self), FldI> requires DFValIndex<FldI>;
 
         /**
          * @return      View into a record (handling layout) if record found in dataframe.
@@ -491,13 +471,13 @@ namespace lugizmo {
          */
         template<typename RecordLookup>
         [[nodiscard]]
-        auto ViewRecordIndexed(this auto& self, RecordLookup const& index) noexcept -> RecordViewIndexedT<decltype(self)>;
+        auto ViewRecordIndexed(this auto& self, RecordLookup const& index) noexcept -> IndexedValueView<decltype(self), FldI>;
 
         /**
          *  @brief   Alternative syntax for ViewField().
          *  @copydoc ViewField
          */
-        auto operator|(this auto& self, SelectField<F> const& index) noexcept -> FieldViewT<decltype(self)> requires DFValIndex<FldI>
+        auto operator|(this auto& self, SelectField<F> const& index) noexcept -> ValueView<decltype(self), RecI> requires DFValIndex<FldI>
         {
             return self.ViewField(index.val);
         }
@@ -506,7 +486,7 @@ namespace lugizmo {
          * @brief   Alternative syntax for ViewRecord()
          * @copydoc ViewRecord
          */
-        auto operator|(this auto& self, SelectRecord<R> const& index) noexcept -> RecordViewT<decltype(self)> requires DFValIndex<RecI>
+        auto operator|(this auto& self, SelectRecord<R> const& index) noexcept -> ValueView<decltype(self), FldI> requires DFValIndex<RecI>
         {
             return self.ViewRecord(index.val);
         }
@@ -515,7 +495,7 @@ namespace lugizmo {
          * @brief   Alternative syntax for ViewFieldIndexed()
          * @copydoc ViewFieldIndexed
          */
-        auto operator|(this auto& self, SelectFieldIndexed<F> const& index) noexcept -> FieldViewIndexedT<decltype(self)> requires DFValIndex<FldI>
+        auto operator|(this auto& self, SelectFieldIndexed<F> const& index) noexcept -> IndexedValueView<decltype(self), RecI> requires DFValIndex<FldI>
         {
             return self.ViewFieldIndexed(index.val);
         }
@@ -524,7 +504,7 @@ namespace lugizmo {
          * @brief   Alternative syntax for GetRecordIndexed()
          * @copydoc ViewRecordIndexed
          */
-        auto operator|(this auto& self, SelectRecordIndexed<R> const& index) noexcept -> RecordViewIndexedT<decltype(self)> requires DFValIndex<RecI>
+        auto operator|(this auto& self, SelectRecordIndexed<R> const& index) noexcept -> IndexedValueView<decltype(self), FldI> requires DFValIndex<RecI>
         {
             return self.ViewRecordIndexed(index.val);
         }
@@ -540,7 +520,7 @@ namespace lugizmo {
          * @return For chaining the view the function was applied on.
          */
         template<typename Func>
-        auto ForEachOnField(this auto& self, F const& index, Func&& func) -> FieldViewT<decltype(self)> requires DFValIndex<FldI>;
+        auto ForEachOnField(this auto& self, F const& index, Func&& func) -> ValueView<decltype(self), RecI> requires DFValIndex<FldI>;
 
         /**
          * @brief       Apply a function on each value in a record.
@@ -551,7 +531,7 @@ namespace lugizmo {
          * @return For chaining the view the function was applied on.
          */
         template<typename Func>
-        auto ForEachOnRecord(this auto& self, R const& index, Func&& func) -> RecordViewT<decltype(self)> requires DFValIndex<RecI>;
+        auto ForEachOnRecord(this auto& self, R const& index, Func&& func) -> ValueView<decltype(self), FldI> requires DFValIndex<RecI>;
 
         // ======== PRINT ==========================================================================================================================================================
 
@@ -611,6 +591,7 @@ namespace lugizmo {
         /**
          * @attention It's a pointer so can be invalidated when adding/removing fields/records.
          *            Only keep this pointer alive as long as this dataframe wasn't mutated.
+         * @attention Pointer can be null!
          * @return    Pointer to the currently stored dataframe->data.
          */
         [[nodiscard]] auto Data() const noexcept -> T const* { return data; }
@@ -626,7 +607,7 @@ namespace lugizmo {
          * @attention It's a view so can be invalidated when adding/removing fields/records.
          * @return    A view into the current records (indices) stored in the dataframe.
          */
-        [[nodiscard]] auto Values(this auto& self) noexcept -> meta::ThisValueSpanT<decltype(self), T> { return std::span(self.data, self.recsData.size()); }
+        [[nodiscard]] auto Values(this auto& self) noexcept -> std::span<Value<decltype(self)>> { return std::span(self.data, self.recsData.size()); }
 
         /**
          * @return True when no values are stored in the dataframe.
@@ -645,6 +626,21 @@ namespace lugizmo {
          * @see    MemoryResource() to get a reference to the current used resource.
          */
         [[nodiscard]] static auto DefaultMemoryResource() noexcept -> MemRsc { return internal::BackingResDefault(); }
+
+    private:
+
+        static_assert(std::is_trivially_copyable_v<Flds>, "Fields() returns this.");
+        static_assert(std::is_trivially_copyable_v<Recs>, "Records() returns this.");
+
+        // data section
+        MemRsc     backingRes;     // memory resource to use
+        size_t     capacity;       // capacity of data
+        T*         data;           // pointer to allocated memory
+        DataMatrix recsData;       // view into whole stored data
+
+        // indices/view section
+        FldI fldIndex;              // index for fields
+        RecI recIndex;              // index for records
     };
 
     // ======== CONSTRUCTION =======================================================================================================================================================
@@ -1172,7 +1168,7 @@ namespace lugizmo {
 
     template<typename T, typename F, typename R, typename L>
     template<typename FieldLookup, typename RecordLookup>
-    auto DataFrame<T, F, R, L>::GetValue(this auto& self, FieldLookup const& field, RecordLookup const& record) -> ValueRefOptT<decltype(self)>
+    auto DataFrame<T, F, R, L>::GetValue(this auto& self, FieldLookup const& field, RecordLookup const& record) -> OptValue<decltype(self)>
     {
         static_assert(requires(FldI const& index, FieldLookup const& lookup) { index.Position(lookup); },
                       "DataFrame field lookup requires the exact key type or transparent hash/equality support.");
@@ -1183,12 +1179,13 @@ namespace lugizmo {
         auto const fldPos = self.fldIndex.Position(field);
         auto const recPos = self.recIndex.Position(record);
 
-        return fldPos && recPos ? ValueRefOptT<decltype(self)>{self.recsData[*recPos, *fldPos]} : ValueRefOptT<decltype(self)>{};
+        if(not (fldPos && recPos)) return {};
+        return self.recsData[*recPos, *fldPos];
     }
 
     template<typename T, typename F, typename R, typename L>
     template<typename FieldLookup, typename RecordLookup>
-    auto DataFrame<T, F, R, L>::operator[](this auto& self, FieldLookup const& field, RecordLookup const& record) -> ViewValueT<decltype(self)>&
+    auto DataFrame<T, F, R, L>::operator[](this auto& self, FieldLookup const& field, RecordLookup const& record) -> Value<decltype(self)>&
     {
         static_assert(requires(FldI const& index, FieldLookup const& lookup) { index.Position(lookup); },
                       "DataFrame field lookup requires the exact key type or transparent hash/equality support.");
@@ -1210,7 +1207,7 @@ namespace lugizmo {
     requires std::constructible_from<T, U&&>
     auto DataFrame<T, F, R, L>::AssignValue(FldT const& field, RecT const& record, U&& value) -> bool
     {
-        if(auto get = GetValue(field, record); get.HasValue())
+        if(auto get = GetValue(field, record); get)
         {
             T& g = *get;
             if constexpr(std::assignable_from<T&, U&&>) g = std::forward<U>(value);
@@ -1390,30 +1387,30 @@ namespace lugizmo {
 
     template<typename T, typename F, typename R, typename L>
     template<typename FieldLookup>
-    auto DataFrame<T, F, R, L>::ViewField(this auto& self, FieldLookup const& index) noexcept -> FieldViewT<decltype(self)>
+    auto DataFrame<T, F, R, L>::ViewField(this auto& self, FieldLookup const& index) noexcept -> ValueView<decltype(self), RecI>
     {
         static_assert(requires(FldI const& fieldIndex, FieldLookup const& lookup) { fieldIndex.Position(lookup); },
                       "DataFrame field lookup requires the exact key type or transparent hash/equality support.");
 
         auto const pos = self.fldIndex.Position(index);
-        if(not pos.has_value()) return FieldViewT<decltype(self)>{};
+        if(not pos.has_value()) return ValueView<decltype(self), RecI>{};
 
         if constexpr (DFValIndex<RecI>)
         {
             if constexpr (meta::IsConstThis<decltype(self)>())
             {
-                return FieldViewT<decltype(self)>::FieldView(static_cast<ConstDataMatrix>(self.recsData), &self.recIndex, *pos);
+                return ValueView<decltype(self), RecI>::FieldView(static_cast<ConstDataMatrix>(self.recsData), &self.recIndex, *pos);
             }
             else
             {
-                return FieldViewT<decltype(self)>::FieldView(self.recsData, &self.recIndex, *pos);
+                return ValueView<decltype(self), RecI>::FieldView(self.recsData, &self.recIndex, *pos);
             }
         }
         else
         {
             if constexpr (meta::IsConstThis<decltype(self)>())
             {
-                return FieldViewT<decltype(self)>::FieldView(static_cast<ConstDataMatrix>(self.recsData),
+                return ValueView<decltype(self), RecI>::FieldView(static_cast<ConstDataMatrix>(self.recsData),
                                                              &self.recIndex,
                                                              *pos,
                                                              self.recIndex.LowerBoundPosition(),
@@ -1421,7 +1418,7 @@ namespace lugizmo {
             }
             else
             {
-                return FieldViewT<decltype(self)>::FieldView(self.recsData,
+                return ValueView<decltype(self), RecI>::FieldView(self.recsData,
                                                              &self.recIndex,
                                                              *pos,
                                                              self.recIndex.LowerBoundPosition(),
@@ -1432,88 +1429,88 @@ namespace lugizmo {
 
     template<typename T, typename F, typename R, typename L>
     template<typename FieldLookup>
-    auto DataFrame<T, F, R, L>::ViewFieldIndexed(this auto& self, FieldLookup const& index) noexcept -> FieldViewIndexedT<decltype(self)>
+    auto DataFrame<T, F, R, L>::ViewFieldIndexed(this auto& self, FieldLookup const& index) noexcept -> IndexedValueView<decltype(self), RecI>
     {
         static_assert(requires(FldI const& fieldIndex, FieldLookup const& lookup) { fieldIndex.Position(lookup); },
                       "DataFrame field lookup requires the exact key type or transparent hash/equality support.");
 
         auto const pos = self.fldIndex.Position(index);
-        if(not pos.has_value()) return FieldViewIndexedT<decltype(self)>{};
+        if(not pos.has_value()) return IndexedValueView<decltype(self), RecI>{};
 
         if constexpr (DFValIndex<RecI>)
         {
             if constexpr (meta::IsConstThis<decltype(self)>())
             {
-                return FieldViewIndexedT<decltype(self)>::template FieldView<>(static_cast<ConstDataMatrix>(self.recsData), &self.recIndex, *pos, self.recIndex.Keys());
+                return IndexedValueView<decltype(self), RecI>::template FieldView<>(static_cast<ConstDataMatrix>(self.recsData), &self.recIndex, *pos, self.recIndex.Keys());
             }
             else
             {
-                return FieldViewIndexedT<decltype(self)>::FieldView(self.recsData, &self.recIndex, *pos, self.recIndex.Keys());
+                return IndexedValueView<decltype(self), RecI>::FieldView(self.recsData, &self.recIndex, *pos, self.recIndex.Keys());
             }
         }
         else
         {
             if constexpr (meta::IsConstThis<decltype(self)>())
             {
-                return FieldViewIndexedT<decltype(self)>::FieldView(static_cast<ConstDataMatrix>(self.recsData), &self.recIndex, *pos, self.recIndex.Bounds());
+                return IndexedValueView<decltype(self), RecI>::FieldView(static_cast<ConstDataMatrix>(self.recsData), &self.recIndex, *pos, self.recIndex.Bounds());
             }
             else
             {
-                return FieldViewIndexedT<decltype(self)>::FieldView(self.recsData, &self.recIndex, *pos, self.recIndex.Bounds());
+                return IndexedValueView<decltype(self), RecI>::FieldView(self.recsData, &self.recIndex, *pos, self.recIndex.Bounds());
             }
         }
     }
 
     template<typename T, typename F, typename R, typename L>
     template<typename RecordLookup>
-    auto DataFrame<T, F, R, L>::ViewRecord(this auto& self, RecordLookup const& index) noexcept -> RecordViewT<decltype(self)> requires DFValIndex<FldI>
+    auto DataFrame<T, F, R, L>::ViewRecord(this auto& self, RecordLookup const& index) noexcept -> ValueView<decltype(self), FldI> requires DFValIndex<FldI>
     {
         static_assert(requires(RecI const& recordIndex, RecordLookup const& lookup) { recordIndex.Position(lookup); },
                       "DataFrame record lookup requires the exact key type or transparent hash/equality support.");
 
         auto const pos = self.recIndex.Position(index);
-        if(not pos.has_value()) return RecordViewT<decltype(self)>{};
+        if(not pos.has_value()) return ValueView<decltype(self), FldI>{};
 
         if constexpr(meta::IsConstThis<decltype(self)>())
         {
-            return RecordViewT<decltype(self)>::RecordView(static_cast<ConstDataMatrix>(self.recsData), &self.fldIndex, *pos);
+            return ValueView<decltype(self), FldI>::RecordView(static_cast<ConstDataMatrix>(self.recsData), &self.fldIndex, *pos);
         }
         else
         {
-            return RecordViewT<decltype(self)>::RecordView(self.recsData, &self.fldIndex, *pos);
+            return ValueView<decltype(self), FldI>::RecordView(self.recsData, &self.fldIndex, *pos);
         }
     }
 
     template<typename T, typename F, typename R, typename L>
     template<typename RecordLookup>
-    auto DataFrame<T, F, R, L>::ViewRecordIndexed(this auto& self, RecordLookup const& index) noexcept -> RecordViewIndexedT<decltype(self)>
+    auto DataFrame<T, F, R, L>::ViewRecordIndexed(this auto& self, RecordLookup const& index) noexcept -> IndexedValueView<decltype(self), FldI>
     {
         static_assert(requires(RecI const& recordIndex, RecordLookup const& lookup) { recordIndex.Position(lookup); },
                       "DataFrame record lookup requires the exact key type or transparent hash/equality support.");
 
         auto const pos = self.recIndex.Position(index);
-        if(not pos.has_value()) return RecordViewIndexedT<decltype(self)>{};
+        if(not pos.has_value()) return IndexedValueView<decltype(self), FldI>{};
 
         if constexpr (DFValIndex<FldI>)
         {
             if constexpr (meta::IsConstThis<decltype(self)>())
             {
-                return RecordViewIndexedT<decltype(self)>::template RecordView<>(static_cast<ConstDataMatrix>(self.recsData), &self.fldIndex, *pos, self.fldIndex.Keys());
+                return IndexedValueView<decltype(self), FldI>::template RecordView<>(static_cast<ConstDataMatrix>(self.recsData), &self.fldIndex, *pos, self.fldIndex.Keys());
             }
             else
             {
-                return RecordViewIndexedT<decltype(self)>::template RecordView<>(self.recsData, &self.fldIndex, *pos, self.fldIndex.Keys());
+                return IndexedValueView<decltype(self), FldI>::template RecordView<>(self.recsData, &self.fldIndex, *pos, self.fldIndex.Keys());
             }
         }
         else
         {
             if constexpr (meta::IsConstThis<decltype(self)>())
             {
-                return RecordViewIndexedT<decltype(self)>::RecordView(static_cast<ConstDataMatrix>(self.recsData), &self.fldIndex, *pos, self.fldIndex.Bounds());
+                return IndexedValueView<decltype(self), FldI>::RecordView(static_cast<ConstDataMatrix>(self.recsData), &self.fldIndex, *pos, self.fldIndex.Bounds());
             }
             else
             {
-                return RecordViewIndexedT<decltype(self)>::RecordView(self.recsData, &self.fldIndex, *pos, self.fldIndex.Bounds());
+                return IndexedValueView<decltype(self), FldI>::RecordView(self.recsData, &self.fldIndex, *pos, self.fldIndex.Bounds());
             }
         }
     }
@@ -1522,7 +1519,7 @@ namespace lugizmo {
 
     template <typename T, typename F, typename R, typename L>
     template <typename Func>
-    auto DataFrame<T, F, R, L>::ForEachOnField(this auto& self, F const& index, Func&& func) -> FieldViewT<decltype(self)> requires DFValIndex<FldI>
+    auto DataFrame<T, F, R, L>::ForEachOnField(this auto& self, F const& index, Func&& func) -> ValueView<decltype(self), RecI> requires DFValIndex<FldI>
     {
         auto view = self.ViewField(index);
         std::ranges::for_each(view, std::forward<Func>(func));
@@ -1532,7 +1529,7 @@ namespace lugizmo {
 
     template <typename T, typename F, typename R, typename L>
     template <typename Func>
-    auto DataFrame<T, F, R, L>::ForEachOnRecord(this auto& self, R const& index, Func&& func) -> RecordViewT<decltype(self)> requires DFValIndex<RecI>
+    auto DataFrame<T, F, R, L>::ForEachOnRecord(this auto& self, R const& index, Func&& func) -> ValueView<decltype(self), FldI> requires DFValIndex<RecI>
     {
         auto view = self.ViewRecord(index);
         std::ranges::for_each(view, std::forward<Func>(func));
