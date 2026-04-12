@@ -12,6 +12,90 @@ This library uses **C++23** constructs (like mdspan). At moment of writing this 
 - Project Options (gets fetched for you)
 - GTest/Googletest (gets fetched for you, when using tests)
 
+### Build And Integration
+
+The project supports three common workflows:
+
+1. use it as a subproject
+2. install it and use `find_package(...)`
+3. build and test it locally with presets
+
+#### As a subproject
+
+```cmake
+add_subdirectory(external/DataFrame)
+target_link_libraries(my_target PRIVATE Lugizmo::DataFrame)
+```
+
+If your parent project already provides `GTest` or `benchmark`, this project prefers those targets first.
+
+#### As an installed package
+
+Build and install the project:
+
+```sh
+cmake --preset release
+cmake --build --preset release
+cmake --install build/presets/release --prefix /tmp/ludataframe-install
+```
+
+Then consume it from another project:
+
+```cmake
+find_package(LuDataFrame CONFIG REQUIRED)
+target_link_libraries(my_target PRIVATE Lugizmo::DataFrame)
+```
+
+You can point CMake to the install location with:
+
+```sh
+cmake -S . -B build -DCMAKE_PREFIX_PATH=/tmp/ludataframe-install
+```
+
+#### Local build and test
+
+The shared presets are:
+
+- `debug`
+- `releaseWithDebInfo`
+- `release`
+
+Typical local commands:
+
+```sh
+cmake --preset debug
+cmake --build --preset debug
+ctest --preset debug
+```
+
+Release package verification:
+
+```sh
+cmake --preset release
+cmake --build --preset release
+ctest --preset release
+cmake --install build/presets/release --prefix /tmp/ludataframe-install
+```
+
+#### Important project options
+
+Commonly used options:
+
+- `LUGIZMO_DF_BUILD_TESTING`
+- `LUGIZMO_DF_BUILD_BENCHMARKS`
+- `LUGIZMO_DF_DOWNLOAD_GTEST`
+- `LUGIZMO_DF_DOWNLOAD_BENCHMARK`
+- `LUGIZMO_DF_ENABLE_ASSERT`
+- `LUGIZMO_DF_ENABLE_ASSERT_TRACE`
+- `LUGIZMO_DF_ENABLE_WARNINGS`
+- `LUGIZMO_DF_ENABLE_OPTIMIZATIONS`
+- `LUGIZMO_DF_ENABLE_NATIVE_OPTIMIZATIONS`
+- `LUGIZMO_DF_ENABLE_HARDENING`
+- `LUGIZMO_DF_ENABLE_LTO`
+- `LUGIZMO_DF_ENABLE_PIC`
+- `LUGIZMO_DF_ENABLE_SANITIZERS`
+- `LUGIZMO_DF_STRICT_MODE`
+
 ### Dataframes
 
 Dataframes can store every c++ type as values that are default constructable. The records and field indices must
