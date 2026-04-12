@@ -1,0 +1,118 @@
+{
+    "version": 6,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 27,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "base",
+            "hidden": true,
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/presets/${presetName}",
+            "cacheVariables": {
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+                "LUGIZMO_DF_DOWNLOAD_BENCHMARK": "ON",
+                "LUGIZMO_DF_DOWNLOAD_GTEST": "ON",
+                "LUGIZMO_DF_ENABLE_WARNINGS": "ON",
+                "LUGIZMO_DF_USE_CLANG_TIDY": "OFF"
+            }
+        },
+        {
+            "name": "debug",
+            "displayName": "Debug",
+            "inherits": "base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "LUGIZMO_DF_DOWNLOAD_BENCHMARK": "ON",
+                "LUGIZMO_DF_DOWNLOAD_GTEST": "ON",
+                "LUGIZMO_DF_BUILD_BENCHMARKS": "OFF",
+                "LUGIZMO_DF_BUILD_TESTING": "ON",
+                "LUGIZMO_DF_ENABLE_ASSERT_TRACE": "ON",
+                "LUGIZMO_DF_ENABLE_LTO": "OFF",
+                "LUGIZMO_DF_ENABLE_OPTIMIZATIONS": "OFF",
+                "LUGIZMO_DF_ENABLE_SANITIZERS": "ON",
+                "LUGIZMO_DF_STRICT_MODE": "ON"
+            }
+        },
+        {
+            "name": "releaseWithDebInfo",
+            "displayName": "ReleaseWithDebInfo",
+            "inherits": "base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+                "LUGIZMO_DF_DOWNLOAD_BENCHMARK": "ON",
+                "LUGIZMO_DF_DOWNLOAD_GTEST": "ON",
+                "LUGIZMO_DF_BUILD_BENCHMARKS": "ON",
+                "LUGIZMO_DF_BUILD_TESTING": "ON",
+                "LUGIZMO_DF_ENABLE_ASSERT": "OFF",
+                "LUGIZMO_DF_ENABLE_ASSERT_TRACE": "OFF",
+                "LUGIZMO_DF_ENABLE_LTO": "OFF",
+                "LUGIZMO_DF_ENABLE_OPTIMIZATIONS": "ON",
+                "LUGIZMO_DF_ENABLE_SANITIZERS": "ON",
+                "LUGIZMO_DF_STRICT_MODE": "OFF"
+            }
+        },
+        {
+            "name": "release",
+            "displayName": "Release",
+            "inherits": "base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "OFF",
+                "LUGIZMO_DF_BUILD_BENCHMARKS": "ON",
+                "LUGIZMO_DF_BUILD_TESTING": "ON",
+                "LUGIZMO_DF_ENABLE_ASSERT": "OFF",
+                "LUGIZMO_DF_ENABLE_ASSERT_TRACE": "OFF",
+                "LUGIZMO_DF_ENABLE_LTO": "ON",
+                "LUGIZMO_DF_ENABLE_OPTIMIZATIONS": "ON",
+                "LUGIZMO_DF_ENABLE_SANITIZERS": "OFF",
+                "LUGIZMO_DF_STRICT_MODE": "OFF"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "debug",
+            "displayName": "Build Debug",
+            "configurePreset": "debug"
+        },
+        {
+            "name": "releaseWithDebInfo",
+            "displayName": "Build ReleaseWithDebInfo",
+            "configurePreset": "releaseWithDebInfo"
+        },
+        {
+            "name": "release",
+            "displayName": "Build Release",
+            "configurePreset": "release"
+        }
+    ],
+    "testPresets": [
+        {
+            "name": "debug",
+            "displayName": "Test Debug",
+            "configurePreset": "debug",
+            "output": {
+                "outputOnFailure": true
+            }
+        },
+        {
+            "name": "releaseWithDebInfo",
+            "displayName": "Test ReleaseWithDebInfo",
+            "configurePreset": "releaseWithDebInfo",
+            "output": {
+                "outputOnFailure": true
+            }
+        },
+        {
+            "name": "release",
+            "displayName": "Test Release",
+            "configurePreset": "release",
+            "output": {
+                "outputOnFailure": true
+            }
+        }
+    ]
+}
