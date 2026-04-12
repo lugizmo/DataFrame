@@ -6,49 +6,64 @@
 
 include_guard(GLOBAL)
 
-if(LUGIZMO_DF_BUILD_TESTING)
-
-    # Build Tests
-    set(LUGIZMO_DF_GTEST_MINIMUM 1.15)
-    set(LUGIZMO_DF_GTEST_VERSION v1.16.0)
-
-    if(NOT TARGET gtest AND NOT TARGET gtest_main)
-        # Check if dependencies are present
-
-        if(NOT LUGIZMO_DF_DOWNLOAD_GTEST)
-            # Find local package
-            message(STATUS "Lugizmo DF - Checking for system-installed GoogleTest...")
-            find_package(GTest ${LUGIZMO_DF_GTEST_MINIMUM}... EXACT QUIET)
-        endif()
-
-        if(GTest_FOUND AND NOT LUGIZMO_DF_DOWNLOAD_GTEST)
-            # Found local package
-            message(STATUS "Lugizmo DF - GoogleTest ${GTest_VERSION}")
-        elseif(NOT GTest_FOUND AND NOT LUGIZMO_DF_DOWNLOAD_GTEST)
-            # Couldn't find local package even though should be provided
-            message(FATAL_ERROR "Lugizmo DF - GoogleTest not found! Please install GoogleTest >= ${LUGIZMO_DF_GTEST_MINIMUM} or enable LUGIZMO_DF_DOWNLOAD_GTEST to fetch it.")
-        else()
-            # Get gtest lib from remote
-            message(STATUS "Lugizmo DF - Fetching GoogleTest...")
-            include(FetchContent)
-            set(INSTALL_GTEST OFF CACHE BOOL "Disable GoogleTest install rules." FORCE)
-            set(BUILD_GMOCK ON CACHE BOOL "Build GoogleMock." FORCE)
-            FetchContent_Declare(
-                    gtest
-                    GIT_REPOSITORY https://github.com/google/googletest.git
-                    GIT_TAG ${LUGIZMO_DF_GTEST_VERSION}
-            )
-            FetchContent_MakeAvailable(gtest)
-        endif()
-
-    else()
-        # Check target properties TODO this does not work
-        # get_target_property(GTEST_VERSION gtest INTERFACE_VERSION)
-        # if(GTEST_VERSION VERSION_LESS ${LUGIZMO_DF_GTEST_MINIMUM})
-        #     message(FATAL_ERROR "GTest version ${GTEST_VERSION} is less than required ${LUGIZMO_DF_GTEST_MINIMUM}.")
-        # else()
-        #     message(STATUS "Using provided GTest version ${GTEST_VERSION}.")
-        # endif()
-        message(STATUS "Using provided GTest")
-    endif()
+if(NOT LUGIZMO_DF_BUILD_TESTING)
+    return()
 endif()
+
+# ====== SETTINGS ======================================================================================================
+
+set(LUGIZMO_DF_GTEST_MINIMUM_VERSION "1.15")
+set(LUGIZMO_DF_GTEST_FETCH_VERSION   "v1.15.2")
+
+# ====== PROVIDED TARGETS ==============================================================================================
+
+if(TARGET GTest::gtest)
+    message(STATUS "Lugizmo DF - Using provided GoogleTest targets.")
+    return()
+endif()
+
+if(TARGET gtest)
+    add_library(GTest::gtest ALIAS gtest)
+
+    if(TARGET gtest_main)
+        add_library(GTest::gtest_main ALIAS gtest_main)
+    endif()
+
+    message(STATUS "Lugizmo DF - Using provided GoogleTest targets.")
+    return()
+endif()
+
+# ====== LOCAL PACKAGE =================================================================================================
+
+if(NOT LUGIZMO_DF_DOWNLOAD_GTEST)
+    message(STATUS "Lugizmo DF - Checking for installed GoogleTest...")
+    find_package(GTest ${LUGIZMO_DF_GTEST_MINIMUM_VERSION} QUIET)
+endif()
+
+if(TARGET GTest::gtest)
+    message(STATUS "Lugizmo DF - Using installed GoogleTest ${GTest_VERSION}.")
+    return()
+endif()
+
+# ====== FETCH CONTENT ================================================================================================
+
+if(NOT LUGIZMO_DF_DOWNLOAD_GTEST)
+    message(FATAL_ERROR
+            "Lugizmo DF - GoogleTest not found. "
+            "Provide GTest::gtest from a parent project, install GoogleTest >= "
+            "${LUGIZMO_DF_GTEST_MINIMUM_VERSION}, or enable LUGIZMO_DF_DOWNLOAD_GTEST.")
+endif()
+
+message(STATUS "Lugizmo DF - Fetching GoogleTest...")
+include(FetchContent)
+
+set(BUILD_GMOCK OFF CACHE BOOL "Build GoogleMock." FORCE)
+set(INSTALL_GTEST OFF CACHE BOOL "Disable GoogleTest install rules." FORCE)
+
+FetchContent_Declare(
+        googletest
+        GIT_REPOSITORY https://github.com/google/googletest.git
+        GIT_TAG ${LUGIZMO_DF_GTEST_FETCH_VERSION}
+)
+
+FetchContent_MakeAvailable(googletest)

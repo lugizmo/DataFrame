@@ -42,7 +42,7 @@ if(LUGIZMO_DF_BUILD_TESTING)
             RM_DataframeTestData.h
     )
 
-    target_link_libraries(LuDataFrameTest PUBLIC Lugizmo::DataFrame gtest)
+    target_link_libraries(LuDataFrameTest PUBLIC Lugizmo::DataFrame GTest::gtest)
 
     target_compile_options(LuDataFrameTest PRIVATE ${LUGIZMO_DF_CXX_FLAGS})
     target_link_options(LuDataFrameTest PRIVATE ${LUGIZMO_DF_LINK_FLAGS})
