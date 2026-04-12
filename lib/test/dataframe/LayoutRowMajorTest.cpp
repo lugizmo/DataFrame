@@ -29,7 +29,7 @@ TEST(lugizmo_dataframe_layout_row_base_test, realloc)
     size_t capacity = 6;
 
     // Allocate initial data and initialize
-    auto* data = static_cast<T*>(memory->allocate(capacity * sizeof(T)));
+    auto* data = lugizmo::internal::AllocateAligned<T>(*memory, capacity);
     for (size_t i = 0; i < rowCount * colCount; ++i) data[i] = static_cast<T>(i + 1);
 
     // Call Realloc
@@ -44,7 +44,7 @@ TEST(lugizmo_dataframe_layout_row_base_test, realloc)
         EXPECT_EQ(data[startIndex + i], i + 1) << "Data mismatch at index " << i;
     }
 
-    memory->deallocate(data, capacity * sizeof(T));
+    lugizmo::internal::DeallocateAligned(*memory, data, capacity);
 }
 
 TEST(lugizmo_dataframe_layout_row_base_test, realloc_zero_capacity)
@@ -66,7 +66,7 @@ TEST(lugizmo_dataframe_layout_row_base_test, realloc_zero_capacity)
     EXPECT_NE(data, nullptr) << "Reallocated data should not be null.";
     EXPECT_GE(capacity, newRowCount * colCount) << "Capacity should be allocated for new rows.";
 
-    memory->deallocate(data, capacity * sizeof(T));
+    lugizmo::internal::DeallocateAligned(*memory, data, capacity);
 }
 
 TEST(lugizmo_dataframe_layout_row_base_test, realloc_large_allocation)
@@ -80,7 +80,7 @@ TEST(lugizmo_dataframe_layout_row_base_test, realloc_large_allocation)
     constexpr ssize_t adjCountByBeg = 10;
 
     size_t capacity = 1024;
-    auto* data = static_cast<T*>(memory->allocate(capacity * sizeof(T)));
+    auto* data = lugizmo::internal::AllocateAligned<T>(*memory, capacity);
     for (size_t i = 0; i < rowCount * colCount; ++i) data[i] = static_cast<T>(i);
 
     lugizmo::DFRowMajor<T>::Realloc(data, *memory, capacity, colCount, rowCount, newRowCount, adjCountByBeg);
@@ -88,7 +88,7 @@ TEST(lugizmo_dataframe_layout_row_base_test, realloc_large_allocation)
     EXPECT_NE(data, nullptr) << "Reallocated data should not be null.";
     EXPECT_GE(capacity, newRowCount * colCount) << "Capacity should be large enough for new rows.";
 
-    memory->deallocate(data, capacity * sizeof(T));
+    lugizmo::internal::DeallocateAligned(*memory, data, capacity);
 }
 
 TEST(lugizmo_dataframe_layout_row_base_test, realloc_and_shift)
@@ -104,7 +104,7 @@ TEST(lugizmo_dataframe_layout_row_base_test, realloc_and_shift)
     size_t capacity = 6;
 
     // Allocate initial data and initialize
-    auto* data = static_cast<T*>(memory->allocate(capacity * sizeof(T)));
+    auto* data = lugizmo::internal::AllocateAligned<T>(*memory, capacity);
     for (size_t i = 0; i < rowCount * colCount; ++i) data[i] = static_cast<T>(i + 1);
 
     // Call ReallocAndShift
@@ -119,7 +119,7 @@ TEST(lugizmo_dataframe_layout_row_base_test, realloc_and_shift)
         EXPECT_EQ(data[startIndex + i], i + 1) << "Data mismatch at index " << i;
     }
 
-    memory->deallocate(data, capacity * sizeof(T));
+    lugizmo::internal::DeallocateAligned(*memory, data, capacity);
 }
 
 TEST(lugizmo_dataframe_layout_row_base_test, free)
@@ -133,7 +133,7 @@ TEST(lugizmo_dataframe_layout_row_base_test, free)
     size_t capacity = 6;
 
     // Allocate memory
-    auto* data = static_cast<T*>(memory->allocate(capacity * sizeof(T)));
+    auto* data = lugizmo::internal::AllocateAligned<T>(*memory, capacity);
     for (size_t i = 0; i < rowCount * colCount; ++i) data[i] = static_cast<T>(i + 1);
 
     // Create an mdspan to track the view
@@ -178,11 +178,11 @@ TEST(lugizmo_dataframe_layout_row_base_test, fill_with_default_value)
     constexpr size_t rowCount = 2;
     constexpr size_t capacity = colCount * rowCount;
 
-    auto* data = static_cast<T*>(TestMemory.allocate(capacity * sizeof(T), alignof(T)));
+    auto* data = lugizmo::internal::AllocateAligned<T>(TestMemory, capacity);
     lugizmo::DFRowMajor<T>::FillRows(data, 0, rowCount, colCount, 99);
 
     for (size_t i = 0; i < rowCount * colCount; ++i) EXPECT_EQ(data[i], 99);
-    TestMemory.deallocate(data, capacity * sizeof(T), alignof(T));
+    lugizmo::internal::DeallocateAligned(TestMemory, data, capacity);
 }
 
 TEST(lugizmo_dataframe_layout_row_base_test, fill_with_span_values)
@@ -195,7 +195,7 @@ TEST(lugizmo_dataframe_layout_row_base_test, fill_with_span_values)
     constexpr size_t rowCount = 2;
     constexpr size_t capacity = colCount * rowCount;
 
-    auto* data = static_cast<T*>(TestMemory.allocate(capacity * sizeof(T), alignof(T)));
+    auto* data = lugizmo::internal::AllocateAligned<T>(TestMemory, capacity);
 
     std::vector<T> rowValues = {1, 2, 3, 4};
     std::span<T const> spanValues = rowValues;
@@ -208,7 +208,7 @@ TEST(lugizmo_dataframe_layout_row_base_test, fill_with_span_values)
         }
     }
 
-    TestMemory.deallocate(data, capacity * sizeof(T), alignof(T));
+    lugizmo::internal::DeallocateAligned(TestMemory, data, capacity);
 }
 
 TEST(lugizmo_dataframe_layout_row_base_test, fill_with_iterable_of_iterable)
@@ -221,7 +221,7 @@ TEST(lugizmo_dataframe_layout_row_base_test, fill_with_iterable_of_iterable)
     constexpr size_t rowCount = 2;
     constexpr size_t capacity = colCount * rowCount;
 
-    auto* data = static_cast<T*>(TestMemory.allocate(capacity * sizeof(T), alignof(T)));
+    auto* data = lugizmo::internal::AllocateAligned<T>(TestMemory, capacity);
 
     std::vector<std::vector<T>> matrix = {{1, 2, 3}, {4, 5, 6}};
     auto begin = matrix.begin();
@@ -234,7 +234,7 @@ TEST(lugizmo_dataframe_layout_row_base_test, fill_with_iterable_of_iterable)
         }
     }
 
-    TestMemory.deallocate(data, capacity * sizeof(T), alignof(T));
+    lugizmo::internal::DeallocateAligned(TestMemory, data, capacity);
 }
 
 TEST(lugizmo_dataframe_layout_row_base_test, fill_with_initializer_list)
@@ -247,7 +247,7 @@ TEST(lugizmo_dataframe_layout_row_base_test, fill_with_initializer_list)
     constexpr size_t rowCount = 2;
     constexpr size_t capacity = colCount * rowCount;
 
-    auto* data             = static_cast<T*>(TestMemory.allocate(capacity * sizeof(T), alignof(T)));
+    auto* data             = lugizmo::internal::AllocateAligned<T>(TestMemory, capacity);
     auto const initializer = std::initializer_list<std::initializer_list<T>>{{10, 11, 12}, {13, 14, 15}};
     auto begin             = initializer.begin();
 
@@ -260,7 +260,7 @@ TEST(lugizmo_dataframe_layout_row_base_test, fill_with_initializer_list)
     EXPECT_EQ(data[4], 14);
     EXPECT_EQ(data[5], 15);
 
-    TestMemory.deallocate(data, capacity * sizeof(T), alignof(T));
+    lugizmo::internal::DeallocateAligned(TestMemory, data, capacity);
 }
 
 TEST(lugizmo_dataframe_layout_row_base_test, fill_with_partial_iterable)
@@ -273,7 +273,7 @@ TEST(lugizmo_dataframe_layout_row_base_test, fill_with_partial_iterable)
     constexpr size_t rowCount = 3;  // Request 3 rows, but provide only 2
     constexpr size_t capacity = colCount * rowCount;
 
-    auto* data = static_cast<T*>(TestMemory.allocate(capacity * sizeof(T), alignof(T)));
+    auto* data = lugizmo::internal::AllocateAligned<T>(TestMemory, capacity);
 
     std::vector<std::vector<T>> matrix = {{1, 2, 3}, {4, 5, 6}};
     auto begin = matrix.begin();
@@ -286,7 +286,7 @@ TEST(lugizmo_dataframe_layout_row_base_test, fill_with_partial_iterable)
         }
     }
 
-    TestMemory.deallocate(data, capacity * sizeof(T), alignof(T));
+    lugizmo::internal::DeallocateAligned(TestMemory, data, capacity);
 }
 
 // ====== EXPAND BY COUNTS TEST ============================================================================================================
@@ -327,7 +327,7 @@ protected:
         if (newColC == colC) return;
         auto const newCapacity = rowC * newColC;
 
-        auto* newData = static_cast<T*>(memory->allocate(newCapacity * sizeof(T), alignof(T)));
+        auto* newData = lugizmo::internal::AllocateAligned<T>(*memory, newCapacity);
 
         for(size_t row = 0; row < rowC; ++row)
         {
@@ -335,7 +335,7 @@ protected:
             std::fill(newData + row * newColC + colC, newData + (row + 1) * newColC, defaultValue);
         }
 
-        if(data) memory->deallocate(data, capacity * sizeof(T));
+        lugizmo::internal::DeallocateAligned(*memory, data, capacity);
 
         data     = newData;
         capacity = newCapacity;
@@ -350,7 +350,7 @@ protected:
     void TearDown() override
     {
         if (data) {
-            memory->deallocate(data, capacity * sizeof(T));
+            lugizmo::internal::DeallocateAligned(*memory, data, capacity);
             data = nullptr;
             capacity = 0;
         }

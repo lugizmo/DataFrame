@@ -175,6 +175,11 @@ namespace lugizmo {
         /**
          * @brief Destroys active elements and deallocates the backing buffer.
          *
+         * @details
+         * Main dataframe storage is expected to follow Lugizmo's aligned allocation
+         * contract. Callers that exercise this backend directly should therefore
+         * allocate storage with `internal::AllocateAligned<T>(...)`.
+         *
          * @param[in,out] data        Pointer to backing storage.
          * @param[in]     activeCount Number of active constructed elements.
          * @param[in]     capacity    Allocated element count.

@@ -58,11 +58,22 @@ TEST(lugizmo_dataframe_memory_align, allocated_pointer_aligned)
     using namespace lugizmo::internal;
     std::pmr::monotonic_buffer_resource res;
 
-    constexpr auto align = Alignment<double>();
-    auto* ptr = static_cast<double*>(res.allocate(10 * sizeof(double), align));
-    EXPECT_EQ(reinterpret_cast<std::uintptr_t>(ptr) % align, 0u);
+    auto* ptr = AllocateAligned<double>(res, 10);
+    EXPECT_NE(ptr, nullptr);
+    EXPECT_EQ(reinterpret_cast<std::uintptr_t>(ptr) % Alignment<double>(), 0u);
 
-    res.deallocate(ptr, 10 * sizeof(double), align);
+    DeallocateAligned(res, ptr, 10);
+}
+
+TEST(lugizmo_dataframe_memory_align, aligned_helpers_handle_zero_count)
+{
+    using namespace lugizmo::internal;
+    std::pmr::monotonic_buffer_resource res;
+
+    auto* ptr = AllocateAligned<double>(res, 0);
+    EXPECT_EQ(ptr, nullptr);
+
+    DeallocateAligned(res, ptr, 0);
 }
 
 TEST(lugizmo_dataframe_memory_growth, default_double_small_values)

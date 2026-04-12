@@ -63,6 +63,44 @@ namespace lugizmo::internal {
         return perfAlign > typeAlign ? perfAlign : typeAlign;
     }
 
+    /**
+     * @brief Allocates storage for `count` elements using Lugizmo's dataframe alignment.
+     *
+     * @details
+     * Use this helper for dataframe backing storage and low-level backend tests. The
+     * returned storage must be released with `DeallocateAligned<T>(...)` using the same
+     * element count.
+     *
+     * @tparam T element type of the allocation.
+     *
+     * @param[in,out] resource PMR resource used for the allocation.
+     * @param[in]     count    Number of elements to allocate.
+     *
+     * @return Pointer to aligned storage, or `nullptr` when `count == 0`.
+     */
+    template<typename T>
+    auto AllocateAligned(std::pmr::memory_resource& resource, std::size_t const count) noexcept -> T*
+    {
+        if(count == 0) return nullptr;
+        return static_cast<T*>(resource.allocate(count * sizeof(T), Alignment<T>()));
+    }
+
+    /**
+     * @brief Releases storage previously allocated by `AllocateAligned<T>(...)`.
+     *
+     * @tparam T element type of the allocation.
+     *
+     * @param[in,out] resource PMR resource used for the deallocation.
+     * @param[in,out] data     Pointer returned by `AllocateAligned<T>(...)`.
+     * @param[in]     count    Number of allocated elements.
+     */
+    template<typename T>
+    void DeallocateAligned(std::pmr::memory_resource& resource, T* const data, std::size_t const count) noexcept
+    {
+        if(data == nullptr || count == 0) return;
+        resource.deallocate(data, count * sizeof(T), Alignment<T>());
+    }
+
 
     /**
      * @brief   Computes a sensible next capacity for growth.
