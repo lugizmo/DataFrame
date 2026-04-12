@@ -19,6 +19,7 @@ set(LUGIZMO_DF_NAMESPACE    "Lugizmo::")
 set(LUGIZMO_DF_CXX_STANDARD 23)
 
 # ====== OPTIONS =======================================================================================================
+include(cmake/BuildOptionsDefaults.cmake)
 
 # bench and testing options
 option(BUILD_TESTING                   "Build tests."                                         ${PROJECT_IS_TOP_LEVEL})
@@ -29,18 +30,21 @@ option(LUGIZMO_DF_DOWNLOAD_GTEST       "Download GTest regardless of local insta
 option(LUGIZMO_DF_DOWNLOAD_BENCHMARK   "Download Benchmark regardless of local installation." OFF)
 
 # assertion options
-option(LUGIZMO_DF_ENABLE_ASSERT        "Enable default runtime assertions in LUGIZMO_ASSERT." ON)
+option(LUGIZMO_DF_ENABLE_ASSERT        "Enable default runtime assertions in LUGIZMO_ASSERT." ${LUGIZMO_DF_DEB_OR_RELDEB})
 option(LUGIZMO_DF_ENABLE_ASSERT_TRACE  "Enable internal trace runtime assertions."            OFF)
 
 # build options
-option(LUGIZMO_DF_ENABLE_WARNINGS      "Enable warnings."                                     ON)
-option(LUGIZMO_DF_ENABLE_OPTIMIZATIONS "Enable high optimizations (O3, native arch)."         ON)
-option(LUGIZMO_DF_ENABLE_LTO           "Enable link time optimization."                       OFF)
-option(LUGIZMO_DF_STRICT_MODE          "Enable strict mode (pedantic, Werror, etc)."          OFF)
-option(LUGIZMO_DF_USE_CLANG_TIDY       "Enable Clang-Tidy analysis during builds."            OFF)
+option(LUGIZMO_DF_ENABLE_WARNINGS             "Enable warnings."                                    ON)
+option(LUGIZMO_DF_ENABLE_OPTIMIZATIONS        "Enable high optimizations (O3)."                     OFF)
+option(LUGIZMO_DF_ENABLE_NATIVE_OPTIMIZATIONS "Enable native CPU opt. (for example -march=native)." OFF)
+option(LUGIZMO_DF_ENABLE_HARDENING            "Enable platform hardening where supported."          OFF)
+option(LUGIZMO_DF_ENABLE_LTO                  "Enable link time optimization."                      OFF)
+option(LUGIZMO_DF_ENABLE_PIC                  "Enable position-independent code (-fPIC) on Linux."  OFF)
+option(LUGIZMO_DF_STRICT_MODE                 "Enable strict mode (pedantic, Werror, etc)."         OFF)
+option(LUGIZMO_DF_USE_CLANG_TIDY              "Enable Clang-Tidy analysis during builds."           OFF)
 
 # sanitizer options
-option(LUGIZMO_DF_ENABLE_SANITIZERS    "Enable sanitizers (UBSan, ASan)."                     OFF)
+option(LUGIZMO_DF_ENABLE_SANITIZERS "Enable sanitizers (UBSan, ASan)." OFF)
 
 # override testing and benchmark option with lugizmo version
 # this allows to turn it off even if default option is used
@@ -66,7 +70,7 @@ include(cmake/ToolsClangTidy.cmake)
 
 # ====== BUILD FLAGS ===================================================================================================
 
-set_lugizmo_global_build_flags()
+lugizmo_df_prepare_build_options()
 
 message(STATUS "Lugizmo DF - Building tests: ${LUGIZMO_DF_BUILD_TESTING}")
 message(STATUS "Lugizmo DF - Building benchmarks: ${LUGIZMO_DF_BUILD_BENCHMARKS}")

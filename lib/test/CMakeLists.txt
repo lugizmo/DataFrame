@@ -43,9 +43,7 @@ if(LUGIZMO_DF_BUILD_TESTING)
     )
 
     target_link_libraries(LuDataFrameTest PUBLIC Lugizmo::DataFrame GTest::gtest)
-
-    target_compile_options(LuDataFrameTest PRIVATE ${LUGIZMO_DF_CXX_FLAGS})
-    target_link_options(LuDataFrameTest PRIVATE ${LUGIZMO_DF_LINK_FLAGS})
+    lugizmo_df_apply_build_options(LuDataFrameTest)
 
     add_test(NAME lugizmo_dataframe_tests COMMAND LuDataFrameTest)
 

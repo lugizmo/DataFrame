@@ -12,5 +12,6 @@ if(LUGIZMO_DF_BUILD_BENCHMARKS)
     )
 
     target_link_libraries(LuDataFrameBenchmarks PRIVATE Lugizmo::DataFrame benchmark::benchmark)
+    lugizmo_df_apply_build_options(LuDataFrameBenchmarks)
 
 endif()
