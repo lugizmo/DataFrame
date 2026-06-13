@@ -29,7 +29,6 @@
 //
 // ✅ access
 // - Keys()
-// - Positions()
 // - Size() / Empty()
 // - MaxPosition()
 //
@@ -81,7 +80,6 @@ TEST(lugizmo_dataframe_index_unique_test, construct)
         ASSERT_TRUE(index.Empty());
         ASSERT_EQ(index.MaxPosition(), std::optional<std::size_t>());
         ASSERT_TRUE(index.Keys().empty());
-        ASSERT_TRUE(index.Positions().empty());
         ASSERT_EQ(index.Key(0), std::optional<std::string>());
     }
 
@@ -250,8 +248,8 @@ TEST(lugizmo_dataframe_index_unique_test, position)
 }
 
 /**
- *  @brief Keys/Positions/Size/Empty/MaxPosition expose the stored mapping and counts.
- *  @see   lugizmo::DFUniqueIndex::Keys, Positions, Size, Empty, MaxPosition
+ *  @brief Keys/Position/Size/Empty/MaxPosition expose the stored mapping and counts.
+ *  @see   lugizmo::DFUniqueIndex::Keys, Position, Size, Empty, MaxPosition
  */
 TEST(lugizmo_dataframe_index_unique_test, access)
 {
@@ -269,12 +267,10 @@ TEST(lugizmo_dataframe_index_unique_test, access)
     }
 
     {
-        // positions are returned in physical order
-        auto const poss = index.Positions();
-        ASSERT_EQ(poss.size(), 3);
-        EXPECT_EQ(poss[0], 0);
-        EXPECT_EQ(poss[1], 1);
-        EXPECT_EQ(poss[2], 2);
+        // positions follow physical order: each key resolves to its slot
+        EXPECT_EQ(index.Position("first"), 0);
+        EXPECT_EQ(index.Position("second"), 1);
+        EXPECT_EQ(index.Position("third"), 2);
     }
 
     {
@@ -461,6 +457,6 @@ TEST(lugizmo_dataframe_index_unique_test, tors)
         EXPECT_EQ(copy.Size(), index.Size());
         EXPECT_EQ(copy.Keys()[0], "first");
         EXPECT_EQ(copy.Keys()[2], "third");
-        EXPECT_EQ(copy.Positions()[1], 1);
+        EXPECT_EQ(copy.Position("second"), 1);
     }
 }

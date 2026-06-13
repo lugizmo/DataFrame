@@ -8,7 +8,6 @@ if(LUGIZMO_DF_BUILD_TESTING)
 
     add_executable(LuDataFrameTest
             container/ConceptsTest.cpp
-            container/DataFrameMapTest.cpp
             container/OptionalRefTest.cpp
             dataframe/IndexBaseTest.cpp
             dataframe/IndexRangeTest.cpp

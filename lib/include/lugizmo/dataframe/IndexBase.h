@@ -10,6 +10,7 @@
 #include <type_traits>
 #include <span>
 #include <optional>
+#include <utility>
 
 namespace lugizmo {
 
@@ -44,7 +45,7 @@ namespace lugizmo {
          */
         auto Add(KeyType&& key) noexcept -> bool
         {
-            return static_cast<Derived*>(this)->Add(key);
+            return static_cast<Derived*>(this)->Add(std::move(key));
         }
 
         /**
@@ -62,15 +63,6 @@ namespace lugizmo {
         auto Position(KeyType const& key) const noexcept -> std::optional<size_t>
         {
             return static_cast<Derived const*>(this)->Position(key);
-        }
-
-        /**
-         * TODO doc + idea
-         */
-        [[nodiscard]]
-        auto Positions() const -> std::span<size_t const>
-        {
-            return static_cast<Derived*>(this)->Positions();
         }
 
         /**

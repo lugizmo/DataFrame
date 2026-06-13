@@ -13,6 +13,7 @@
 #include <optional>
 
 #include "lugizmo/Assert.h"
+#include "lugizmo/container/Concepts.h"
 #include "lugizmo/container/OptionalRef.h"
 #include "IndexUnique.h"
 

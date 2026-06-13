@@ -1,21 +1,23 @@
-// Filename: IndexHash.h
+// Filename: IndexUnique.h
 // Copyright 2024 Lukas Guz
 // Licensed under the Apache License, Version 2.0.
 // See the LICENSE file in the project root or at
 // http://www.apache.org/licenses/LICENSE-2.0 for full license information.
 
-#ifndef LUGIZMO_DF_INDEX_HASH_H
-#define LUGIZMO_DF_INDEX_HASH_H
+#ifndef LUGIZMO_DF_INDEX_UNIQUE_H
+#define LUGIZMO_DF_INDEX_UNIQUE_H
 
 #include <algorithm>
 #include <functional>
+#include <memory_resource>
 #include <numeric>
-#include <span>
 #include <optional>
-#include <ranges>
+#include <span>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
-#include "lugizmo/Assert.h"
-#include "lugizmo/container/DataFrameMap.h"
+#include "lugizmo/container/Hashing.h"
 
 #include "IndexBase.h"
 
@@ -23,6 +25,14 @@ namespace lugizmo {
 
     // ====== DF INDICES ===================================================================================================================
 
+    /**
+     * @brief   Unique value index mapping arbitrary keys to dense row positions.
+     * @details Keys are stored in physical (insertion) order; the position of a key is its
+     *          index in that order, so the reverse lookup `Key(position)` is direct array
+     *          access. A hash map provides O(1) `key -> position` lookup.
+     *
+     * @tparam T key type stored in the index.
+     */
     template<typename T>
     struct DFUniqueIndex final : DFBaseValueIndex<DFUniqueIndex<T>, T>
     {
@@ -30,14 +40,45 @@ namespace lugizmo {
         using ConstKeyType = KeyType const;
         using KeyView      = std::span<KeyType const>;
 
-        explicit DFUniqueIndex() noexcept : values()
+        /**
+         * @brief Constructs an empty index backed by the default memory resource.
+         */
+        explicit DFUniqueIndex() noexcept = default;
+
+        /**
+         * @brief Constructs an empty index backed by a user-provided memory resource.
+         *
+         * @param[in] memResource Memory resource used for the key store and lookup map.
+         * @param[in] capacity    Number of keys to reserve up front.
+         */
+        explicit DFUniqueIndex(std::pmr::memory_resource* memResource, size_t const capacity = 0) noexcept :
+            keys(memResource),
+            keyToPos(memResource)
         {
+            keys.reserve(capacity);
+            keyToPos.reserve(capacity);
         }
 
-        explicit DFUniqueIndex(std::pmr::memory_resource* memResource, size_t const capacity = 0) noexcept :
-            values(memResource)
+        /**
+         * @brief Copy-constructs an index, rebinding storage to a different memory resource.
+         *
+         * @details Preserves both key order and positions by re-inserting keys in physical order.
+         *
+         * @param[in] other       Source index to copy.
+         * @param[in] memResource Memory resource for the new index's storage.
+         */
+        explicit DFUniqueIndex(DFUniqueIndex const& other, std::pmr::memory_resource* memResource) noexcept :
+            keys(memResource),
+            keyToPos(memResource)
         {
-            values.Reserve(capacity); // TODO check when 0
+            keys.reserve(other.keys.size());
+            keyToPos.reserve(other.keys.size());
+
+            for(size_t pos = 0; pos < other.keys.size(); ++pos)
+            {
+                keys.push_back(other.keys[pos]);
+                keyToPos.emplace(keys.back(), pos);
+            }
         }
 
         DFUniqueIndex(DFUniqueIndex const&) = default;
@@ -48,103 +89,118 @@ namespace lugizmo {
 
         ~DFUniqueIndex() = default;
 
-        explicit DFUniqueIndex(DFUniqueIndex const& other, std::pmr::memory_resource* memResource) noexcept :
-            values(memResource),
-            nextIndex(other.nextIndex)
-        {
-            values.Reserve(other.Size());
-            values.Insert(other.Keys(), other.Positions());
-        }
-
+        /**
+         * @brief Checks whether a key is present in the index.
+         *
+         * @tparam C Lookup-key type; must be the stored key type or transparently comparable to it.
+         *
+         * @param[in] key Key to look up.
+         * @return `true` if the key is stored, otherwise `false`.
+         */
         template<typename C>
         [[nodiscard]]
         auto Has(C const& key) const noexcept -> bool
         {
-            static_assert(requires(DataFrameMap<T, size_t> const& map, C const& lookup) {{ map.Contains(lookup) } -> std::convertible_to<bool>;},
+            static_assert(requires(KeyMap const& map, C const& lookup) {{ map.contains(lookup) } -> std::convertible_to<bool>;},
                           "DFUniqueIndex lookup requires the exact key type or transparent hash/equality support.");
 
-            return values.Contains(key);
+            return keyToPos.contains(key);
         }
 
+        /**
+         * @brief Returns all keys in physical (position) order.
+         *
+         * @return View over the stored keys; index `i` is the key at position `i`.
+         */
         [[nodiscard]]
         auto Keys() const -> std::span<KeyType const>
         {
-            return values.Keys();
+            return std::span<KeyType const>(keys.data(), keys.size());
         }
 
+        /**
+         * @brief Resolves a position back to its key.
+         *
+         * @param[in] position Row position to look up.
+         * @return Key at `position`, or `std::nullopt` if out of range.
+         */
         [[nodiscard]]
         auto Key(size_t const position) const -> std::optional<KeyType>
         {
-            auto const keys = values.Keys();
+            // Position equals the physical slot by construction, so this is a direct lookup.
             if(position >= keys.size()) return std::nullopt;
-
-            // The invariant is maintained by Add/Drop/Sort: position == physical slot,
-            // so the reverse lookup is direct array access (no linear scan).
-            LUGIZMO_ASSERT_TRACE(values.Values()[position] == position, "DFUniqueIndex invariant failed: position must equal physical slot.");
             return keys[position];
         }
 
+        /**
+         * @brief Adds a key, assigning it the next free position.
+         *
+         * @param[in] key Key to insert (moved into storage).
+         * @return Position assigned to the key, or `std::nullopt` if the key already exists.
+         */
         auto Add(T key) noexcept -> std::optional<size_t>
         {
-            if(values.Contains(key)) return std::nullopt;
+            if(keyToPos.contains(key)) return std::nullopt;
 
-            auto const index = nextIndex++;
-            values.Insert(std::move(key), index);
+            auto const position = keys.size();
+            keys.push_back(std::move(key));
+            keyToPos.emplace(keys.back(), position);
 
-            return index;
+            return position;
         }
 
-        auto AddMultiple(std::span<KeyType const> keys) noexcept -> size_t
+        /**
+         * @brief Adds multiple keys in order, skipping any that already exist.
+         *
+         * @param[in] newKeys Keys to insert; each new key gets the next free position.
+         * @return Number of keys actually inserted.
+         */
+        auto AddMultiple(std::span<KeyType const> newKeys) noexcept -> size_t
         {
-            constexpr size_t SmallThreshold = 5; // after this we create a temporary list of positions
+            auto const projected = keys.size() + newKeys.size();
+            keys.reserve(projected);
+            keyToPos.reserve(projected);
 
             size_t count = 0;
-            if(keys.size() <= SmallThreshold)
+            for(auto const& key : newKeys)
             {
-                for(auto key : keys) count += Add(std::move(key)) != std::nullopt;
-            }
-            else
-            {
-                // TODO find way to not create a temporary newKeys vector.
-                //      maybe create a mask if the KeyType is big and not just and int etc.
-                auto positions = std::pmr::vector<size_t>(values.Allocator());
-                auto newKeys   = std::pmr::vector<KeyType>(values.Allocator());
-                positions.reserve(keys.size());
-                newKeys.reserve(keys.size());
+                if(keyToPos.contains(key)) continue;
 
-                for(auto const& key : keys)
-                {
-                    if(values.Contains(key)) continue;
-                    positions.emplace_back(nextIndex++);
-                    newKeys.emplace_back(key);
-                }
-
-                if(newKeys.empty()) return false;
-
-                count = newKeys.size();
-                values.Insert(newKeys, positions);
+                auto const position = keys.size();
+                keys.push_back(key);
+                keyToPos.emplace(keys.back(), position);
+                ++count;
             }
 
             return count;
         }
 
+        /**
+         * @brief Removes a key and compacts the positions of the keys that followed it.
+         *
+         * @param[in] key Key to remove.
+         * @return Position the key occupied before removal, or `std::nullopt` if it was absent.
+         */
         auto Drop(T const& key) noexcept -> std::optional<size_t>
         {
-            auto [keyIt, valIt] = values.Find(key);
-            if(keyIt == values.Keys().end()) return std::nullopt;
+            auto const it = keyToPos.find(key);
+            if(it == keyToPos.end()) return std::nullopt;
 
-            auto itVal = *valIt;
-            auto const vals = values.Values();
-            std::for_each(vals.begin(), vals.end(), [&itVal](auto& val) { if(val > itVal) val -= 1; });
+            auto const position = it->second;
 
-            values.Erase(key);
-            nextIndex--;
+            keys.erase(keys.begin() + static_cast<std::ptrdiff_t>(position));
+            keyToPos.erase(it);
 
-            return std::move(itVal);
+            // Erasing shifts every following key down one slot; re-point their positions.
+            for(size_t pos = position; pos < keys.size(); ++pos) keyToPos[keys[pos]] = pos;
+
+            return position;
         }
 
         /**
-         * @brief Sort stored keys and rebuild positions in sorted order.
+         * @brief Sort keys and rebuild positions in sorted order.
+         *
+         * @tparam Compare Comparator type ordering two keys.
          *
          * @param comp comparator used to order keys.
          * @return permutation mapping each new position to its previous position.
@@ -152,81 +208,86 @@ namespace lugizmo {
         template<typename Compare = std::less<KeyType>>
         auto Sort(Compare comp = {}) -> std::pmr::vector<size_t>
         {
-            auto permutation = std::pmr::vector<size_t>(values.Allocator());
-            permutation.resize(values.Size());
+            // Build the new-to-old permutation by sorting position indices by their key.
+            auto permutation = std::pmr::vector<size_t>(keys.get_allocator());
+            permutation.resize(keys.size());
 
-            std::iota(permutation.begin(), permutation.end(), 0UZ);
-            std::sort(permutation.begin(), permutation.end(), [&](size_t const lhs, size_t const rhs) { return comp(values.keys[lhs], values.keys[rhs]); });
+            std::ranges::iota(permutation, 0UZ);
+            std::sort(permutation.begin(), permutation.end(), [&](size_t const lhs, size_t const rhs) { return comp(keys[lhs], keys[rhs]); });
 
-            auto sortedKeys      = std::pmr::vector<KeyType>(values.Allocator());
-            auto sortedPositions = std::pmr::vector<size_t>(values.Allocator());
-            sortedKeys.reserve(values.Size());
-            sortedPositions.reserve(values.Size());
+            // Materialize keys in the new order.
+            auto sortedKeys = std::pmr::vector<KeyType>(keys.get_allocator());
+            sortedKeys.reserve(keys.size());
+            for(auto const oldPos : permutation) sortedKeys.emplace_back(std::move(keys[oldPos]));
 
-            for(size_t newPos = 0; newPos < permutation.size(); ++newPos)
-            {
-                auto const oldPos = permutation[newPos];
-                sortedKeys.emplace_back(std::move(values.keys[oldPos]));
-                sortedPositions.emplace_back(newPos);
-            }
+            keys = std::move(sortedKeys);
 
-            values.keys   = std::move(sortedKeys);
-            values.values = std::move(sortedPositions);
-            values.keyToIndex.clear();
-            values.keyToIndex.reserve(values.keys.size());
-
-            for(size_t pos = 0; pos < values.keys.size(); ++pos)
-            {
-                values.keyToIndex.emplace(values.keys[pos], pos);
-            }
+            // Positions are the physical slots again, so rebuild the lookup map from scratch.
+            keyToPos.clear();
+            keyToPos.reserve(keys.size());
+            for(size_t pos = 0; pos < keys.size(); ++pos) keyToPos.emplace(keys[pos], pos);
 
             return permutation;
         }
 
+        /**
+         * @brief Resolves a key to its position.
+         *
+         * @tparam C Lookup-key type; must be the stored key type or transparently comparable to it.
+         *
+         * @param[in] key Key to look up.
+         * @return Position of the key, or `std::nullopt` if it is absent.
+         */
         template<typename C>
         [[nodiscard]]
         auto Position(C const& key) const -> std::optional<size_t>
         {
-            static_assert(requires(DataFrameMap<T, size_t> const& map, C const& lookup) { map.Find(lookup); },
+            static_assert(requires(KeyMap const& map, C const& lookup) { map.find(lookup); },
                           "DFUniqueIndex lookup requires the exact key type or transparent hash/equality support.");
 
-            auto const [_, valIt] = values.Find(key);
-            return valIt != values.Values().end() ? std::make_optional(*valIt) : std::nullopt;
+            auto const it = keyToPos.find(key);
+            return it != keyToPos.end() ? std::make_optional(it->second) : std::nullopt;
         }
 
+        /**
+         * @brief Returns the highest assigned position.
+         *
+         * @return Last position (`Size() - 1`), or `std::nullopt` when the index is empty.
+         */
         [[nodiscard]]
-        auto Positions() const -> std::span<size_t const>
+        auto MaxPosition() const noexcept -> std::optional<size_t>
         {
-            return values.Values();
+            if(keys.empty()) return std::nullopt;
+            return keys.size() - 1;
         }
 
-        [[nodiscard]]
-        auto MaxPosition() const -> std::optional<size_t>
-        {
-            if(values.Empty()) return std::nullopt;
-
-            LUGIZMO_ASSERT_TRACE(nextIndex > 0, "DFUniqueIndex invariant failed: non-empty index must have nextIndex > 0.");
-            return nextIndex - 1;
-        }
-
+        /**
+         * @brief Returns the number of keys in the index.
+         */
         [[nodiscard]]
         auto Size() const noexcept -> size_t
         {
-            return values.Size();
+            return keys.size();
         }
 
+        /**
+         * @brief Returns whether the index holds no keys.
+         */
         [[nodiscard]]
         auto Empty() const noexcept -> bool
         {
-            return values.Empty();
+            return keys.empty();
         }
 
     private:
 
-        DataFrameMap<T, size_t> values;      // keys and the associated position
-        size_t nextIndex = 0;                // next index to use (when taken +1)
+        /// @brief Hash map type backing the `key -> position` lookup (transparent for strings).
+        using KeyMap = std::pmr::unordered_map<T, size_t, TransparentHash<T>, TransparentEqual<T>>;
+
+        std::pmr::vector<T> keys;      // key at position i, in physical (insertion) order
+        KeyMap              keyToPos;  // key -> position (physical slot)
     };
 
 } // namespace lugizmo
 
-#endif // LUGIZMO_DF_INDEX_HASH_H
+#endif // LUGIZMO_DF_INDEX_UNIQUE_H
