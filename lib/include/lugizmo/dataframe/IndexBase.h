@@ -122,74 +122,112 @@ namespace lugizmo {
         }
     };
 
+    /**
+     * @brief   CRTP interface for sequence indices that map a contiguous key range to positions.
+     * @details Forwards every operation to the concrete `Derived` index (e.g. `DFRangeIndex`),
+     *          which stores only `[lower, upper)` bounds. Positions run `[0, Size())`, where
+     *          position `0` is `LowerBound()`. Signatures mirror the concrete implementation.
+     *
+     * @tparam Derived Concrete index type providing the implementation.
+     * @tparam KeyType Key type spanned by the range.
+     */
     template <typename Derived, typename KeyType>
     struct DFBaseSequenceIndex
     {
         /**
-         * TODO doc + idea
+         * @brief  Returns the inclusive lower bound (the key at position `0`).
+         * @return Lowest key in the range.
          */
         [[nodiscard]]
         auto LowerBound() const noexcept -> KeyType
         {
-            return static_cast<Derived*>(this)->LowerBound();
+            return static_cast<Derived const*>(this)->LowerBound();
         }
 
         /**
-         * TODO doc + idea
+         * @brief  Returns the position of the lower bound.
+         * @return Always `0`.
          */
         [[nodiscard]]
         auto LowerBoundPosition() const noexcept -> size_t
         {
-            return static_cast<Derived*>(this)->LowerBoundPosition();
+            return static_cast<Derived const*>(this)->LowerBoundPosition();
         }
 
         /**
-         * TODO doc + idea
+         * @brief  Returns the exclusive upper bound (one past the last key).
+         * @return One-past-the-last key in the range.
          */
         [[nodiscard]]
         auto UpperBound() const noexcept -> KeyType
         {
-            return static_cast<Derived*>(this)->UpperBound();
+            return static_cast<Derived const*>(this)->UpperBound();
         }
 
         /**
-         * TODO doc + idea
+         * @brief  Returns the position of the upper bound.
+         * @return One-past-the-last position, i.e. `Size()`.
          */
         [[nodiscard]]
         auto UpperBoundPosition() const noexcept -> size_t
         {
-            return static_cast<Derived*>(this)->UpperBoundPosition();
+            return static_cast<Derived const*>(this)->UpperBoundPosition();
         }
 
         /**
-         * TODO doc + idea
+         * @brief Checks whether a key lies within `[LowerBound(), UpperBound())`.
+         *
+         * @param[in] key Key to test.
+         * @return `true` if the key is inside the range, otherwise `false`.
          */
         [[nodiscard]]
         auto InBound(KeyType const key) const noexcept -> bool
         {
-            return static_cast<Derived*>(this)->InBound(key);
+            return static_cast<Derived const*>(this)->InBound(key);
         }
 
         /**
-         * TODO doc + idea
+         * @brief Resolves a key to its position within the range.
+         *
+         * @param[in] key Key to look up.
+         * @return Position `key - LowerBound()`, or `std::nullopt` if the key is out of range.
+         */
+        [[nodiscard]]
+        auto Position(KeyType const key) const noexcept -> std::optional<size_t>
+        {
+            return static_cast<Derived const*>(this)->Position(key);
+        }
+
+        /**
+         * @brief Moves the lower bound, growing or shrinking the range from the front.
+         *
+         * @param[in] key New lower bound.
+         * @return Signed change in element count (positive when keys are added, negative when
+         *         removed), or `std::nullopt` if the move is rejected (e.g. no change, or past
+         *         the upper bound).
          */
         [[maybe_unused]]
-        auto SetLowerBound(KeyType const key) noexcept -> std::optional<KeyType>
+        auto SetLowerBound(KeyType const key) noexcept -> std::optional<ssize_t>
         {
             return static_cast<Derived*>(this)->SetLowerBound(key);
         }
 
         /**
-         * TODO doc + idea
+         * @brief Moves the upper bound, growing or shrinking the range from the back.
+         *
+         * @param[in] key New upper bound.
+         * @return Signed change in element count (positive when keys are added, negative when
+         *         removed), or `std::nullopt` if the move is rejected (e.g. no change, or past
+         *         the lower bound).
          */
         [[maybe_unused]]
-        auto SetUpperBound(KeyType const key) noexcept -> std::optional<KeyType>
+        auto SetUpperBound(KeyType const key) noexcept -> std::optional<ssize_t>
         {
             return static_cast<Derived*>(this)->SetUpperBound(key);
         }
 
         /**
-         * TODO doc + idea
+         * @brief Returns the number of keys spanned by the range.
          */
         [[nodiscard]]
         auto Size() const noexcept -> size_t
@@ -198,7 +236,7 @@ namespace lugizmo {
         }
 
         /**
-         * TODO doc + idea
+         * @brief Returns whether the range spans no keys.
          */
         [[nodiscard]]
         auto Empty() const noexcept -> bool
@@ -241,5 +279,6 @@ namespace lugizmo {
     template<typename T>
     concept DFIdxType = DFValIndex<T> || DFSeqIndex<T>;
 
-}
+} // namespace lugizmo
+
 #endif // LUGIZMO_DF_INDEX_BASE_H

@@ -21,6 +21,7 @@ namespace lugizmo {
     template<typename T = size_t>
     struct DFRangeIndexBounds
     {
+        // NOLINTBEGIN(readability-identifier-naming)
         static_assert(std::is_integral_v<T>, "DFRangeIndexBounds must be an integral type.");
 
         T lower;
@@ -32,14 +33,25 @@ namespace lugizmo {
             LUGIZMO_ASSERT(lower <= upper, "DFRangeIndexBounds requires lower <= upper.");
             return static_cast<size_t>(upper - lower);
         }
+
+        // TODO support other types like chrono, here should be fine but what about dataframe
         [[nodiscard]] constexpr auto size() const noexcept -> size_t
         {
             LUGIZMO_ASSERT(lower <= upper, "DFRangeIndexBounds requires lower <= upper.");
             return Size();
-        } // TODO support other types like chrono, here should be fine but what about dataframe
+        }
 
-        [[nodiscard]] constexpr auto Empty() const noexcept -> bool { return Size() == T(0); }  // TODO support other types like chrono, here should be fine but what about dataframe
-        [[nodiscard]] constexpr auto empty() const noexcept -> bool { return Empty(); }         // TODO support other types like chrono, here should be fine but what about dataframe
+        // TODO support other types like chrono, here should be fine but what about dataframe
+        [[nodiscard]] constexpr auto Empty() const noexcept -> bool
+        {
+            return Size() == T(0);
+        }
+
+        // TODO support other types like chrono, here should be fine but what about dataframe
+        [[nodiscard]] constexpr auto empty() const noexcept -> bool
+        {
+            return Empty();
+        }
 
         struct Iterator
         {
@@ -56,45 +68,48 @@ namespace lugizmo {
             constexpr auto operator->() const noexcept -> T const* { return &value; }
 
             // Increment / decrement
-            constexpr Iterator& operator++() noexcept { ++value; return *this; }
-            constexpr Iterator& operator--() noexcept { --value; return *this; }
+            constexpr auto operator++() noexcept -> Iterator& { ++value; return *this; }
+            constexpr auto operator--() noexcept -> Iterator& { --value; return *this; }
 
-            constexpr Iterator operator++(int) noexcept { auto tmp = *this; ++(*this); return tmp; }
-            constexpr Iterator operator--(int) noexcept { auto tmp = *this; --(*this); return tmp; }
+            constexpr auto operator++(int) noexcept -> Iterator { auto tmp = *this; ++(*this); return tmp; }
+            constexpr auto operator--(int) noexcept -> Iterator { auto tmp = *this; --(*this); return tmp; }
 
             // Arithmetic
-            constexpr Iterator& operator+=(difference_type n) noexcept
+            constexpr auto operator+=(difference_type n) noexcept -> Iterator&
             {
                 value = static_cast<T>(value + static_cast<T>(n));
                 return *this;
             }
 
-            constexpr Iterator& operator-=(difference_type n) noexcept
+            constexpr auto operator-=(difference_type n) noexcept -> Iterator&
             {
                 value = static_cast<T>(value - static_cast<T>(n));
                 return *this;
             }
 
-            friend constexpr Iterator operator+(Iterator it, difference_type n) noexcept { it += n; return it; }
-            friend constexpr Iterator operator+(difference_type n, Iterator it) noexcept { it += n; return it; }
-            friend constexpr Iterator operator-(Iterator it, difference_type n) noexcept { it -= n; return it; }
-            friend constexpr difference_type operator-(Iterator a, Iterator b) noexcept { return static_cast<difference_type>(a.value) - static_cast<difference_type>(b.value); }
+            friend constexpr auto operator+(Iterator it, difference_type n) noexcept -> Iterator { it += n; return it; }
+            friend constexpr auto operator+(difference_type n, Iterator it) noexcept -> Iterator { it += n; return it; }
+            friend constexpr auto operator-(Iterator it, difference_type n) noexcept -> Iterator { it -= n; return it; }
+            friend constexpr auto operator-(Iterator a, Iterator b) noexcept -> difference_type { return static_cast<difference_type>(a.value) - static_cast<difference_type>(b.value); }
 
-            constexpr reference operator[](difference_type n) const noexcept { return static_cast<T>(value + static_cast<T>(n)); }
+            constexpr auto operator[](difference_type n) const noexcept -> reference { return static_cast<T>(value + static_cast<T>(n)); }
 
             // Comparisons
-            constexpr bool operator==(Iterator const& other) const noexcept { return value == other.value; }
-            constexpr bool operator!=(Iterator const& other) const noexcept { return value != other.value; }
+            constexpr auto operator==(Iterator const& other) const noexcept -> bool { return value == other.value; }
+            constexpr auto operator!=(Iterator const& other) const noexcept -> bool { return value != other.value; }
 
-            constexpr bool operator<(Iterator  const& other) const noexcept { return value < other.value; }
-            constexpr bool operator<=(Iterator const& other) const noexcept { return value <= other.value; }
-            constexpr bool operator>(Iterator  const& other) const noexcept { return value > other.value; }
-            constexpr bool operator>=(Iterator const& other) const noexcept { return value >= other.value; }
+            constexpr auto operator<(Iterator  const& other) const noexcept -> bool { return value < other.value; }
+            constexpr auto operator<=(Iterator const& other) const noexcept -> bool { return value <= other.value; }
+            constexpr auto operator>(Iterator  const& other) const noexcept -> bool { return value > other.value; }
+            constexpr auto operator>=(Iterator const& other) const noexcept -> bool { return value >= other.value; }
         };
 
         using iterator = Iterator;
-        [[nodiscard]] constexpr Iterator begin() const noexcept { return Iterator{.value = lower}; }
-        [[nodiscard]] constexpr Iterator end() const noexcept { return Iterator{.value = upper}; }
+
+        [[nodiscard]] constexpr auto begin() const noexcept -> Iterator { return Iterator{.value = lower}; }
+        [[nodiscard]] constexpr auto end() const noexcept -> Iterator { return Iterator{.value = upper}; }
+
+        // NOLINTEND(readability-identifier-naming)
     };
 
     template<typename T = size_t>
@@ -121,7 +136,6 @@ namespace lugizmo {
         constexpr auto operator=(DFRangeIndex const&) noexcept -> DFRangeIndex& = default;
 
         constexpr DFRangeIndex(DFRangeIndex&&) noexcept = default;
-
         constexpr auto operator=(DFRangeIndex&&) noexcept -> DFRangeIndex& = default;
 
         ~DFRangeIndex() = default;
@@ -136,7 +150,7 @@ namespace lugizmo {
             static_assert(ComparableType<C, T>);
 
             // TODO put compare logic somewhere else
-            if constexpr (std::is_integral_v<C> && std::is_integral_v<T>)
+            if constexpr(std::is_integral_v<C> && std::is_integral_v<T>)
             {
                 return std::cmp_greater_equal(key, bounds.lower) && std::cmp_less(key, bounds.upper);
             }
