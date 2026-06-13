@@ -75,25 +75,21 @@ namespace lugizmo {
         [[nodiscard]]
         auto Key(size_t const position) const -> std::optional<KeyType>
         {
-            // TODO this is linear lookup
-            //      this will be slow when operation on big ranges!
-            auto const poss = values.Values();
-
-            auto const opos = std::find(poss.begin(), poss.end(), position);
-            if(opos == poss.end()) return std::nullopt;
-
-            auto const dist = static_cast<size_t>(std::distance(poss.begin(), opos));
             auto const keys = values.Keys();
+            if(position >= keys.size()) return std::nullopt;
 
-            return keys[dist];
+            // The invariant is maintained by Add/Drop/Sort: position == physical slot,
+            // so the reverse lookup is direct array access (no linear scan).
+            LUGIZMO_ASSERT_TRACE(values.Values()[position] == position, "DFUniqueIndex invariant failed: position must equal physical slot.");
+            return keys[position];
         }
 
-        auto Add(T&& key) noexcept -> std::optional<size_t>
+        auto Add(T key) noexcept -> std::optional<size_t>
         {
             if(values.Contains(key)) return std::nullopt;
 
             auto const index = nextIndex++;
-            values.Insert(std::forward<T>(key), index);
+            values.Insert(std::move(key), index);
 
             return index;
         }

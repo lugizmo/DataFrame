@@ -44,15 +44,15 @@ namespace lugizmo {
         /// @brief Const iterator to keys and values.
         struct IteratorPair
         {
-            typename std::pmr::vector<Key>::const_iterator   keyIt;
-            typename std::pmr::vector<Value>::const_iterator valIt;
+            std::pmr::vector<Key>::const_iterator   keyIt;
+            std::pmr::vector<Value>::const_iterator valIt;
         };
 
         /// @brief Mutable iterator to keys and values.
         struct MutableIteratorPair
         {
-            typename std::pmr::vector<Key>::const_iterator keyIt;
-            typename std::pmr::vector<Value>::iterator     valIt;
+            std::pmr::vector<Key>::const_iterator keyIt;
+            std::pmr::vector<Value>::iterator     valIt;
         };
 
         /**
@@ -75,8 +75,10 @@ namespace lugizmo {
 
         /**
          *  @brief Store a key value pair in the map.
+         *  @details Accepts both lvalue and rvalue keys; an rvalue key is moved into storage.
          */
-        void Insert(Key const& key, Value const& value) noexcept;
+        template<typename InKey>
+        void Insert(InKey&& key, Value const& value) noexcept;
 
         /**
          * @brief   Stores a list of keys and associated values in the map.
@@ -145,14 +147,14 @@ namespace lugizmo {
 
         /// @return Backing allocator.
         [[nodiscard]]
-        auto Allocator() const noexcept -> typename std::pmr::vector<Key>::allocator_type;
+        auto Allocator() const noexcept -> std::pmr::vector<Key>::allocator_type;
 
     private:
 
         template<typename T>
         friend struct DFUniqueIndex;
 
-        // keys[i] / values[i] are in "physical" order (e.g. matrix order)
+        // keys[i] / values[i] are in "physical" order (e.g., matrix order)
         std::pmr::vector<StoredKey>                                keys;
         std::pmr::vector<Value>                                    values;
         std::pmr::unordered_map<StoredKey, size_t, Hash, KeyEqual> keyToIndex;
@@ -161,7 +163,7 @@ namespace lugizmo {
         auto Values() noexcept -> std::span<Value>;
 
         template<typename LookupKey>
-        static constexpr bool SupportsTransparentLookup = requires(Hash const& hash, KeyEqual const& equal, LookupKey const& lookup, StoredKey const& key) {
+        static constexpr bool SUPPORTS_TRANSPARENT_LOOKUP = requires(Hash const& hash, KeyEqual const& equal, LookupKey const& lookup, StoredKey const& key) {
             typename Hash::is_transparent;
             typename KeyEqual::is_transparent;
             { hash(lookup) } -> std::convertible_to<std::size_t>;
@@ -171,7 +173,7 @@ namespace lugizmo {
         };
 
         template<typename LookupKey>
-        static constexpr bool SupportsLookup = std::same_as<std::remove_cvref_t<LookupKey>, StoredKey> || SupportsTransparentLookup<LookupKey>;
+        static constexpr bool SUPPORTS_LOOKUP = std::same_as<std::remove_cvref_t<LookupKey>, StoredKey> || SUPPORTS_TRANSPARENT_LOOKUP<LookupKey>;
     };
 
     template<class K, class V, class H, class E>
@@ -194,7 +196,8 @@ namespace lugizmo {
     }
 
     template<class K, class V, class H, class E>
-    void DataFrameMap<K, V, H, E>::Insert(K const& key, V const& value) noexcept
+    template<typename InKey>
+    void DataFrameMap<K, V, H, E>::Insert(InKey&& key, V const& value) noexcept
     {
         if(auto const it = keyToIndex.find(key); it != keyToIndex.end())
         {
@@ -203,7 +206,7 @@ namespace lugizmo {
         }
 
         auto const newIndex = keys.size();
-        keys.push_back(key);
+        keys.push_back(std::forward<InKey>(key));
         values.push_back(value);
         keyToIndex.emplace(keys.back(), newIndex);
 
@@ -230,7 +233,7 @@ namespace lugizmo {
     template<typename LookupKey>
     auto DataFrameMap<K, V, H, E>::Get(LookupKey const& key) const noexcept -> std::optional<V>
     {
-        static_assert(SupportsLookup<LookupKey>, "DataFrameMap lookup requires the exact key type or transparent hash/equality support.");
+        static_assert(SUPPORTS_LOOKUP<LookupKey>, "DataFrameMap lookup requires the exact key type or transparent hash/equality support.");
         if(auto const it = keyToIndex.find(key); it != keyToIndex.end()) { return values[it->second]; }
 
         return std::nullopt;
@@ -252,7 +255,7 @@ namespace lugizmo {
     template<typename LookupKey>
     auto DataFrameMap<K, V, H, E>::Find(LookupKey const& key) const noexcept -> IteratorPair
     {
-        static_assert(SupportsLookup<LookupKey>, "DataFrameMap lookup requires the exact key type or transparent hash/equality support.");
+        static_assert(SUPPORTS_LOOKUP<LookupKey>, "DataFrameMap lookup requires the exact key type or transparent hash/equality support.");
         if(auto const it = keyToIndex.find(key); it != keyToIndex.end())
         {
             auto const idx = it->second;
@@ -269,7 +272,7 @@ namespace lugizmo {
     template<typename LookupKey>
     auto DataFrameMap<K, V, H, E>::Find(LookupKey const& key) noexcept -> MutableIteratorPair
     {
-        static_assert(SupportsLookup<LookupKey>, "DataFrameMap lookup requires the exact key type or transparent hash/equality support.");
+        static_assert(SUPPORTS_LOOKUP<LookupKey>, "DataFrameMap lookup requires the exact key type or transparent hash/equality support.");
         if(auto const it = keyToIndex.find(key); it != keyToIndex.end())
         {
             auto const idx = it->second;
@@ -283,7 +286,7 @@ namespace lugizmo {
     template<typename C>
     auto DataFrameMap<K, V, H, E>::Contains(C const& key) const noexcept -> bool
     {
-        static_assert(SupportsLookup<C>, "DataFrameMap lookup requires the exact key type or transparent hash/equality support.");
+        static_assert(SUPPORTS_LOOKUP<C>, "DataFrameMap lookup requires the exact key type or transparent hash/equality support.");
         return keyToIndex.contains(key);
     }
 
@@ -338,7 +341,7 @@ namespace lugizmo {
     }
 
     template<class K, class V, class H, class E>
-    auto DataFrameMap<K, V, H, E>::Allocator() const noexcept -> typename std::pmr::vector<K>::allocator_type
+    auto DataFrameMap<K, V, H, E>::Allocator() const noexcept -> std::pmr::vector<K>::allocator_type
     {
         return keys.get_allocator();
     }
