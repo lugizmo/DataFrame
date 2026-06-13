@@ -26,6 +26,7 @@ if(LUGIZMO_DF_BUILD_TESTING)
             memory/MemoryTest.cpp
 
             # row major
+            RM_DataframeTorsTest.cpp
             RM_DataframeAddingTest.cpp
             RM_DataframeAccessTest.cpp
             RM_DataframeMutatingTest.cpp

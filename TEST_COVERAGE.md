@@ -4,6 +4,8 @@
 
 ### dataframe cd-tors
 
+Test can be found in: [File](/lib/test/RM_DataframeTorsTest.cpp)
+
 - [ ] ```DataFrame(MemRsc res)```
 - [ ] ```DataFrame(size_t reservedValues, MemRsc res)```
 - [ ] ```FromFields(std::conditional_t<IsFISeq, DFRangeIndexBounds<FldT>, std::span<FldT const>> fields, size_t reservedValues, MemRsc res) -> DataFrame```
@@ -11,11 +13,11 @@
 - [ ] ```FromFieldsAndRecord(std::conditional_t<IsFISeq, DFRangeIndexBounds<FldT>, std::span<F const>> fldIndices, std::conditional_t<IsRISeq, DFRangeIndexBounds<RecT>, std::span<R const>> recIndices, std::span<T const> recValues, size_t capacity, MemRsc res) -> DataFrame```
 - [ ] ```FromFieldsAndRecords(std::conditional_t<IsFISeq, DFRangeIndexBounds<FldT>, std::span<F const>> fldIndices, std::conditional_t<IsRISeq, DFRangeIndexBounds<RecT>, std::span<R const>> recIndices, IterableOfIterable auto const& recValues, size_t capacity, MemRsc res) -> DataFrame```
 - [ ] ```FromFieldsAndRecords(std::conditional_t<IsFISeq, DFRangeIndexBounds<FldT>, std::initializer_list<F const>> fldIndices, std::conditional_t<IsRISeq, DFRangeIndexBounds<RecT>, std::initializer_list<R const>> recIndices, std::initializer_list<std::initializer_list<T>> recValues, size_t capacity, MemRsc res) -> DataFrame```
-- [ ] ```DataFrame(DataFrame const&)```
-- [ ] ```operator=(DataFrame const&) -> auto```
-- [ ] ```DataFrame(DataFrame&& other)```
-- [ ] ```operator=(DataFrame&& other) -> DataFrame&```
-- [ ] ```~DataFrame()```
+- [x] ```DataFrame(DataFrame const&)```
+- [x] ```operator=(DataFrame const&) -> auto```
+- [x] ```DataFrame(DataFrame&& other)```
+- [x] ```operator=(DataFrame&& other) -> DataFrame&```
+- [x] ```~DataFrame()```
 
 ### adding fields and records
 
