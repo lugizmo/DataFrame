@@ -15,41 +15,55 @@
 namespace lugizmo {
 
     /**
-     *  TODO doc
-     *  @tparam Derived
-     *  @tparam KeyType
+     * @brief   CRTP interface for value (label) indices that map unique keys to dense positions.
+     * @details Forwards every operation to the concrete `Derived` index (e.g. `DFUniqueIndex`),
+     *          so generic code can operate on any value index uniformly. Signatures mirror the
+     *          concrete implementation.
+     *
+     * @tparam Derived Concrete index type providing the implementation.
+     * @tparam KeyType Key type stored in the index.
      */
     template <typename Derived, typename KeyType>
     struct DFBaseValueIndex
     {
         /**
-         * TODO doc + idea
+         * @brief  Returns all keys in physical (position) order.
+         * @return View over the stored keys; index `i` is the key at position `i`.
          */
         [[nodiscard]]
-        auto Keys() const noexcept -> std::span<KeyType const>
+        auto Keys() const -> std::span<KeyType const>
         {
-            return static_cast<Derived*>(this)->Keys();
+            return static_cast<Derived const*>(this)->Keys();
         }
 
         /**
-         * TODO doc + idea
+         * @brief Resolves a position back to its key.
+         *
+         * @param[in] position Row position to look up.
+         * @return Key at `position`, or `std::nullopt` if out of range.
          */
         [[nodiscard]]
-        auto Key(size_t const position) const noexcept -> std::optional<KeyType>
+        auto Key(size_t const position) const -> std::optional<KeyType>
         {
-            return static_cast<Derived*>(this)->Key(position);
+            return static_cast<Derived const*>(this)->Key(position);
         }
 
         /**
-         * TODO doc + idea
+         * @brief Adds a key, assigning it the next free position.
+         *
+         * @param[in] key Key to insert (moved into storage).
+         * @return Position assigned to the key, or `std::nullopt` if the key already exists.
          */
-        auto Add(KeyType&& key) noexcept -> bool
+        auto Add(KeyType key) noexcept -> std::optional<size_t>
         {
             return static_cast<Derived*>(this)->Add(std::move(key));
         }
 
         /**
-         * TODO doc + idea
+         * @brief Adds multiple keys in order, skipping any that already exist.
+         *
+         * @param[in] keys Keys to insert; each new key gets the next free position.
+         * @return Number of keys actually inserted.
          */
         auto AddMultiple(std::span<KeyType const> keys) noexcept -> size_t
         {
@@ -57,35 +71,40 @@ namespace lugizmo {
         }
 
         /**
-         * TODO doc + idea
+         * @brief Resolves a key to its position.
+         *
+         * @param[in] key Key to look up.
+         * @return Position of the key, or `std::nullopt` if it is absent.
          */
         [[nodiscard]]
-        auto Position(KeyType const& key) const noexcept -> std::optional<size_t>
+        auto Position(KeyType const& key) const -> std::optional<size_t>
         {
             return static_cast<Derived const*>(this)->Position(key);
         }
 
         /**
-         * TODO doc + idea
+         * @brief  Returns the highest assigned position.
+         * @return Last position (`Size() - 1`), or `std::nullopt` when the index is empty.
          */
         [[nodiscard]]
-        auto MaxPosition() const -> std::optional<size_t>
+        auto MaxPosition() const noexcept -> std::optional<size_t>
         {
-            return static_cast<Derived*>(this)->MaxPosition();
+            return static_cast<Derived const*>(this)->MaxPosition();
         }
 
         /**
-         * TODO doc + idea
-         * TODO should nodiscard or better a "no-opt"
+         * @brief Removes a key and compacts the positions of the keys that followed it.
+         *
+         * @param[in] key Key to remove.
+         * @return Position the key occupied before removal, or `std::nullopt` if it was absent.
          */
-        [[nodiscard]]
-        auto Drop(KeyType const& key) noexcept -> bool
+        auto Drop(KeyType const& key) noexcept -> std::optional<size_t>
         {
             return static_cast<Derived*>(this)->Drop(key);
         }
 
         /**
-         * TODO doc + idea
+         * @brief Returns the number of keys in the index.
          */
         [[nodiscard]]
         auto Size() const noexcept -> size_t
@@ -94,7 +113,7 @@ namespace lugizmo {
         }
 
         /**
-         * TODO doc + idea
+         * @brief Returns whether the index holds no keys.
          */
         [[nodiscard]]
         auto Empty() const noexcept -> bool
