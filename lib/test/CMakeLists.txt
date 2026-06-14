@@ -39,7 +39,6 @@ if(LUGIZMO_DF_BUILD_TESTING)
     )
 
     target_sources(LuDataFrameTest PUBLIC
-            RM_HelperDFTestData.h
             RM_HelperDFTestConfigs.h
     )
 
