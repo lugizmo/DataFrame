@@ -34,12 +34,14 @@ if(LUGIZMO_DF_BUILD_TESTING)
             RM_DataframeNonTrivialTypeTest.cpp
             RM_DataframeDropTest.cpp
             RM_DataframeSortTest.cpp
+            #RM_DataframeTypedExampleTest.cpp
 
             main.cpp
     )
 
     target_sources(LuDataFrameTest PUBLIC
             RM_DataframeTestData.h
+            RM_DataframeTestConfigs.h
     )
 
     target_link_libraries(LuDataFrameTest PUBLIC Lugizmo::DataFrame GTest::gtest)

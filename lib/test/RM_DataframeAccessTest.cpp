@@ -5,237 +5,220 @@
 // http://www.apache.org/licenses/LICENSE-2.0 for full license information.
 
 //
-// Test functions accessing dataframe values.
+// Test functions accessing dataframe values, across every index configuration
+// (unique, range step==1, range step!=1) via TYPED_TEST.
 // The following functions are tested here (with names of tests):
 //
-// ✅ get_val
+// ✅ GetValue
 // - GetValue(FldT const& field, RecT const& record) const -> OptionalRef<T const>
 // - GetValue(FldT const& field, RecT const& record) -> OptionalRef<T>
 //
-// ✅ get_val_op
+// ✅ IndexOperator
 // - operator[](FldT const& field, RecT const& record) -> T&
 // - operator[](FldT const& field, RecT const& record) const -> T const&
 //
-// ✅ get_raw_mem
+// ✅ Data
 // - Data() const -> T const*
 //
-// ✅ get_mdspan
+// ✅ MDSpan
 // - MDSpan() const -> RecsData<T const>
+//
+// ✅ Values
+// - Values(this auto& self) -> std::span<Value<Self>>
+//
 
 #include "gtest/gtest.h"
 
-#include "lugizmo/DataFrame.h"
+#include <cstddef>
+#include <type_traits>
+#include <utility>
 
-#include "RM_DataframeTestData.h"
+#include "RM_DataframeTestConfigs.h"
+
+using namespace lugizmo::test;
+
+template<typename>
+class RM_DataframeAccess: public testing::Test // NOLINT(readability-identifier-naming)
+{
+};
+
+TYPED_TEST_SUITE(RM_DataframeAccess, IndexConfigs);
+
+namespace {
+
+    // Fills cell (field f, record r) with `r * FLD_COUNT + f`, so the row-major buffer is iota.
+    template<typename Cfg>
+    auto BuildFilled() -> Cfg::DF
+    {
+        auto df = Cfg::Build();
+        for (std::size_t f = 0; f < Cfg::FLD_COUNT; ++f)
+        {
+            for (std::size_t r = 0; r < Cfg::REC_COUNT; ++r)
+            {
+                df.AssignValue(Cfg::FieldKey(f), Cfg::RecordKey(r), static_cast<int>(r * Cfg::FLD_COUNT + f));
+            }
+        }
+        return df;
+    }
+
+} // namespace
 
 /**
- *  @brief Getting individual values from the dataframe.
- *  @see   lugizmo::Dataframe.GetValue(FldT const& field, RecT const& record) const -> OptionalRef<T const>
- *         lugizmo::Dataframe.GetValue(FldT const& field, RecT const& record) -> OptionalRef<T>
+ *  @brief GetValue returns the stored value for every cell, nullopt for missing keys.
+ *  @see   lugizmo::DataFrame.GetValue(...)
  */
-TEST(lugizmo_dataframe_access_row_major, get_val)
+TYPED_TEST(RM_DataframeAccess, GetValue)
 {
-    // no difference between the value index and sequence index
-    using namespace lugizmo;
-    using namespace lugizmo::test;
+    using Cfg = TypeParam;
+    auto df   = BuildFilled<Cfg>();
 
     {
-        using namespace lugizmo::test::integer;
-
-        // const version
-        auto const df   = DefaultDataframe();
-
-        size_t fldCount = 0;
-        for(auto const fldName : DFFields)
+        // const lookup returns the stored value at each cell
+        for (std::size_t f = 0; f < Cfg::FLD_COUNT; ++f)
         {
-            size_t recCount = 0;
-            for(auto const recName : DFRecords)
+            for (std::size_t r = 0; r < Cfg::REC_COUNT; ++r)
             {
-                auto const val = df.GetValue(fldName, recName);
+                auto const val = std::as_const(df).GetValue(Cfg::FieldKey(f), Cfg::RecordKey(r));
                 ASSERT_TRUE(val.HasValue());
-                EXPECT_EQ(*val, DFData[recCount][fldCount]);
-                recCount++;
+                EXPECT_EQ(*val, static_cast<int>(r * Cfg::FLD_COUNT + f));
             }
-            fldCount++;
         }
-
-        // not present
-        auto const valMiss = df.GetValue(1000, 1000);
-        ASSERT_FALSE(valMiss.HasValue());
-
-        // mutable version
-        [[maybe_unused]] auto dfM = DefaultDataframe();
-        [[maybe_unused]] auto val = dfM.GetValue(DFFields[0], DFRecords[0]);
-        static_assert(not std::is_const_v<decltype(val)>);
-        static_assert(not std::is_const_v<decltype(val.Value())>);
     }
 
     {
-        using namespace lugizmo::test::str;
+        // a missing field or record key resolves to nothing
+        EXPECT_FALSE(std::as_const(df).GetValue(Cfg::MissingField(), Cfg::RecordKey(0)).HasValue());
+        EXPECT_FALSE(std::as_const(df).GetValue(Cfg::FieldKey(0), Cfg::MissingRecord()).HasValue());
+    }
 
-        auto const df   = DefaultDataframe();
+    {
+        // the mutable overload yields a non-const reference and writes through
+        auto val = df.GetValue(Cfg::FieldKey(0), Cfg::RecordKey(0));
+        static_assert(not std::is_const_v<std::remove_reference_t<decltype(val.Value())>>);
+        ASSERT_TRUE(val.HasValue());
 
-        size_t fldCount = 0;
-        for(auto const& fldName : DFFields)
-        {
-            size_t recCount = 0;
-            for(auto const& recName : DFRecords)
-            {
-                auto const val = df.GetValue(fldName, recName);
-                ASSERT_TRUE(val.HasValue());
-                EXPECT_EQ(*val, DFData[recCount][fldCount]);
-                recCount++;
-            }
-            fldCount++;
-        }
-
-        // not present
-        auto const valMiss = df.GetValue("1000", "1000");
-        ASSERT_FALSE(valMiss.HasValue());
-
-        // mutable version
-        [[maybe_unused]] auto dfM = DefaultDataframe();
-        [[maybe_unused]] auto val = dfM.GetValue(DFFields[0], DFRecords[0]);
-        static_assert(not std::is_const_v<decltype(val)>);
-        static_assert(not std::is_const_v<decltype(val.Value())>);
+        val.Value() = 123;
+        EXPECT_EQ(*std::as_const(df).GetValue(Cfg::FieldKey(0), Cfg::RecordKey(0)), 123);
     }
 }
 
 /**
- *  @brief Getting individual values from the dataframe using unsafe operator[].
- *  @see   lugizmo::Dataframe.operator[](FldT const& field, RecT const& record) -> T&
- *         lugizmo::Dataframe.operator[](FldT const& field, RecT const& record) const -> T const&
+ *  @brief operator[] returns the stored value (unchecked), mutable overload writes through.
+ *  @see   lugizmo::DataFrame.operator[](...)
  */
-TEST(lugizmo_dataframe_access_row_major, get_val_op)
+TYPED_TEST(RM_DataframeAccess, IndexOperator)
 {
-    // no difference between the value index and sequence index
-    using namespace lugizmo;
-    using namespace lugizmo::test;
+    using Cfg = TypeParam;
+    auto df   = BuildFilled<Cfg>();
 
     {
-        using namespace lugizmo::test::integer;
-
-        // const version
-        auto const df   = DefaultDataframe();
-
-        size_t fldCount = 0;
-        for(auto const fldName : DFFields)
+        // const operator[] returns the stored value at each cell
+        for (std::size_t f = 0; f < Cfg::FLD_COUNT; ++f)
         {
-            size_t recCount = 0;
-            for(auto const recName : DFRecords)
+            for (std::size_t r = 0; r < Cfg::REC_COUNT; ++r)
             {
-                auto const val = df[fldName, recName];
-                EXPECT_EQ(val, DFData[recCount][fldCount]);
-                recCount++;
+                EXPECT_EQ((std::as_const(df)[Cfg::FieldKey(f), Cfg::RecordKey(r)]), static_cast<int>(r * Cfg::FLD_COUNT + f));
             }
-            fldCount++;
         }
-
-        // mutable version
-        [[maybe_unused]] auto dfM  = DefaultDataframe();
-        [[maybe_unused]] auto& val = dfM[DFFields[0], DFRecords[0]];
-        static_assert(not std::is_const_v<decltype(val)>);
     }
 
     {
-        using namespace lugizmo::test::str;
+        // mutable operator[] yields a non-const reference and writes through
+        auto& ref = df[Cfg::FieldKey(0), Cfg::RecordKey(0)];
+        static_assert(not std::is_const_v<std::remove_reference_t<decltype(ref)>>);
 
-        auto const df   = DefaultDataframe();
-
-        size_t fldCount = 0;
-        for(auto const& fldName : DFFields)
-        {
-            size_t recCount = 0;
-            for(auto const& recName : DFRecords)
-            {
-                auto const val = df[fldName, recName];
-                EXPECT_EQ(val, DFData[recCount][fldCount]);
-                recCount++;
-            }
-            fldCount++;
-        }
-
-        // mutable version
-        [[maybe_unused]] auto  dfM = DefaultDataframe();
-        [[maybe_unused]] auto& val = dfM[DFFields[0], DFRecords[0]];
-        static_assert(not std::is_const_v<decltype(val)>);
+        ref = 123;
+        EXPECT_EQ((std::as_const(df)[Cfg::FieldKey(0), Cfg::RecordKey(0)]), 123);
     }
 }
 
 /**
- *  @brief Getting raw underlying memory of dataframe.
- *  @see   lugizmo::Dataframe.Data() const -> std::optional<T const*>
+ *  @brief Data() exposes the dense row-major buffer in position order.
+ *  @see   lugizmo::DataFrame.Data() const
  */
-TEST(lugizmo_dataframe_access_row_major, get_raw_mem)
+TYPED_TEST(RM_DataframeAccess, Data)
 {
-    // no difference between the value index and sequence index
-    using namespace lugizmo;
-    using namespace lugizmo::test;
-    using namespace lugizmo::test::integer;
+    using Cfg = TypeParam;
+    auto df   = BuildFilled<Cfg>();
 
-    // const version
-    auto const df   = DefaultDataframe();
-    auto const data = df.Data();
-    ASSERT_TRUE(data != nullptr);
-
-    for(size_t rec = 0; rec < DFRecCount; rec++)
     {
-        for(size_t fld = 0; fld < DFFldCount; fld++)
+        // the buffer is dense and in row-major position order (iota by construction)
+        auto const* data = std::as_const(df).Data();
+        ASSERT_NE(data, nullptr);
+
+        for (std::size_t r = 0; r < Cfg::REC_COUNT; ++r)
         {
-            ASSERT_EQ(data[rec * DFFldCount + fld], DFData[rec][fld]);
+            for (std::size_t f = 0; f < Cfg::FLD_COUNT; ++f)
+            {
+                EXPECT_EQ(data[r * Cfg::FLD_COUNT + f], static_cast<int>(r * Cfg::FLD_COUNT + f));
+            }
         }
     }
 }
 
 /**
- *  @brief Getting raw underlying memory as a mdspan.
- *  @see   lugizmo::Dataframe.MDSpan() const -> RecsData<T const>
+ *  @brief MDSpan() exposes the buffer as a (records x fields) mdspan.
+ *  @see   lugizmo::DataFrame.MDSpan() const
  */
-TEST(lugizmo_dataframe_access_row_major, get_mdspan)
+TYPED_TEST(RM_DataframeAccess, MDSpan)
 {
-    // no difference between the value index and sequence index
-    using namespace lugizmo;
-    using namespace lugizmo::test;
-    using namespace lugizmo::test::integer;
+    using Cfg = TypeParam;
 
-    // empty span
-    auto const dfEmpty = DataFrame<float, int, int>{10};
-    auto const mdEmpty = dfEmpty.MDSpan();
-    ASSERT_TRUE(mdEmpty.empty());
-    ASSERT_EQ(mdEmpty.size(), 0);
-    ASSERT_EQ(mdEmpty.extent(0), 0);
-    ASSERT_EQ(mdEmpty.extent(1), 0);
-
-    // const version
-    auto const df = DefaultDataframe();
-    auto const md = df.MDSpan();
-
-    ASSERT_EQ(md.extent(0), DFRecCount);
-    ASSERT_EQ(md.extent(1), DFFldCount);
-    ASSERT_EQ(md.size(), DFRecCount * DFFldCount);
-    ASSERT_EQ(md.data_handle(), df.Data());
-
-    // verify a couple of specific positions
     {
-        auto const v00      = md[0, 0];
-        auto const v0_last  = md[0, DFFldCount - 1];
-        auto const vLast0   = md[DFRecCount - 1, 0];
-        auto const vLastLast= md[DFRecCount - 1, DFFldCount - 1];
-
-        EXPECT_EQ(v00,          DFData[0][0]);
-        EXPECT_EQ(v0_last,      DFData[0][DFFldCount - 1]);
-        EXPECT_EQ(vLast0,       DFData[DFRecCount - 1][0]);
-        EXPECT_EQ(vLastLast,    DFData[DFRecCount - 1][DFFldCount - 1]);
+        // an empty frame yields an empty span
+        typename Cfg::DF const empty;
+        auto const md = empty.MDSpan();
+        EXPECT_TRUE(md.empty());
+        EXPECT_EQ(md.extent(0), 0);
+        EXPECT_EQ(md.extent(1), 0);
     }
 
-    // cross‑check every element against DFData (small fixed-size test data)
-    for (std::size_t r = 0; r < DFRecCount; ++r)
+    auto df = BuildFilled<Cfg>();
+
     {
-        for (std::size_t c = 0; c < DFFldCount; ++c)
+        // extents match record x field counts; handle aliases Data()
+        auto const md = std::as_const(df).MDSpan();
+        ASSERT_EQ(md.extent(0), Cfg::REC_COUNT);
+        ASSERT_EQ(md.extent(1), Cfg::FLD_COUNT);
+        ASSERT_EQ(md.size(), Cfg::REC_COUNT * Cfg::FLD_COUNT);
+        EXPECT_EQ(md.data_handle(), std::as_const(df).Data());
+
+        // every element is addressed by [record, field]
+        for (std::size_t r = 0; r < Cfg::REC_COUNT; ++r)
         {
-            auto const value = md[r, c];
-            auto const expected = DFData[r][c];
-            EXPECT_EQ(value, expected) << "mismatch at (" << r << "," << c << ")";
+            for (std::size_t f = 0; f < Cfg::FLD_COUNT; ++f)
+            {
+                EXPECT_EQ((md[r, f]), static_cast<int>(r * Cfg::FLD_COUNT + f));
+            }
         }
+    }
+}
+
+/**
+ *  @brief Values() exposes the whole value buffer as a flat span (const + mutable).
+ *  @see   lugizmo::DataFrame.Values(this auto& self)
+ */
+TYPED_TEST(RM_DataframeAccess, Values)
+{
+    using Cfg = TypeParam;
+    auto df   = BuildFilled<Cfg>();
+
+    {
+        // const view spans every value in row-major position order
+        auto const values = std::as_const(df).Values();
+        ASSERT_EQ(values.size(), Cfg::FLD_COUNT * Cfg::REC_COUNT);
+        for (std::size_t i = 0; i < values.size(); ++i)
+        {
+            EXPECT_EQ(values[i], static_cast<int>(i));
+        }
+    }
+
+    {
+        // mutable view yields non-const elements and writes through to the buffer
+        auto values = df.Values();
+        static_assert(not std::is_const_v<std::remove_reference_t<decltype(values[0])>>);
+
+        values[0] = 123;
+        EXPECT_EQ(std::as_const(df).Data()[0], 123);
     }
 }

@@ -1,10 +1,84 @@
 # Test Coverage
 
+## Conventions
+
+### File layout & naming
+
+Correctness tests live in `lib/test/` and follow:
+
+```
+RM_Dataframe<Area>Test.cpp
+```
+
+- `RM_` = row-major layout. Drop the prefix for tests that are not layout-specific
+  (e.g. index, container, memory tests). A future column-major suite would use `CM_`.
+- `<Area>` groups by functional area (`Tors`, `Construct`, `Adding`, `Drop`,
+  `Properties`, `Access`, `Mutating`, `Views`, `Sort`, `Functional`, `Io`,
+  `NonTrivialType`).
+
+Usability / example tests live in `lib/test/examples/` and follow:
+
+```
+RM_DFExamples_<Topic>.cpp
+```
+
+Examples read like real usage and still `ASSERT`, but they check *usability* (does the
+API compose naturally) rather than exhaustively probing correctness.
+
+### Test style
+
+- **One `TEST` per function.** Different cases for the same function are separate
+  scoped blocks `{ ... }`, each opened with a short `// comment`.
+- See `RM_DataframeAccessTest.cpp` for the reference style.
+
+### Index coverage
+
+Every *index-agnostic* function is exercised across index configurations
+(field × record). Legend:
+
+- **UU** — `DFUniqueIndex` × `DFUniqueIndex`
+- **R1** — `DFRangeIndex` × `DFRangeIndex`, `step == 1`
+- **Rs** — `DFRangeIndex` × `DFRangeIndex`, `step != 1`
+- **Mix** — mixed (e.g. `DFRangeIndex` × `DFUniqueIndex`), where relevant
+
+Each such function carries a matrix, e.g. `UU:[ ] R1:[ ] Rs:[ ]`.
+
+Index-*specific* functions (e.g. `SetFieldRange`, `AddField`, `UpsertValue`) belong to a
+single index family and are tracked without a matrix.
+
+### Managing cross-index tests
+
+The index type is a compile-time `DataFrame` template parameter, so cross-index coverage
+is driven by **GoogleTest typed tests** (`TYPED_TEST_SUITE` + `TYPED_TEST`):
+
+- A shared `lib/test/RM_DataframeTestConfigs.h` defines config-traits types —
+  `Unique_IndexTest` (UU), `RangeS1_IndexTest` (R1), `RangeS2_IndexTest` (Rs), and a mixed
+  config where relevant — each exposing its `DataFrame` type plus helpers to **build a
+  populated frame and hand back valid / invalid keys**. (The traits hide the difference
+  between `AddFields(...)` for unique and `SetFieldRange(...)` for range; `step != 1` is a
+  runtime bound carried by `RangeS2_IndexTest`, whose `MissingRecord()` returns an off-grid
+  key.)
+- See `RM_DataframeTypedExampleTest.cpp` for the reference typed-test.
+- Each index-agnostic behaviour is written **once** as a `TYPED_TEST` and runs against
+  every config in the type list automatically.
+
+---
+
 ## Dataframe
 
-### dataframe cd-tors
+### cd-tors
 
-Test can be found in: [File](/lib/test/RM_DataframeTorsTest.cpp)
+Test file: [RM_DataframeTorsTest.cpp](/lib/test/RM_DataframeTorsTest.cpp)
+
+- [ ] ```DataFrame(DataFrame const&)```
+- [ ] ```operator=(DataFrame const&) -> auto```
+- [ ] ```DataFrame(DataFrame&& other)```
+- [ ] ```operator=(DataFrame&& other) -> DataFrame&```
+- [ ] ```~DataFrame()```
+
+### construction
+
+Test file: [RM_DataframeConstructTest.cpp](/lib/test/RM_DataframeConstructTest.cpp)
 
 - [ ] ```DataFrame(MemRsc res)```
 - [ ] ```DataFrame(size_t reservedValues, MemRsc res)```
@@ -13,24 +87,23 @@ Test can be found in: [File](/lib/test/RM_DataframeTorsTest.cpp)
 - [ ] ```FromFieldsAndRecord(std::conditional_t<IsFISeq, DFRangeIndexBounds<FldT>, std::span<F const>> fldIndices, std::conditional_t<IsRISeq, DFRangeIndexBounds<RecT>, std::span<R const>> recIndices, std::span<T const> recValues, size_t capacity, MemRsc res) -> DataFrame```
 - [ ] ```FromFieldsAndRecords(std::conditional_t<IsFISeq, DFRangeIndexBounds<FldT>, std::span<F const>> fldIndices, std::conditional_t<IsRISeq, DFRangeIndexBounds<RecT>, std::span<R const>> recIndices, IterableOfIterable auto const& recValues, size_t capacity, MemRsc res) -> DataFrame```
 - [ ] ```FromFieldsAndRecords(std::conditional_t<IsFISeq, DFRangeIndexBounds<FldT>, std::initializer_list<F const>> fldIndices, std::conditional_t<IsRISeq, DFRangeIndexBounds<RecT>, std::initializer_list<R const>> recIndices, std::initializer_list<std::initializer_list<T>> recValues, size_t capacity, MemRsc res) -> DataFrame```
-- [x] ```DataFrame(DataFrame const&)```
-- [x] ```operator=(DataFrame const&) -> auto```
-- [x] ```DataFrame(DataFrame&& other)```
-- [x] ```operator=(DataFrame&& other) -> DataFrame&```
-- [x] ```~DataFrame()```
+
+> Note: `FromFields*` construction is inherently index-family-specific (the `std::conditional_t`
+> parameter selects bounds vs. span), so it is covered per family rather than via the UU/R1/Rs matrix.
 
 ### adding fields and records
 
-Test can be found in: [File](/lib/test/RM_DataframeAddingTest.cpp)
+Test file: [RM_DataframeAddingTest.cpp](/lib/test/RM_DataframeAddingTest.cpp)
 
-- [x] ```AddField(F index, T const& defaultValue) -> bool```
-- [x] ```AddFields(std::span<F const> const indices, T const& defaultValue) -> std::size_t```
-- [x] ```AddRecord(R index, T const& defaultValue) -> bool```
-- [x] ```AddRecords(std::span<R const> const indices, T const& defaultValue) -> std::size_t```
+Unique-family (value-index) only:
 
-
+- [ ] ```AddField(F index, T const& defaultValue) -> bool```
+- [ ] ```AddFields(std::span<F const> const indices, T const& defaultValue) -> std::size_t```
+- [ ] ```AddRecord(R index, T const& defaultValue) -> bool```
+- [ ] ```AddRecords(std::span<R const> const indices, T const& defaultValue) -> std::size_t```
 - [ ] ```AddRecordPopulated(R index, std::span<T const> records) -> bool```
 
+Range-family (sequence-index) only:
 
 - [ ] ```SetFieldRange(std::optional<FldT> lower, std::optional<FldT> upper, T const& defaultVal) -> bool```
 - [ ] ```SetFieldRange(DFRangeIndexBounds<FldT>, T const& defaultVal) -> bool```
@@ -43,114 +116,105 @@ Test can be found in: [File](/lib/test/RM_DataframeAddingTest.cpp)
 - [ ] ```SetRecordRange(std::optional<RecT> lower, std::optional<RecT> upper, std::initializer_list<std::initializer_list<T>> records) -> bool```
 - [ ] ```SetRecordRange(DFRangeIndexBounds<RecT>, std::initializer_list<std::initializer_list<T>> records) -> bool```
 
-
-- [ ] ```UpsertValue(FldT const& field, RecT const& record, T const& value) -> void;```
+> `SetFieldRange`/`SetRecordRange` must additionally cover `step == 1` **and** `step != 1`,
+> including: off-grid bound moves are rejected, re-spacing a populated range is rejected,
+> and element-count (not key-span) resizing.
 
 ### removing fields and records
 
-- [ ] ```DropField(F const& index) -> bool```
-- [ ] ```DropRecord(R const& index) -> bool```
+Test file: [RM_DataframeDropTest.cpp](/lib/test/RM_DataframeDropTest.cpp)
 
-### dataframe properties
+- [ ] ```DropField(F const& index) -> bool``` — UU:[ ] R1:[ ] Rs:[ ]
+- [ ] ```DropRecord(R const& index) -> bool``` — UU:[ ] R1:[ ] Rs:[ ]
 
-Test can be found in: [File](/lib/test/RM_DataframePropertiesTest.cpp)
+### properties
 
-- [x] ```HasField<C>(C const& field) const -> bool```
-- [x] ```HasRecord<C>(C const& record) const -> bool```
+Test file: [RM_DataframePropertiesTest.cpp](/lib/test/RM_DataframePropertiesTest.cpp)
 
-
-- [x] ```Size() const -> size_t```
-- [x] ```FieldSize() const -> size_t```
-- [x] ```RecordSize() const -> size_t```
-- [x] ```Empty() const -> bool```
+- [ ] ```HasField<C>(C const& field) const -> bool``` — UU:[ ] R1:[ ] Rs:[ ]
+- [ ] ```HasRecord<C>(C const& record) const -> bool``` — UU:[ ] R1:[ ] Rs:[ ]
+- [ ] ```Size() const -> size_t``` — UU:[ ] R1:[ ] Rs:[ ]
+- [ ] ```FieldSize() const -> size_t``` — UU:[ ] R1:[ ] Rs:[ ]
+- [ ] ```RecordSize() const -> size_t``` — UU:[ ] R1:[ ] Rs:[ ]
+- [ ] ```Empty() const -> bool``` — UU:[ ] R1:[ ] Rs:[ ]
 
 ### accessing values
 
-Test can be found in: [File](/lib/test/RM_DataframeAccessTest.cpp)
+Test file: [RM_DataframeAccessTest.cpp](/lib/test/RM_DataframeAccessTest.cpp)
 
-- [x] ```GetValue(FldT const& field, RecT const& record) const -> std::optional<std::reference_wrapper<T const>>```
-- [x] ```GetValue(FldT const& field, RecT const& record) -> std::optional<std::reference_wrapper<T>>```
-
-
-- [x] ```operator[](FldT const& field, RecT const& record) -> T&```
-- [x] ```operator[](FldT const& field, RecT const& record) const -> T const&```
-
-
-- [x] ```Data() const -> T const*```
+| Done | Function Name                                           | Returns                | UU | R1 | Rs |
+|------|---------------------------------------------------------|------------------------|----|----|----|
+| ✅    | GetValue(FldT const& field, RecT const& record) const   | OptionalRef<T const>   | ✔  | ✔  | ✔  |
+| ✅    | GetValue(FldT const& field, RecT const& record)         | OptionalRef<T>         | ✔  | ✔  | ✔  |
+| ✅    | operator[](FldT const& field, RecT const& record)       | T&                     | ✔  | ✔  | ✔  |
+| ✅    | operator[](FldT const& field, RecT const& record) const | T const&               | ✔  | ✔  | ✔  |
+| ✅    | Data() const                                            | T const*               | ✔  | ✔  | ✔  |
+| ✅    | MDSpan() const                                          | RecsData<T const>      | ✔  | ✔  | ✔  |
+| ✅    | Values(this auto& self)                                 | std::span<Value<Self>> | ✔  | ✔  | ✔  |
 
 ### mutating values
 
-Test can be found in: [File](/lib/test/RM_DataframeMutatingTest.cpp)
+Test file: [RM_DataframeMutatingTest.cpp](/lib/test/RM_DataframeMutatingTest.cpp)
 
-- [x] ```AssignValue(FldT const& field, RecT const& record, T const& value) -> bool```
+- [ ] ```AssignValue(FldT const& field, RecT const& record, U&& value) -> bool``` — UU:[ ] R1:[ ] Rs:[ ]
+- [ ] ```UpsertValue(FldT const& field, RecT const& record, U&& value) -> void``` (unique-family only)
 
-### view fields and records
+> `AssignValue` on a range index must verify on-grid keys succeed and off-grid keys fail (`Rs`).
 
-Test can be found in: [File](/lib/test/RM_DataframeViewsTest.cpp)
+### views
 
-- [x] ```ViewField(F const& index) -> DFView<T, RecI>```
-- [x] ```ViewField(F const& index) const -> DFView<T const, RecI>```
-- [x] ```ViewField(FldT const& index) -> DFView<T, RecI>```
-- [x] ```ViewField(FldT const& index) const -> DFView<T const, RecI>```
+Test file: [RM_DataframeViewsTest.cpp](/lib/test/RM_DataframeViewsTest.cpp)
 
+- [ ] ```ViewField(F const& index) [const]``` — UU:[ ] R1:[ ] Rs:[ ]
+- [ ] ```ViewFieldIndexed(F const& index) [const]``` — UU:[ ] R1:[ ] Rs:[ ]
+- [ ] ```ViewRecord(R const& index) [const]``` — UU:[ ] R1:[ ] Rs:[ ]
+- [ ] ```ViewRecordIndexed(R const& index) [const]``` — UU:[ ] R1:[ ] Rs:[ ]
+- [ ] ```operator|(SelectField<F>) [const]``` — UU:[ ] R1:[ ] Rs:[ ]
+- [ ] ```operator|(SelectRecord<R>) [const]``` — UU:[ ] R1:[ ] Rs:[ ]
+- [ ] ```operator|(SelectFieldIndexed<F>) [const]``` — UU:[ ] R1:[ ] Rs:[ ]
+- [ ] ```operator|(SelectRecordIndexed<R>) [const]``` — UU:[ ] R1:[ ] Rs:[ ]
+- [ ] ```Fields() const -> Flds``` — UU:[ ] R1:[ ] Rs:[ ]
+- [ ] ```Records() const -> Recs``` — UU:[ ] R1:[ ] Rs:[ ]
 
-- [x] ```ViewFieldIndexed(F const& index) -> DFViewIndexed<T, RecI const>```
-- [x] ```ViewFieldIndexed(F const& index) const -> DFViewIndexed<T const, RecI const>```
-- [x] ```ViewFieldIndexed(F const& index) -> DFViewIndexed<T, RecI const>```
-- [x] ```ViewFieldIndexed(F const& index) const -> DFViewIndexed<T const, RecI const>```
+> `Values()` is raw value-buffer access — tracked under [accessing values](#accessing-values).
 
+### sort
 
-- [x] ```ViewRecord(R const& index) -> DFView<T, FldI>```
-- [x] ```ViewRecord(R const& index) const -> DFView<T const, FldI>```
-- [ ] add sequence version
-- [ ] add sequence version
+Test file: [RM_DataframeSortTest.cpp](/lib/test/RM_DataframeSortTest.cpp)
 
-
-- [x] ```ViewRecordIndexed(R const& index) -> DFViewIndexed<T, FldI const>```
-- [x] ```ViewRecordIndexed(R const& index) const -> DFViewIndexed<T const, FldI const>```
-- [x] ```ViewRecordIndexed(R const& index) -> DFViewIndexed<T, FldI const>```
-- [x] ```ViewRecordIndexed(R const& index) const -> DFViewIndexed<T const, FldI const>```
-
-
-- [x] ```operator|(SelectField<F> const& index) -> DFView<T, RecI>```
-- [x] ```operator|(SelectField<F> const& index) const -> DFView<T const, RecI>```
-- [ ] add sequence version
-- [ ] add sequence version
-
-
-- [x] ```operator|(SelectRecord<R> const& index) -> DFView<T, FldI>```
-- [x] ```operator|(SelectRecord<R> const& index) const -> DFView<T const, FldI>```
-- [ ] add sequence version
-- [ ] add sequence version
-
-
-- [x] ```operator|(SelectFieldIndexed<F> const& index) -> DFViewIndexed<T, RecI const>```
-- [x] ```operator|(SelectFieldIndexed<F> const& index) const -> DFViewIndexed<T const, RecI const>```
-- [ ] add sequence version
-- [ ] add sequence version
-
-
-- [x] ```operator|(SelectRecordIndexed<R> const& index) -> DFViewIndexed<T, RecI const>```
-- [x] ```operator|(SelectRecordIndexed<R> const& index) const -> DFViewIndexed<T const, RecI const>```
-- [ ] add sequence version
-- [ ] add sequence version
-
-
-- [x] ```Fields() const -> Flds```
-- [x] ```Records() const -> Recs```
-- [x] ```Values() const -> std::span<T>```
+- [ ] ```SortFields(Compare comp = {})``` — UU:[ ] R1:[ ] Rs:[ ]
+- [ ] ```SortRecords(Compare comp = {})``` — UU:[ ] R1:[ ] Rs:[ ]
 
 ### functional
 
-- [ ] ```ForEachOnField<Func>(F const& index, Func&& func) -> DFView<T, RecI>```
-- [ ] ```ForEachOnField<Func>(F const& index, Func&& func) const -> DFView<T const, RecI>```
-- [ ] ```ForEachOnRecord<Func>(R const& index, Func&& func) -> DFView<T, FldI>```
-- [ ] ```ForEachOnRecord<Func>(R const& index, Func&& func) const -> DFView<T const, FldI>```
+Test file: _TODO_
+
+- [ ] ```ForEachOnField<Func>(F const& index, Func&& func) [const]```
+- [ ] ```ForEachOnRecord<Func>(R const& index, Func&& func) [const]```
 
 ### io
+
+Test file: _TODO_
 
 - [ ] ```Print() const -> void```
 - [ ] ```PrintTo(std::ostream& stream) const -> void```
 - [ ] ```PrintCSV(std::ostream& stream, char sep) const -> void```
 
-TODO add other classes e.g., layouts, indices, selectors, views, containers, errors etc.
+### non-trivial element types
+
+Test file: [RM_DataframeNonTrivialTypeTest.cpp](/lib/test/RM_DataframeNonTrivialTypeTest.cpp)
+
+- [ ] move/copy/destruction semantics for non-trivially-copyable `T`
+
+---
+
+## Examples
+
+Usability-oriented walkthroughs in `lib/test/examples/` (assert, but read as usage):
+
+- [ ] [RM_DFExamples_RangeIndices.cpp](/lib/test/examples/RM_DFExamples_RangeIndices.cpp) —
+  building/mutating range-indexed frames, strided ranges, mdspan extraction.
+
+---
+
+TODO add other classes e.g. layouts, indices, selectors, views, containers, errors etc.
