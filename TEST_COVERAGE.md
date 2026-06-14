@@ -66,7 +66,7 @@ is driven by **GoogleTest typed tests** (`TYPED_TEST_SUITE` + `TYPED_TEST`):
 
 ## Dataframe
 
-### cd-tors
+### Tor's
 
 Test file: [RM_DataframeTorsTest.cpp](/lib/test/RM_DataframeTorsTest.cpp)
 
@@ -81,7 +81,7 @@ Test file: [RM_DataframeTorsTest.cpp](/lib/test/RM_DataframeTorsTest.cpp)
 > Lifecycle is typed across all configs; the free path (`~DataFrame`, move-assign) is additionally
 > asserted with a counting memory resource in `RM_DataframeTorsMemory`.
 
-### construction
+### Construction
 
 Test file: [RM_DataframeConstructTest.cpp](/lib/test/RM_DataframeConstructTest.cpp)
 
@@ -96,7 +96,7 @@ Test file: [RM_DataframeConstructTest.cpp](/lib/test/RM_DataframeConstructTest.c
 > Note: `FromFields*` construction is inherently index-family-specific (the `std::conditional_t`
 > parameter selects bounds vs. span), so it is covered per family rather than via the UU/R1/Rs matrix.
 
-### adding fields and records
+### Adding Fields and Records
 
 Test file: [RM_DataframeAddingTest.cpp](/lib/test/RM_DataframeAddingTest.cpp)
 
@@ -125,7 +125,7 @@ Range-family (sequence-index) only:
 > including: off-grid bound moves are rejected, re-spacing a populated range is rejected,
 > and element-count (not key-span) resizing.
 
-### removing fields and records
+### Removing Fields and Records
 
 Test file: [RM_DataframeDropTest.cpp](/lib/test/RM_DataframeDropTest.cpp)
 
@@ -134,7 +134,7 @@ Test file: [RM_DataframeDropTest.cpp](/lib/test/RM_DataframeDropTest.cpp)
 | ✅    | DropField(F const& index)  | bool    | ✔  | —  | —  |
 | ✅    | DropRecord(R const& index) | bool    | ✔  | —  | —  |
 
-### properties
+### Properties
 
 Test file: [RM_DataframePropertiesTest.cpp](/lib/test/RM_DataframePropertiesTest.cpp)
 
@@ -147,7 +147,7 @@ Test file: [RM_DataframePropertiesTest.cpp](/lib/test/RM_DataframePropertiesTest
 | ✅    | RecordSize() const                     | size_t  | ✔  | ✔  | ✔  |
 | ✅    | Empty() const                          | bool    | ✔  | ✔  | ✔  |
 
-### accessing values
+### Accessing Values
 
 Test file: [RM_DataframeAccessTest.cpp](/lib/test/RM_DataframeAccessTest.cpp)
 
@@ -161,7 +161,7 @@ Test file: [RM_DataframeAccessTest.cpp](/lib/test/RM_DataframeAccessTest.cpp)
 | ✅    | MDSpan() const                                          | RecsData<T const>      | ✔  | ✔  | ✔  |
 | ✅    | Values(this auto& self)                                 | std::span<Value<Self>> | ✔  | ✔  | ✔  |
 
-### mutating values
+### Mutating Values
 
 Test file: [RM_DataframeMutatingTest.cpp](/lib/test/RM_DataframeMutatingTest.cpp)
 
@@ -174,24 +174,28 @@ Test file: [RM_DataframeMutatingTest.cpp](/lib/test/RM_DataframeMutatingTest.cpp
 
 - TODO `AssignFieldValues`/`AssignRecordValues` are index-agnostic but currently only covered for `UU`
 
-### views
+### Views
 
 Test file: [RM_DataframeViewsTest.cpp](/lib/test/RM_DataframeViewsTest.cpp)
 
-- [ ] ```ViewField(F const& index) [const]``` — UU:[ ] R1:[ ] Rs:[ ]
-- [ ] ```ViewFieldIndexed(F const& index) [const]``` — UU:[ ] R1:[ ] Rs:[ ]
-- [ ] ```ViewRecord(R const& index) [const]``` — UU:[ ] R1:[ ] Rs:[ ]
-- [ ] ```ViewRecordIndexed(R const& index) [const]``` — UU:[ ] R1:[ ] Rs:[ ]
-- [ ] ```operator|(SelectField<F>) [const]``` — UU:[ ] R1:[ ] Rs:[ ]
-- [ ] ```operator|(SelectRecord<R>) [const]``` — UU:[ ] R1:[ ] Rs:[ ]
-- [ ] ```operator|(SelectFieldIndexed<F>) [const]``` — UU:[ ] R1:[ ] Rs:[ ]
-- [ ] ```operator|(SelectRecordIndexed<R>) [const]``` — UU:[ ] R1:[ ] Rs:[ ]
-- [ ] ```Fields() const -> Flds``` — UU:[ ] R1:[ ] Rs:[ ]
-- [ ] ```Records() const -> Recs``` — UU:[ ] R1:[ ] Rs:[ ]
+| Done | Function Name                          | Returns                | UU | R1 | Rs |
+|------|----------------------------------------|------------------------|----|----|----|
+| ✅    | ViewField(field) [const]               | DFView<T[ const], RecI>         | ✔  | ✔  | ✔  |
+| ✅    | ViewFieldIndexed(field) [const]        | DFViewIndexed<T[ const], ...>   | ✔  | ✔  | ✔  |
+| ✅    | ViewRecordIndexed(record) [const]      | DFViewIndexed<T[ const], ...>   | ✔  | ✔  | ✔  |
+| ✅    | ViewRecord(record) [const]             | DFView<T[ const], FldI>         | ✔  | ✘  | ✘  |
+| ✅    | operator\|(SelectField<F>) [const]     | DFView<T[ const], RecI>         | ✔  | ✘  | ✘  |
+| ✅    | operator\|(SelectRecord<R>) [const]    | DFView<T[ const], FldI>         | ✔  | ✘  | ✘  |
+| ✅    | operator\|(SelectFieldIndexed<F>) [const]  | DFViewIndexed<...>          | ✔  | ✘  | ✘  |
+| ✅    | operator\|(SelectRecordIndexed<R>) [const] | DFViewIndexed<...>          | ✔  | ✘  | ✘  |
+| ✅    | Fields() const                         | Flds                   | ✔  | ✔  | ✔  |
+| ✅    | Records() const                        | Recs                   | ✔  | ✔  | ✔  |
 
-> `Values()` is raw value-buffer access — tracked under [accessing values](#accessing-values).
+- TODO `ViewRecord` and the four `operator\|` selectors are value-index only because their `requires
+     DFSeqIndex` overloads are not implemented yet (the `✘` for `R1`/`Rs` is missing *production*, not
+     a missing test). Once added, the typed suite extends to cover them.
 
-### sort
+### Sort
 
 Test file: [RM_DataframeSortTest.cpp](/lib/test/RM_DataframeSortTest.cpp)
 
@@ -202,14 +206,14 @@ Value-index only (`requires DFUnqIndex`; an arithmetic range is already ordered)
 | ✅    | SortFields(Compare comp)   | void    | ✔  | —  | —  |
 | ✅    | SortRecords(Compare comp)  | void    | ✔  | —  | —  |
 
-### functional
+### Functional
 
 Test file: _TODO_
 
 - [ ] ```ForEachOnField<Func>(F const& index, Func&& func) [const]```
 - [ ] ```ForEachOnRecord<Func>(R const& index, Func&& func) [const]```
 
-### io
+### IO
 
 Test file: _TODO_
 
@@ -217,7 +221,7 @@ Test file: _TODO_
 - [ ] ```PrintTo(std::ostream& stream) const -> void```
 - [ ] ```PrintCSV(std::ostream& stream, char sep) const -> void```
 
-### user types
+### User-Types
 
 Test file: [RM_DataframeUserTypesTest.cpp](/lib/test/RM_DataframeUserTypesTest.cpp)
 
