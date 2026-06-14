@@ -16,8 +16,16 @@
 // ✅ MoveCopyAndDestroy
 // - element lifetime across adding / upsert / frame destruction
 //
+// ✅ StringKeys
+// - std::string field/record keys: transparent hash / equality lookup
+//   (std::string, std::string_view, const char*)
+//
 
 #include "gtest/gtest.h"
+
+#include <array>
+#include <string>
+#include <string_view>
 
 #include "lugizmo/DataFrame.h"
 
@@ -169,4 +177,45 @@ TEST(RM_DataframeUserTypes, MoveCopyAndDestroy)
 
     // all owners released -> no leaks
     EXPECT_EQ(MoveCopyType::alive, 0);
+}
+
+/**
+ *  @brief std::string keys support transparent lookup (std::string / string_view / const char*),
+ *         so heterogeneous keys resolve without constructing a temporary std::string.
+ *  @see   lugizmo::TransparentHash / TransparentEqual
+ */
+TEST(RM_DataframeUserTypes, StringKeys)
+{
+    using namespace lugizmo;
+    using namespace std::string_view_literals;
+
+    auto df = DataFrame<int, std::string, std::string>();
+    ASSERT_EQ(df.AddFields(std::array<std::string, 2>{"alpha", "beta"}), 2);
+    ASSERT_EQ(df.AddRecords(std::array<std::string, 2>{"row0", "row1"}), 2);
+    ASSERT_TRUE(df.AssignValue("alpha", "row0", 1));
+    ASSERT_TRUE(df.AssignValue("beta", "row1", 2));
+
+    {
+        // membership via std::string, std::string_view and const char*
+        EXPECT_TRUE(df.HasField(std::string{"alpha"}));
+        EXPECT_TRUE(df.HasField("alpha"sv));
+        EXPECT_TRUE(df.HasField("alpha"));
+        EXPECT_FALSE(df.HasField("gamma"sv));
+
+        EXPECT_TRUE(df.HasRecord("row1"sv));
+        EXPECT_TRUE(df.HasRecord("row1"));
+        EXPECT_FALSE(df.HasRecord("row9"sv));
+    }
+
+    {
+        // value access via heterogeneous string keys resolves the same cell
+        EXPECT_EQ((df["alpha"sv, "row0"sv]), 1);
+
+        auto const val = df.GetValue("beta"sv, "row1"sv);
+        ASSERT_TRUE(val.HasValue());
+        EXPECT_EQ(*val, 2);
+
+        // a non-member heterogeneous key resolves to nothing
+        EXPECT_FALSE(df.GetValue("alpha"sv, "row9"sv).HasValue());
+    }
 }

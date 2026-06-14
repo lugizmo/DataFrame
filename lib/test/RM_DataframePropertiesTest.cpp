@@ -1,75 +1,177 @@
-// Filename: RM_DataframeMutatingTest.cpp
+// Filename: RM_DataframePropertiesTest.cpp
 // Copyright 2025 Lukas Guz
 // Licensed under the Apache License, Version 2.0.
 // See the LICENSE file in the project root or at
 // http://www.apache.org/licenses/LICENSE-2.0 for full license information.
 
 //
-// Test functions accessing properties of the dataframe.
+// Test functions reporting dataframe properties, across every index configuration via TYPED_TEST.
 // The following functions are tested here (with names of tests):
 //
-// ✅ has
+// ✅ HasField
 // - HasField<C>(C const& field) const -> bool
+//
+// ✅ HasRecord
 // - HasRecord<C>(C const& record) const -> bool
 //
-// ✅ sizes
+// ✅ Size
 // - Size() const -> size_t
+//
+// ✅ FieldSize
 // - FieldSize() const -> size_t
+//
+// ✅ RecordSize
 // - RecordSize() const -> size_t
+//
+// ✅ Empty
 // - Empty() const -> bool
-
+//
 
 #include "gtest/gtest.h"
 
-#include "lugizmo/DataFrame.h"
+#include <cstddef>
 
-#include "RM_DataframeTestData.h"
+#include "RM_DataframeTestConfigs.h"
+
+using namespace lugizmo::test;
+
+template<typename>
+class RM_DataframeProperties: public testing::Test // NOLINT(readability-identifier-naming)
+{
+};
+
+TYPED_TEST_SUITE(RM_DataframeProperties, IndexConfigs);
 
 /**
- *  @brief Check if fields or records are present
- *  @see   lugizmo::Dataframe.HasField<C>(C const& field) const -> bool
- *         lugizmo::Dataframe.HasRecord<C>(C const& record) const -> bool
+ *  @brief HasField reports membership of a field key.
+ *  @see   lugizmo::DataFrame.HasField<C>(C const& field) const -> bool
  */
-TEST(lugizmo_dataframe_properties_row_major, has)
+TYPED_TEST(RM_DataframeProperties, HasField)
 {
-    // no difference between the value index and sequence index
-    using namespace lugizmo;
-    using namespace lugizmo::test;
-    using namespace lugizmo::test::str;
+    using Cfg = TypeParam;
+    auto const df = Cfg::Build();
 
-    auto const df = DefaultDataframe();
-    for(auto const& fld: DFFields)  EXPECT_TRUE(df.HasField(fld));
-    for(auto const& rec: DFRecords) EXPECT_TRUE(df.HasRecord(rec));
+    {
+        // every present field key is found
+        for (std::size_t f = 0; f < Cfg::FLD_COUNT; ++f) EXPECT_TRUE(df.HasField(Cfg::FieldKey(f)));
+    }
 
-    for(auto const& fld: DFFields)  EXPECT_TRUE(df.HasField(std::string_view(fld)));   // checking comparable concept
-    for(auto const& rec: DFRecords) EXPECT_TRUE(df.HasRecord(std::string_view(rec)));  // checking comparable concept
+    {
+        // a non-member field key is not found
+        EXPECT_FALSE(df.HasField(Cfg::MissingField()));
+    }
+
+    {
+        // a comparable key of a different type resolves the same membership
+        // (heterogeneous comparison for range, convertible/transparent lookup for unique)
+        for (std::size_t f = 0; f < Cfg::FLD_COUNT; ++f) EXPECT_TRUE(df.HasField(static_cast<short>(Cfg::FieldKey(f))));
+        EXPECT_FALSE(df.HasField(static_cast<short>(Cfg::MissingField())));
+    }
 }
 
 /**
- *  @brief Check sizes/dimensions of the dataframe.
- *  @see   lugizmo::Dataframe.Size() const -> size_t
- *         lugizmo::Dataframe.FieldSize() const -> size_t
- *         lugizmo::Dataframe.RecordSize() const -> size_t
- *         lugizmo::Dataframe.Empty() const -> bool
+ *  @brief HasRecord reports membership of a record key.
+ *  @see   lugizmo::DataFrame.HasRecord<C>(C const& record) const -> bool
  */
-TEST(lugizmo_dataframe_properties_row_major, sizes)
+TYPED_TEST(RM_DataframeProperties, HasRecord)
 {
-    // no difference between the value index and sequence index
-    using namespace lugizmo;
-    using namespace lugizmo::test;
-    using namespace lugizmo::test::integer;
+    using Cfg = TypeParam;
+    auto const df = Cfg::Build();
 
-    auto const df = DefaultDataframe();
-    ASSERT_EQ(df.Size(), DFRecCount * DFFldCount);
-    ASSERT_EQ(df.FieldSize(), DFFldCount);
-    ASSERT_EQ(df.RecordSize(), DFRecCount);
-    ASSERT_FALSE(df.Empty());
+    {
+        // every present record key is found
+        for (std::size_t r = 0; r < Cfg::REC_COUNT; ++r) EXPECT_TRUE(df.HasRecord(Cfg::RecordKey(r)));
+    }
 
-    auto const empty = DataFrame<int, int, int>();
-    ASSERT_EQ(empty.Size(), 0);
-    ASSERT_EQ(empty.FieldSize(), 0);
-    ASSERT_EQ(empty.RecordSize(), 0);
-    ASSERT_TRUE(empty.Empty());
+    {
+        // a non-member record key (off-grid for step != 1) is not found
+        EXPECT_FALSE(df.HasRecord(Cfg::MissingRecord()));
+    }
+
+    {
+        // a comparable key of a different type resolves the same membership
+        // (heterogeneous comparison for range, convertible/transparent lookup for unique)
+        for (std::size_t r = 0; r < Cfg::REC_COUNT; ++r) EXPECT_TRUE(df.HasRecord(static_cast<short>(Cfg::RecordKey(r))));
+        EXPECT_FALSE(df.HasRecord(static_cast<short>(Cfg::MissingRecord())));
+    }
 }
 
+/**
+ *  @brief Size reports the total number of values (fields * records).
+ *  @see   lugizmo::DataFrame.Size() const -> size_t
+ */
+TYPED_TEST(RM_DataframeProperties, Size)
+{
+    using Cfg = TypeParam;
 
+    {
+        // a populated frame reports fields * records
+        auto const df = Cfg::Build();
+        EXPECT_EQ(df.Size(), Cfg::FLD_COUNT * Cfg::REC_COUNT);
+    }
+
+    {
+        // an empty frame reports 0
+        typename Cfg::DF const empty;
+        EXPECT_EQ(empty.Size(), 0);
+    }
+}
+
+/**
+ *  @brief FieldSize reports the number of fields.
+ *  @see   lugizmo::DataFrame.FieldSize() const -> size_t
+ */
+TYPED_TEST(RM_DataframeProperties, FieldSize)
+{
+    using Cfg = TypeParam;
+
+    {
+        auto const df = Cfg::Build();
+        EXPECT_EQ(df.FieldSize(), Cfg::FLD_COUNT);
+    }
+
+    {
+        typename Cfg::DF const empty;
+        EXPECT_EQ(empty.FieldSize(), 0);
+    }
+}
+
+/**
+ *  @brief RecordSize reports the number of records.
+ *  @see   lugizmo::DataFrame.RecordSize() const -> size_t
+ */
+TYPED_TEST(RM_DataframeProperties, RecordSize)
+{
+    using Cfg = TypeParam;
+
+    {
+        auto const df = Cfg::Build();
+        EXPECT_EQ(df.RecordSize(), Cfg::REC_COUNT);
+    }
+
+    {
+        typename Cfg::DF const empty;
+        EXPECT_EQ(empty.RecordSize(), 0);
+    }
+}
+
+/**
+ *  @brief Empty reports whether the frame holds any values.
+ *  @see   lugizmo::DataFrame.Empty() const -> bool
+ */
+TYPED_TEST(RM_DataframeProperties, Empty)
+{
+    using Cfg = TypeParam;
+
+    {
+        // a populated frame is not empty
+        auto const df = Cfg::Build();
+        EXPECT_FALSE(df.Empty());
+    }
+
+    {
+        // a default-constructed frame is empty
+        typename Cfg::DF const empty;
+        EXPECT_TRUE(empty.Empty());
+    }
+}

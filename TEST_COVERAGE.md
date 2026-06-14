@@ -133,12 +133,14 @@ Test file: [RM_DataframeDropTest.cpp](/lib/test/RM_DataframeDropTest.cpp)
 
 Test file: [RM_DataframePropertiesTest.cpp](/lib/test/RM_DataframePropertiesTest.cpp)
 
-- [ ] ```HasField<C>(C const& field) const -> bool``` — UU:[ ] R1:[ ] Rs:[ ]
-- [ ] ```HasRecord<C>(C const& record) const -> bool``` — UU:[ ] R1:[ ] Rs:[ ]
-- [ ] ```Size() const -> size_t``` — UU:[ ] R1:[ ] Rs:[ ]
-- [ ] ```FieldSize() const -> size_t``` — UU:[ ] R1:[ ] Rs:[ ]
-- [ ] ```RecordSize() const -> size_t``` — UU:[ ] R1:[ ] Rs:[ ]
-- [ ] ```Empty() const -> bool``` — UU:[ ] R1:[ ] Rs:[ ]
+| Done | Function Name                          | Returns | UU | R1 | Rs |
+|------|----------------------------------------|---------|----|----|----|
+| ✅    | HasField<C>(C const& field) const      | bool    | ✔  | ✔  | ✔  |
+| ✅    | HasRecord<C>(C const& record) const    | bool    | ✔  | ✔  | ✔  |
+| ✅    | Size() const                           | size_t  | ✔  | ✔  | ✔  |
+| ✅    | FieldSize() const                      | size_t  | ✔  | ✔  | ✔  |
+| ✅    | RecordSize() const                     | size_t  | ✔  | ✔  | ✔  |
+| ✅    | Empty() const                          | bool    | ✔  | ✔  | ✔  |
 
 ### accessing values
 
@@ -213,7 +215,7 @@ Test file: [RM_DataframeUserTypesTest.cpp](/lib/test/RM_DataframeUserTypesTest.c
 Behavior with user-provided value/key types (not a per-function area).
 
 - [x] non-trivial value type `T` (C++-like move/copy, rule of five): copy/move on add & upsert, destruction, no leaks
-- [ ] `std::string` keys: transparent hash / equality lookup
+- [x] `std::string` keys: transparent hash / equality lookup (`std::string` / `std::string_view` / `const char*`)
 - [ ] `std::chrono` keys: range index + formatting
 
 ---
