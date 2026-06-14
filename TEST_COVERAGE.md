@@ -95,13 +95,13 @@ Test file: [RM_DataframeConstructTest.cpp](/lib/test/RM_DataframeConstructTest.c
 
 Test file: [RM_DataframeAddingTest.cpp](/lib/test/RM_DataframeAddingTest.cpp)
 
-Unique-family (value-index) only:
-
-- [ ] ```AddField(F index, T const& defaultValue) -> bool```
-- [ ] ```AddFields(std::span<F const> const indices, T const& defaultValue) -> std::size_t```
-- [ ] ```AddRecord(R index, T const& defaultValue) -> bool```
-- [ ] ```AddRecords(std::span<R const> const indices, T const& defaultValue) -> std::size_t```
-- [ ] ```AddRecordPopulated(R index, std::span<T const> records) -> bool```
+| Done | Function Name                                       | Returns     | UU | R1 | Rs |
+|------|-----------------------------------------------------|-------------|----|----|----|
+| ✅    | AddField(F index, T const& defaultValue)            | bool        | ✔  | —  | —  |
+| ✅    | AddFields(std::span<F const> indices, T const& def) | std::size_t | ✔  | —  | —  |
+| ✅    | AddRecord(R index, T const& defaultValue)           | bool        | ✔  | —  | —  |
+| ✅    | AddRecords(std::span<R const> indices, T const& def)| std::size_t | ✔  | —  | —  |
+| ☐    | AddRecordPopulated(R index, std::span<T const> recs)| bool        | ✘  | —  | —  |
 
 Range-family (sequence-index) only:
 
@@ -123,8 +123,6 @@ Range-family (sequence-index) only:
 ### removing fields and records
 
 Test file: [RM_DataframeDropTest.cpp](/lib/test/RM_DataframeDropTest.cpp)
-
-Value-index only (`requires DFUnqIndex`); not parameterised over index configs (`—` = n/a).
 
 | Done | Function Name              | Returns | UU | R1 | Rs |
 |------|----------------------------|---------|----|----|----|
@@ -160,10 +158,14 @@ Test file: [RM_DataframeAccessTest.cpp](/lib/test/RM_DataframeAccessTest.cpp)
 
 Test file: [RM_DataframeMutatingTest.cpp](/lib/test/RM_DataframeMutatingTest.cpp)
 
-- [ ] ```AssignValue(FldT const& field, RecT const& record, U&& value) -> bool``` — UU:[ ] R1:[ ] Rs:[ ]
-- [ ] ```UpsertValue(FldT const& field, RecT const& record, U&& value) -> void``` (unique-family only)
+| Done | Function Name                                                | Returns | UU | R1 | Rs |
+|------|--------------------------------------------------------------|---------|----|----|----|
+| ✅    | AssignValue(FldT const& field, RecT const& record, U&& value)| bool    | ✔  | ✔  | ✔  |
+| ✅    | UpsertValue(FldT const& field, RecT const& record, U&& value)| void    | ✔  | —  | —  |
+| ✅    | AssignFieldValues(FldT const& field, std::span<U const> vals)| bool    | ✔  | ✘  | ✘  |
+| ✅    | AssignRecordValues(RecT const& record, std::span<U const> vs)| bool    | ✔  | ✘  | ✘  |
 
-> `AssignValue` on a range index must verify on-grid keys succeed and off-grid keys fail (`Rs`).
+- TODO `AssignFieldValues`/`AssignRecordValues` are index-agnostic but currently only covered for `UU`
 
 ### views
 
