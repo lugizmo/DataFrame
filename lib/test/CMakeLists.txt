@@ -39,8 +39,8 @@ if(LUGIZMO_DF_BUILD_TESTING)
     )
 
     target_sources(LuDataFrameTest PUBLIC
-            RM_DataframeTestData.h
-            RM_DataframeTestConfigs.h
+            RM_HelperDFTestData.h
+            RM_HelperDFTestConfigs.h
     )
 
     target_link_libraries(LuDataFrameTest PUBLIC Lugizmo::DataFrame GTest::gtest)
