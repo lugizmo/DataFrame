@@ -70,43 +70,52 @@ is driven by **GoogleTest typed tests** (`TYPED_TEST_SUITE` + `TYPED_TEST`):
 
 Test file: [RM_DataframeTorsTest.cpp](/lib/test/RM_DataframeTorsTest.cpp)
 
-| Done | Function Name                      | Returns     | UU | R1 | Rs |
-|------|------------------------------------|-------------|----|----|----|
-| ✅    | DataFrame(DataFrame const&)        |             | ✔  | ✔  | ✔  |
-| ✅    | operator=(DataFrame const&)        | DataFrame&  | ✔  | ✔  | ✔  |
-| ✅    | DataFrame(DataFrame&& other)       |             | ✔  | ✔  | ✔  |
-| ✅    | operator=(DataFrame&& other)       | DataFrame&  | ✔  | ✔  | ✔  |
-| ✅    | ~DataFrame()                       |             | ✔  | ✔  | ✔  |
+| Done | Function Name                | Returns    | UU | R1 | Rs |
+|------|------------------------------|------------|----|----|----|
+| ✅    | DataFrame(DataFrame const&)  | DataFrame  | ✔  | ✔  | ✔  |
+| ✅    | operator=(DataFrame const&)  | DataFrame& | ✔  | ✔  | ✔  |
+| ✅    | DataFrame(DataFrame&& other) | DataFrame  | ✔  | ✔  | ✔  |
+| ✅    | operator=(DataFrame&& other) | DataFrame& | ✔  | ✔  | ✔  |
+| ✅    | ~DataFrame()                 |            | ✔  | ✔  | ✔  |
 
 > Lifecycle is typed across all configs; the free path (`~DataFrame`, move-assign) is additionally
 > asserted with a counting memory resource in `RM_DataframeTorsMemory`.
 
 ### Construction
 
-Test file: [RM_DataframeConstructTest.cpp](/lib/test/RM_DataframeConstructTest.cpp)
+Test file: [RM_DataFrameConstructTest.cpp](/lib/test/RM_DataFrameConstructTest.cpp)
 
-- [ ] ```DataFrame(MemRsc res)```
-- [ ] ```DataFrame(size_t reservedValues, MemRsc res)```
-- [ ] ```FromFields(std::conditional_t<IsFISeq, DFRangeIndexBounds<FldT>, std::span<FldT const>> fields, size_t reservedValues, MemRsc res) -> DataFrame```
-- [ ] ```FromFields(std::initializer_list<FldT const> fields, size_t reservedValues, MemRsc res) -> DataFrame```
-- [ ] ```FromFieldsAndRecord(std::conditional_t<IsFISeq, DFRangeIndexBounds<FldT>, std::span<F const>> fldIndices, std::conditional_t<IsRISeq, DFRangeIndexBounds<RecT>, std::span<R const>> recIndices, std::span<T const> recValues, size_t capacity, MemRsc res) -> DataFrame```
-- [ ] ```FromFieldsAndRecords(std::conditional_t<IsFISeq, DFRangeIndexBounds<FldT>, std::span<F const>> fldIndices, std::conditional_t<IsRISeq, DFRangeIndexBounds<RecT>, std::span<R const>> recIndices, IterableOfIterable auto const& recValues, size_t capacity, MemRsc res) -> DataFrame```
-- [ ] ```FromFieldsAndRecords(std::conditional_t<IsFISeq, DFRangeIndexBounds<FldT>, std::initializer_list<F const>> fldIndices, std::conditional_t<IsRISeq, DFRangeIndexBounds<RecT>, std::initializer_list<R const>> recIndices, std::initializer_list<std::initializer_list<T>> recValues, size_t capacity, MemRsc res) -> DataFrame```
+Constructors (index-agnostic):
 
-> Note: `FromFields*` construction is inherently index-family-specific (the `std::conditional_t`
-> parameter selects bounds vs. span), so it is covered per family rather than via the UU/R1/Rs matrix.
+| Done | Function Name                            | Returns   | UU | R1 | Rs |
+|------|------------------------------------------|-----------|----|----|----|
+| ✅    | DataFrame(MemRsc res)                    | DataFrame | ✔  | ✔  | ✔  |
+| ✅    | DataFrame(size_t reservedValues, MemRsc) | DataFrame | ✔  | ✔  | ✔  |
+
+`FromFields*` helpers are index-family-specific (`std::conditional_t` selects bounds vs. span), so
+they are tracked per family rather than via the UU/R1/Rs matrix — value family here, range family in
+the RangeIndices examples:
+
+| Done | Function Name                                                  | Returns   | Family           |
+|------|----------------------------------------------------------------|-----------|------------------|
+| ✅    | FromFields(span fields, reservedValues, res)                   | DataFrame | value            |
+| ☐    | FromFields(initializer_list fields, reservedValues, res)       | DataFrame | value            |
+| ✅    | FromFieldsAndRecord(fields, records, recValues, capacity, res) | DataFrame | value            |
+| ✅    | FromFieldsAndRecords(fields, records, IterableOfIterable, ...) | DataFrame | value            |
+| ✅    | FromFieldsAndRecords(fields, records, initializer_list, ...)   | DataFrame | value            |
+| ☐    | FromFields* / FromFieldsAndRecord* via DFRangeIndexBounds      | DataFrame | range (examples) |
 
 ### Adding Fields and Records
 
 Test file: [RM_DataframeAddingTest.cpp](/lib/test/RM_DataframeAddingTest.cpp)
 
-| Done | Function Name                                       | Returns     | UU | R1 | Rs |
-|------|-----------------------------------------------------|-------------|----|----|----|
-| ✅    | AddField(F index, T const& defaultValue)            | bool        | ✔  | —  | —  |
-| ✅    | AddFields(std::span<F const> indices, T const& def) | std::size_t | ✔  | —  | —  |
-| ✅    | AddRecord(R index, T const& defaultValue)           | bool        | ✔  | —  | —  |
-| ✅    | AddRecords(std::span<R const> indices, T const& def)| std::size_t | ✔  | —  | —  |
-| ☐    | AddRecordPopulated(R index, std::span<T const> recs)| bool        | ✘  | —  | —  |
+| Done | Function Name                                        | Returns     | UU | R1 | Rs |
+|------|------------------------------------------------------|-------------|----|----|----|
+| ✅    | AddField(F index, T const& defaultValue)             | bool        | ✔  | —  | —  |
+| ✅    | AddFields(std::span<F const> indices, T const& def)  | std::size_t | ✔  | —  | —  |
+| ✅    | AddRecord(R index, T const& defaultValue)            | bool        | ✔  | —  | —  |
+| ✅    | AddRecords(std::span<R const> indices, T const& def) | std::size_t | ✔  | —  | —  |
+| ☐    | AddRecordPopulated(R index, std::span<T const> recs) | bool        | ✘  | —  | —  |
 
 Range-family (sequence-index) only:
 

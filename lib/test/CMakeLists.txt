@@ -19,12 +19,12 @@ if(LUGIZMO_DF_BUILD_TESTING)
             # old sources pending conversion / move
             DataframeTest.cpp
             DataframeRangeIndexTest.cpp
-            DataFrameConstructRowMajorTest.cpp
 
             # memory
             memory/MemoryTest.cpp
 
             # row major
+            RM_DataFrameConstructTest.cpp
             RM_DataFrameTorsTest.cpp
             RM_DataFrameAddingTest.cpp
             RM_DataFrameAccessTest.cpp
