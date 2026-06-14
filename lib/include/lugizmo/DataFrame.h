@@ -428,14 +428,14 @@ namespace lugizmo {
          *  @param comp comparator used to order fields.
          */
         template<typename Compare = std::less<FldT>>
-        void SortFields(Compare comp = {});
+        void SortFields(Compare comp = {}) requires DFUnqIndex<FldI>;
 
         /**
          *  @brief Sort record indices and reorder the stored rows to match the new order.
          *  @param comp comparator used to order records.
          */
         template<typename Compare = std::less<RecT>>
-        void SortRecords(Compare comp = {});
+        void SortRecords(Compare comp = {}) requires DFUnqIndex<RecI>;
 
         // ======== VIEWS ==========================================================================================================================================================
 
@@ -1368,24 +1368,18 @@ namespace lugizmo {
 
     template <typename T, typename F, typename R, typename L>
     template<typename Compare>
-    void DataFrame<T, F, R, L>::SortFields(Compare comp)
+    void DataFrame<T, F, R, L>::SortFields(Compare comp) requires DFUnqIndex<FldI>
     {
-        if constexpr(DFUnqIndex<FldI>)
-        {
-            auto const permutation = fldIndex.Sort(std::move(comp));
-            Layout::ReorderColumns(data, capacity, *backingRes.get(), recsData, permutation);
-        }
+        auto const permutation = fldIndex.Sort(std::move(comp));
+        Layout::ReorderColumns(data, capacity, *backingRes.get(), recsData, permutation);
     }
 
     template <typename T, typename F, typename R, typename L>
     template<typename Compare>
-    void DataFrame<T, F, R, L>::SortRecords(Compare comp)
+    void DataFrame<T, F, R, L>::SortRecords(Compare comp) requires DFUnqIndex<RecI>
     {
-        if constexpr(DFUnqIndex<RecI>)
-        {
-            auto const permutation = recIndex.Sort(std::move(comp));
-            Layout::ReorderRows(data, capacity, *backingRes.get(), recsData, permutation);
-        }
+        auto const permutation = recIndex.Sort(std::move(comp));
+        Layout::ReorderRows(data, capacity, *backingRes.get(), recsData, permutation);
     }
 
     // ======== VIEWS ==============================================================================================================================================================

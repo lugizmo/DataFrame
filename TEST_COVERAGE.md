@@ -190,8 +190,12 @@ Test file: [RM_DataframeViewsTest.cpp](/lib/test/RM_DataframeViewsTest.cpp)
 
 Test file: [RM_DataframeSortTest.cpp](/lib/test/RM_DataframeSortTest.cpp)
 
-- [ ] ```SortFields(Compare comp = {})``` — UU:[ ] R1:[ ] Rs:[ ]
-- [ ] ```SortRecords(Compare comp = {})``` — UU:[ ] R1:[ ] Rs:[ ]
+Value-index only (`requires DFUnqIndex`; an arithmetic range is already ordered); `—` = n/a.
+
+| Done | Function Name              | Returns | UU | R1 | Rs |
+|------|----------------------------|---------|----|----|----|
+| ✅    | SortFields(Compare comp)   | void    | ✔  | —  | —  |
+| ✅    | SortRecords(Compare comp)  | void    | ✔  | —  | —  |
 
 ### functional
 
