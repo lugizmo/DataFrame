@@ -15,25 +15,25 @@ if(LUGIZMO_DF_BUILD_TESTING)
             dataframe/LayoutRowMajorTest.cpp
             #dataframe/DFViewTest.cpp
             meta/DeducingThisTest.cpp
+
+            # old sources pending conversion / move
             DataframeTest.cpp
             DataframeRangeIndexTest.cpp
             DataFrameConstructRowMajorTest.cpp
-            DataFrameIterateRowMajorTest.cpp
-            DataFrameAccessRowMajorTest.cpp
 
             # memory
             memory/MemoryTest.cpp
 
             # row major
-            RM_DataframeTorsTest.cpp
-            RM_DataframeAddingTest.cpp
-            RM_DataframeAccessTest.cpp
-            RM_DataframeMutatingTest.cpp
-            RM_DataframeViewsTest.cpp
-            RM_DataframePropertiesTest.cpp
-            RM_DataframeUserTypesTest.cpp
-            RM_DataframeDropTest.cpp
-            RM_DataframeSortTest.cpp
+            RM_DataFrameTorsTest.cpp
+            RM_DataFrameAddingTest.cpp
+            RM_DataFrameAccessTest.cpp
+            RM_DataFrameMutatingTest.cpp
+            RM_DataFrameViewsTest.cpp
+            RM_DataFramePropertiesTest.cpp
+            RM_DataFrameUserTypesTest.cpp
+            RM_DataFrameDropTest.cpp
+            RM_DataFrameSortTest.cpp
 
             main.cpp
     )
