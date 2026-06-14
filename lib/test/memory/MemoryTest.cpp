@@ -4,48 +4,82 @@
 // See the LICENSE file in the project root or at
 // http://www.apache.org/licenses/LICENSE-2.0 for full license information.
 
+//
+// Test the memory helpers (alignment and growth policy).
+// The following functions are tested here (with names of tests):
+//
+// ✅ AlignmentAtLeastAlignof / AlignmentIsPowerOfTwo / AlignmentTypicalValues / AlignmentNonArithmetic
+// - Alignment<T>()
+//
+// ✅ AllocateAlignedIsAligned / AlignedHelpersHandleZeroCount
+// - AllocateAligned<T>(res, count) / DeallocateAligned(res, ptr, count)
+//
+// ✅ GrowthDefault*
+// - GrowthFactorDefault(count)
+//
+
 #include "gtest/gtest.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <limits>
 #include <memory_resource>
+#include <new>
 
 #include "lugizmo/memory/Memory.h"
 
-/// @brief Alignments should always be a power of two.
-template<typename T>
-constexpr bool IsPowerOfTwo(T const n) noexcept { return n && (n & n - 1) == 0; }
+using namespace lugizmo::internal;
 
-TEST(lugizmo_dataframe_memory_align, _at_least_align_t)
+namespace {
+
+    /// @brief Alignments should always be a power of two.
+    template<typename T>
+    constexpr bool IsPowerOfTwo(T const n) noexcept { return n != 0 && (n & (n - 1)) == 0; }
+
+} // namespace
+
+/**
+ *  @brief Alignment<T>() is never weaker than alignof(T).
+ *  @see   lugizmo::internal::Alignment<T>()
+ */
+TEST(MemoryMemoryAlign, AlignmentAtLeastAlignof)
 {
-    using namespace lugizmo::internal;
     EXPECT_GE(Alignment<int>(), alignof(int));
     EXPECT_GE(Alignment<double>(), alignof(double));
     EXPECT_GE(Alignment<std::max_align_t>(), alignof(std::max_align_t));
 }
 
-TEST(lugizmo_dataframe_memory_align, power_of_two)
+/**
+ *  @brief Alignment<T>() is always a power of two.
+ *  @see   lugizmo::internal::Alignment<T>()
+ */
+TEST(MemoryMemoryAlign, AlignmentIsPowerOfTwo)
 {
-    using namespace lugizmo::internal;
     EXPECT_TRUE(IsPowerOfTwo(Alignment<int>()));
     EXPECT_TRUE(IsPowerOfTwo(Alignment<double>()));
     EXPECT_TRUE(IsPowerOfTwo(Alignment<std::byte>()));
 }
 
-TEST(lugizmo_dataframe_memory_align, typical_values)
+/**
+ *  @brief Alignment<T>() lands on a typical cacheline / SIMD value.
+ *  @see   lugizmo::internal::Alignment<T>()
+ */
+TEST(MemoryMemoryAlign, AlignmentTypicalValues)
 {
-    using namespace lugizmo::internal;
-
     constexpr auto cache = std::hardware_destructive_interference_size;
     constexpr auto aI32  = Alignment<std::int32_t>();
     constexpr auto aF64  = Alignment<double>();
 
-    // Typical cacheline / SIMD alignments are 16, 32, or 64 bytes.
     EXPECT_TRUE(aI32 == cache or aI32 == 16 or aI32 == 32 or aI32 == 64 or aI32 == alignof(int));
     EXPECT_TRUE(aF64 == cache or aF64 == 16 or aF64 == 32 or aF64 == 64 or aF64 == alignof(double));
 }
 
-TEST(lugizmo_dataframe_memory_align, non_arithmetic_types)
+/**
+ *  @brief Alignment<T>() works for non-arithmetic types.
+ *  @see   lugizmo::internal::Alignment<T>()
+ */
+TEST(MemoryMemoryAlign, AlignmentNonArithmetic)
 {
-    using namespace lugizmo::internal;
     struct Dummy { char data[3]; };
 
     constexpr auto aDummy = Alignment<Dummy>();
@@ -53,9 +87,12 @@ TEST(lugizmo_dataframe_memory_align, non_arithmetic_types)
     EXPECT_TRUE(IsPowerOfTwo(aDummy));
 }
 
-TEST(lugizmo_dataframe_memory_align, allocated_pointer_aligned)
+/**
+ *  @brief AllocateAligned returns a pointer aligned to Alignment<T>().
+ *  @see   lugizmo::internal::AllocateAligned<T> / DeallocateAligned
+ */
+TEST(MemoryMemoryAlign, AllocateAlignedIsAligned)
 {
-    using namespace lugizmo::internal;
     std::pmr::monotonic_buffer_resource res;
 
     auto* ptr = AllocateAligned<double>(res, 10);
@@ -65,9 +102,12 @@ TEST(lugizmo_dataframe_memory_align, allocated_pointer_aligned)
     DeallocateAligned(res, ptr, 10);
 }
 
-TEST(lugizmo_dataframe_memory_align, aligned_helpers_handle_zero_count)
+/**
+ *  @brief A zero count allocates nothing and deallocating a null pointer is safe.
+ *  @see   lugizmo::internal::AllocateAligned<T> / DeallocateAligned
+ */
+TEST(MemoryMemoryAlign, AlignedHelpersHandleZeroCount)
 {
-    using namespace lugizmo::internal;
     std::pmr::monotonic_buffer_resource res;
 
     auto* ptr = AllocateAligned<double>(res, 0);
@@ -76,31 +116,42 @@ TEST(lugizmo_dataframe_memory_align, aligned_helpers_handle_zero_count)
     DeallocateAligned(res, ptr, 0);
 }
 
-TEST(lugizmo_dataframe_memory_growth, default_double_small_values)
+/**
+ *  @brief GrowthFactorDefault doubles for small inputs.
+ *  @see   lugizmo::internal::GrowthFactorDefault(count)
+ */
+TEST(MemoryMemoryGrowth, GrowthDefaultSmallValues)
 {
-    using namespace lugizmo::internal;
     EXPECT_EQ(GrowthFactorDefault(0u), 8u);
     EXPECT_EQ(GrowthFactorDefault(10u), 20u);
     EXPECT_EQ(GrowthFactorDefault(999'999u), 1'999'998u);
 }
 
-TEST(lugizmo_dataframe_memory_growth, default_mid_range)
+/**
+ *  @brief GrowthFactorDefault grows by a smaller factor in the mid range.
+ *  @see   lugizmo::internal::GrowthFactorDefault(count)
+ */
+TEST(MemoryMemoryGrowth, GrowthDefaultMidRange)
 {
-    using namespace lugizmo::internal;
     EXPECT_EQ(GrowthFactorDefault(1'000'000u), 1'250'000u);
 }
 
-TEST(lugizmo_dataframe_memory_growth, default_huge_values)
+/**
+ *  @brief GrowthFactorDefault grows by a fixed slab for huge inputs.
+ *  @see   lugizmo::internal::GrowthFactorDefault(count)
+ */
+TEST(MemoryMemoryGrowth, GrowthDefaultHugeValues)
 {
-    using namespace lugizmo::internal;
     constexpr std::size_t big = 300'000'000;
-
     EXPECT_EQ(GrowthFactorDefault(big), big + 32'000'000);
 }
 
-TEST(lugizmo_dataframe_memory_growth, default_prevents_overflow)
+/**
+ *  @brief GrowthFactorDefault saturates instead of overflowing.
+ *  @see   lugizmo::internal::GrowthFactorDefault(count)
+ */
+TEST(MemoryMemoryGrowth, GrowthDefaultPreventsOverflow)
 {
-    using namespace lugizmo::internal;
     constexpr auto max = std::numeric_limits<std::size_t>::max();
     EXPECT_EQ(GrowthFactorDefault(max - 10), max);
 }

@@ -4,6 +4,15 @@
 // See the LICENSE file in the project root or at
 // http://www.apache.org/licenses/LICENSE-2.0 for full license information.
 
+//
+// Test the deducing-this meta helpers.
+// The following helpers are tested here (with names of tests):
+//
+// ✅ IsConstThis        - IsConstThis<Self>
+// ✅ ValueAliases       - ThisValueT / ThisValueRefT
+// ✅ SpanAndWrapAliases - ThisValueSpanT / ThisRefWrapperT / ThisRefWrapperOptT
+//
+
 #include "gtest/gtest.h"
 
 #include <functional>
@@ -13,53 +22,49 @@
 
 #include "lugizmo/meta/DeducingThis.h"
 
-TEST(lugizmo_meta_deducing_this_test, is_const_this)
+using namespace lugizmo::meta;
+
+/**
+ *  @brief IsConstThis reports constness of a deduced `this` type.
+ *  @see   lugizmo::meta::IsConstThis<Self>
+ */
+TEST(MetaDeducingThis, IsConstThis)
 {
-    using namespace lugizmo::meta;
+    static_assert(not IsConstThis<int&>());
+    static_assert(IsConstThis<int const&>());
+    static_assert(IsConstThis<int const&&>());
+    static_assert(not IsConstThis<int>());
+    static_assert(IsConstThis<int const>());
 
-    constexpr auto mut    = IsConstThis<int&>();
-    constexpr auto cst    = IsConstThis<int const&>();
-    constexpr auto cstRv  = IsConstThis<int const&&>();
-    constexpr auto noRef  = IsConstThis<int>();
-    constexpr auto noRefC = IsConstThis<int const>();
-
-    ASSERT_FALSE(mut);
-    ASSERT_TRUE(cst);
-    ASSERT_TRUE(cstRv);
-    ASSERT_FALSE(noRef);
-    ASSERT_TRUE(noRefC);
+    SUCCEED();
 }
 
-TEST(lugizmo_meta_deducing_this_test, value_and_reference_type_aliases)
+/**
+ *  @brief ThisValueT / ThisValueRefT carry constness from the deduced `this` to a value type.
+ *  @see   lugizmo::meta::ThisValueT / ThisValueRefT
+ */
+TEST(MetaDeducingThis, ValueAliases)
 {
-    using namespace lugizmo::meta;
+    static_assert(std::is_same_v<ThisValueT<int&, long>, long>);
+    static_assert(std::is_same_v<ThisValueT<int const&, long>, long const>);
+    static_assert(std::is_same_v<ThisValueRefT<int&, long>, long&>);
+    static_assert(std::is_same_v<ThisValueRefT<int const&, long>, long const&>);
 
-    constexpr auto mutValue    = std::is_same_v<ThisValueT<int&, long>, long>;
-    constexpr auto constValue  = std::is_same_v<ThisValueT<int const&, long>, long const>;
-    constexpr auto mutValueRef = std::is_same_v<ThisValueRefT<int&, long>, long&>;
-    constexpr auto cstValueRef = std::is_same_v<ThisValueRefT<int const&, long>, long const&>;
-
-    ASSERT_TRUE(mutValue);
-    ASSERT_TRUE(constValue);
-    ASSERT_TRUE(mutValueRef);
-    ASSERT_TRUE(cstValueRef);
+    SUCCEED();
 }
 
-TEST(lugizmo_meta_deducing_this_test, span_and_reference_wrapper_aliases)
+/**
+ *  @brief ThisValueSpanT / ThisRefWrapperT / ThisRefWrapperOptT carry constness into span/wrappers.
+ *  @see   lugizmo::meta::ThisValueSpanT / ThisRefWrapperT / ThisRefWrapperOptT
+ */
+TEST(MetaDeducingThis, SpanAndWrapAliases)
 {
-    using namespace lugizmo::meta;
+    static_assert(std::is_same_v<ThisValueSpanT<int&, int>, std::span<int>>);
+    static_assert(std::is_same_v<ThisValueSpanT<int const&, int>, std::span<int const>>);
+    static_assert(std::is_same_v<ThisRefWrapperT<int&, int>, std::reference_wrapper<int>>);
+    static_assert(std::is_same_v<ThisRefWrapperT<int const&, int>, std::reference_wrapper<int const>>);
+    static_assert(std::is_same_v<ThisRefWrapperOptT<int&, int>, std::optional<std::reference_wrapper<int>>>);
+    static_assert(std::is_same_v<ThisRefWrapperOptT<int const&, int>, std::optional<std::reference_wrapper<int const>>>);
 
-    constexpr auto mutSpan = std::is_same_v<ThisValueSpanT<int&, int>, std::span<int>>;
-    constexpr auto cstSpan = std::is_same_v<ThisValueSpanT<int const&, int>, std::span<int const>>;
-    constexpr auto mutWrap = std::is_same_v<ThisRefWrapperT<int&, int>, std::reference_wrapper<int>>;
-    constexpr auto cstWrap = std::is_same_v<ThisRefWrapperT<int const&, int>, std::reference_wrapper<int const>>;
-    constexpr auto mutOpt  = std::is_same_v<ThisRefWrapperOptT<int&, int>, std::optional<std::reference_wrapper<int>>>;
-    constexpr auto cstOpt  = std::is_same_v<ThisRefWrapperOptT<int const&, int>, std::optional<std::reference_wrapper<int const>>>;
-
-    ASSERT_TRUE(mutSpan);
-    ASSERT_TRUE(cstSpan);
-    ASSERT_TRUE(mutWrap);
-    ASSERT_TRUE(cstWrap);
-    ASSERT_TRUE(mutOpt);
-    ASSERT_TRUE(cstOpt);
+    SUCCEED();
 }
