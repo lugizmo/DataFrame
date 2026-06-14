@@ -14,7 +14,7 @@ RM_Dataframe<Area>Test.cpp
   (e.g. index, container, memory tests). A future column-major suite would use `CM_`.
 - `<Area>` groups by functional area (`Tors`, `Construct`, `Adding`, `Drop`,
   `Properties`, `Access`, `Mutating`, `Views`, `Sort`, `Functional`, `Io`,
-  `NonTrivialType`).
+  `UserTypes`).
 
 Usability / example tests live in `lib/test/examples/` and follow:
 
@@ -206,11 +206,15 @@ Test file: _TODO_
 - [ ] ```PrintTo(std::ostream& stream) const -> void```
 - [ ] ```PrintCSV(std::ostream& stream, char sep) const -> void```
 
-### non-trivial element types
+### user types
 
-Test file: [RM_DataframeNonTrivialTypeTest.cpp](/lib/test/RM_DataframeNonTrivialTypeTest.cpp)
+Test file: [RM_DataframeUserTypesTest.cpp](/lib/test/RM_DataframeUserTypesTest.cpp)
 
-- [ ] move/copy/destruction semantics for non-trivially-copyable `T`
+Behavior with user-provided value/key types (not a per-function area).
+
+- [x] non-trivial value type `T` (C++-like move/copy, rule of five): copy/move on add & upsert, destruction, no leaks
+- [ ] `std::string` keys: transparent hash / equality lookup
+- [ ] `std::chrono` keys: range index + formatting
 
 ---
 
