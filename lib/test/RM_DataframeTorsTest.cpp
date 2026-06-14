@@ -5,43 +5,43 @@
 // http://www.apache.org/licenses/LICENSE-2.0 for full license information.
 
 //
-// Test the dataframe constructors/destructor (lifecycle) for the row-major layout.
+// Test the dataframe copy/move constructors, assignment operators, and destructor. The lifecycle
+// is index-agnostic, so it is exercised across every index configuration via TYPED_TEST; the two
+// memory-release tests (using a counting resource) are plain since the free path is index-neutral.
 // The following functions are tested here (with names of tests):
 //
-// ✅ move_construction / move_assignment
-// - DataFrame(DataFrame&& other) noexcept;
-// - auto operator=(DataFrame&& other) noexcept -> DataFrame&;
+// ✅ MoveConstruction
+// - DataFrame(DataFrame&& other) noexcept
 //
-// ✅ copy_construction / copy_assignment / self_copy_assignment
-// - DataFrame(DataFrame const&) noexcept;
-// - auto operator=(DataFrame const&) noexcept -> DataFrame&;
+// ✅ MoveAssignment / MoveAssignmentReleasesTargetMemory
+// - operator=(DataFrame&& other) noexcept -> DataFrame&
 //
-// ✅ destructor_releases_memory / move_assignment_releases_target_memory
-// - ~DataFrame() noexcept;
+// ✅ CopyConstruction
+// - DataFrame(DataFrame const&) noexcept
 //
-
-#include <cstddef>
-#include <memory>
-#include <memory_resource>
-#include <string>
-#include <vector>
+// ✅ CopyAssignment / SelfCopyAssignment
+// - operator=(DataFrame const&) noexcept -> DataFrame&
+//
+// ✅ DestructorReleasesMemory
+// - ~DataFrame() noexcept
+//
 
 #include "gtest/gtest.h"
 
-#include "lugizmo/DataFrame.h"
+#include <array>
+#include <cstddef>
+#include <memory>
+#include <memory_resource>
 
-#include "RM_DataframeTestData.h"
+#include "RM_DataframeTestConfigs.h"
+
+using namespace lugizmo;
+using namespace lugizmo::test;
 
 namespace {
 
-    /**
-     *  @brief Memory resource that tracks outstanding bytes and alloc/free counts,
-     *         forwarding the actual work to the new/delete resource.
-     *
-     *  Used to assert that the dataframe releases everything it allocated, which
-     *  validates the destructor and the move-assignment free path deterministically
-     *  (i.e. without relying on sanitizers/valgrind).
-     */
+    // Memory resource that tracks outstanding bytes and alloc/free counts, forwarding the work to
+    // the new/delete resource. Lets the destructor / move-assign free path be asserted deterministically.
     class CountingResource final : public std::pmr::memory_resource
     {
     public:
@@ -64,184 +64,207 @@ namespace {
             std::pmr::new_delete_resource()->deallocate(ptr, bytes, align);
         }
 
-        [[nodiscard]] auto do_is_equal(memory_resource const& other) const noexcept -> bool override
-        {
-            return this == &other;
-        }
+        [[nodiscard]] auto do_is_equal(memory_resource const& other) const noexcept -> bool override { return this == &other; }
 
         std::size_t outstanding = 0;
         std::size_t allocCount  = 0;
         std::size_t freeCount   = 0;
     };
 
-    /// @brief Assert that every cell of @param df equals the expected @p data laid out as [record][field].
-    template<typename DF, typename Flds, typename Recs, typename Data>
-    void ExpectContentEquals(DF const& df, Flds const& flds, Recs const& recs, Data const& data)
+    // Builds a populated frame whose cell (field f, record r) holds `r * FLD_COUNT + f`.
+    template<typename Cfg>
+    auto BuildFilled() -> typename Cfg::DF
     {
-        std::size_t fldCount = 0;
-        for(auto const& fldName : flds)
+        auto df = Cfg::Build();
+        for (std::size_t f = 0; f < Cfg::FLD_COUNT; ++f)
         {
-            std::size_t recCount = 0;
-            for(auto const& recName : recs)
+            for (std::size_t r = 0; r < Cfg::REC_COUNT; ++r)
             {
-                auto const val = df.GetValue(fldName, recName);
-                ASSERT_TRUE(val.HasValue());
-                EXPECT_EQ(*val, data[recCount][fldCount]);
-                ++recCount;
+                df.AssignValue(Cfg::FieldKey(f), Cfg::RecordKey(r), static_cast<int>(r * Cfg::FLD_COUNT + f));
             }
-            ++fldCount;
         }
+        return df;
+    }
+
+    // Asserts every cell of a BuildFilled-shaped frame holds its expected value.
+    template<typename Cfg, typename DF>
+    void ExpectFilled(DF const& df)
+    {
+        for (std::size_t f = 0; f < Cfg::FLD_COUNT; ++f)
+        {
+            for (std::size_t r = 0; r < Cfg::REC_COUNT; ++r)
+            {
+                auto const val = df.GetValue(Cfg::FieldKey(f), Cfg::RecordKey(r));
+                ASSERT_TRUE(val.HasValue());
+                EXPECT_EQ(*val, static_cast<int>(r * Cfg::FLD_COUNT + f));
+            }
+        }
+    }
+
+    // Builds a populated 3x3 int frame on the given resource (for the memory-release tests).
+    auto BuildOnResource(DataFrame<int, int, int>::MemRsc const& res) -> DataFrame<int, int, int>
+    {
+        auto df = DataFrame<int, int, int>{0, res};
+        df.AddFields(std::array{0, 1, 2});
+        df.AddRecords(std::array{0, 1, 2});
+        for (int f = 0; f < 3; ++f)
+        {
+            for (int r = 0; r < 3; ++r) df.AssignValue(f, r, r * 3 + f);
+        }
+        return df;
     }
 
 } // namespace
 
+// ======= Lifecycle (index-agnostic) =============================================================
+
+template<typename>
+class RM_DataframeTors: public testing::Test // NOLINT(readability-identifier-naming)
+{
+};
+
+TYPED_TEST_SUITE(RM_DataframeTors, IndexConfigs);
+
 /**
  *  @brief Moving a dataframe transfers ownership and leaves the source empty.
- *  @see   lugizmo::DataFrame::DataFrame(DataFrame&& other) noexcept;
+ *  @see   lugizmo::DataFrame::DataFrame(DataFrame&& other) noexcept
  */
-TEST(lugizmo_dataframe_tors_row_major, move_construction)
+TYPED_TEST(RM_DataframeTors, MoveConstruction)
 {
-    using namespace lugizmo;
-    using namespace lugizmo::test::str;
+    using Cfg = TypeParam;
+    auto df   = BuildFilled<Cfg>();
 
-    auto df = DefaultDataframe();
-    ASSERT_EQ(df.Records().size(), DFRecCount);
-    ASSERT_EQ(df.Fields().size(), DFFldCount);
-    ASSERT_NE(df.Data(), nullptr);
+    auto const moved = std::move(df);
 
-    auto const mvDf = std::move(df);
+    {
+        // moved-from frame is empty and detached from storage
+        EXPECT_EQ(df.FieldSize(), 0u);  // NOLINT(bugprone-use-after-move) intentional: validating moved-from state
+        EXPECT_EQ(df.RecordSize(), 0u);
+        EXPECT_EQ(df.Values().size(), 0u);
+        EXPECT_EQ(df.Data(), nullptr);
+    }
 
-    // moved-from: empty and detached from storage
-    EXPECT_EQ(df.Records().size(), 0u); // NOLINT(bugprone-use-after-move) intentional: validating moved-from state
-    EXPECT_EQ(df.Fields().size(), 0u);
-    EXPECT_EQ(df.Values().size(), 0u);
-    EXPECT_EQ(df.Data(), nullptr);
-
-    // moved-to: owns the data and keeps all indices
-    EXPECT_EQ(mvDf.Records().size(), DFRecCount);
-    EXPECT_EQ(mvDf.Fields().size(), DFFldCount);
-    EXPECT_EQ(mvDf.Values().size(), DFRecCount * DFFldCount);
-    ASSERT_NE(mvDf.Data(), nullptr);
-
-    for(auto const& rec : DFRecords) EXPECT_TRUE(mvDf.HasRecord(rec));
-    for(auto const& fld : DFFields)  EXPECT_TRUE(mvDf.HasField(fld));
-    ExpectContentEquals(mvDf, DFFields, DFRecords, DFData);
+    {
+        // moved-to frame owns the data and keeps all content
+        ASSERT_NE(moved.Data(), nullptr);
+        EXPECT_EQ(moved.FieldSize(), Cfg::FLD_COUNT);
+        EXPECT_EQ(moved.RecordSize(), Cfg::REC_COUNT);
+        ExpectFilled<Cfg>(moved);
+    }
 }
 
 /**
  *  @brief Move-assigning transfers ownership into the target and empties the source.
- *  @see   lugizmo::DataFrame::operator=(DataFrame&& other) noexcept -> DataFrame&;
+ *  @see   lugizmo::DataFrame::operator=(DataFrame&& other) noexcept -> DataFrame&
  */
-TEST(lugizmo_dataframe_tors_row_major, move_assignment)
+TYPED_TEST(RM_DataframeTors, MoveAssignment)
 {
-    using namespace lugizmo;
-    using namespace lugizmo::test::integer;
+    using Cfg = TypeParam;
 
     // move into a populated target to exercise the free-then-take path
-    auto src = DefaultDataframe();
-    auto dst = DefaultDataframe();
+    auto src = BuildFilled<Cfg>();
+    auto dst = BuildFilled<Cfg>();
 
     dst = std::move(src);
 
-    EXPECT_EQ(src.Data(), nullptr); // NOLINT(bugprone-use-after-move) intentional: validating moved-from state
-    EXPECT_EQ(src.Records().size(), 0u);
-    EXPECT_EQ(src.Fields().size(), 0u);
+    EXPECT_EQ(src.Data(), nullptr);  // NOLINT(bugprone-use-after-move) intentional
+    EXPECT_EQ(src.FieldSize(), 0u);
+    EXPECT_EQ(src.RecordSize(), 0u);
 
     ASSERT_NE(dst.Data(), nullptr);
-    EXPECT_EQ(dst.Records().size(), DFRecCount);
-    EXPECT_EQ(dst.Fields().size(), DFFldCount);
-    ExpectContentEquals(dst, DFFields, DFRecords, DFData);
+    EXPECT_EQ(dst.FieldSize(), Cfg::FLD_COUNT);
+    EXPECT_EQ(dst.RecordSize(), Cfg::REC_COUNT);
+    ExpectFilled<Cfg>(dst);
 }
 
 /**
  *  @brief Copying yields an independent deep copy: same content, separate storage.
- *  @see   lugizmo::DataFrame::DataFrame(DataFrame const&) noexcept;
+ *  @see   lugizmo::DataFrame::DataFrame(DataFrame const&) noexcept
  */
-TEST(lugizmo_dataframe_tors_row_major, copy_construction)
+TYPED_TEST(RM_DataframeTors, CopyConstruction)
 {
-    using namespace lugizmo;
-    using namespace lugizmo::test::integer;
-
-    auto orig = DefaultDataframe();
+    using Cfg = TypeParam;
+    auto orig = BuildFilled<Cfg>();
     auto copy = orig;
 
-    // independent storage, identical shape and content
-    ASSERT_NE(copy.Data(), nullptr);
-    EXPECT_NE(orig.Data(), copy.Data());
-    EXPECT_EQ(copy.Records().size(), orig.Records().size());
-    EXPECT_EQ(copy.Fields().size(), orig.Fields().size());
-    ExpectContentEquals(copy, DFFields, DFRecords, DFData);
+    {
+        // independent storage, identical shape and content
+        ASSERT_NE(copy.Data(), nullptr);
+        EXPECT_NE(orig.Data(), copy.Data());
+        EXPECT_EQ(copy.FieldSize(), Cfg::FLD_COUNT);
+        EXPECT_EQ(copy.RecordSize(), Cfg::REC_COUNT);
+        ExpectFilled<Cfg>(copy);
+    }
 
-    // mutating the copy must not affect the original
-    copy[DFFields[0], DFRecords[0]] = 9999;
-    auto const val = copy[DFFields[0], DFRecords[0]];
-    EXPECT_EQ(val, 9999);
+    {
+        // mutating the copy must not affect the original
+        copy[Cfg::FieldKey(0), Cfg::RecordKey(0)] = 9999;
+        EXPECT_EQ((copy[Cfg::FieldKey(0), Cfg::RecordKey(0)]), 9999);
 
-    auto const origVal = orig.GetValue(DFFields[0], DFRecords[0]);
-    ASSERT_TRUE(origVal.HasValue());
-    EXPECT_EQ(*origVal, DFData[0][0]);
+        auto const origVal = orig.GetValue(Cfg::FieldKey(0), Cfg::RecordKey(0));
+        ASSERT_TRUE(origVal.HasValue());
+        EXPECT_EQ(*origVal, 0);
+    }
 }
 
 /**
  *  @brief Copy-assigning produces an independent deep copy of the source.
- *  @see   lugizmo::DataFrame::operator=(DataFrame const&) noexcept -> DataFrame&;
+ *  @see   lugizmo::DataFrame::operator=(DataFrame const&) noexcept -> DataFrame&
  */
-TEST(lugizmo_dataframe_tors_row_major, copy_assignment)
+TYPED_TEST(RM_DataframeTors, CopyAssignment)
 {
-    using namespace lugizmo;
-    using namespace lugizmo::test::integer;
-
-    auto orig = DefaultDataframe();
-    auto dst  = DataFrame<int, int, int>{};
+    using Cfg = TypeParam;
+    auto orig = BuildFilled<Cfg>();
+    typename Cfg::DF dst;
 
     dst = orig;
 
-    ASSERT_NE(dst.Data(), nullptr);
-    EXPECT_NE(dst.Data(), orig.Data());
-    EXPECT_EQ(dst.Records().size(), DFRecCount);
-    EXPECT_EQ(dst.Fields().size(), DFFldCount);
-    ExpectContentEquals(dst, DFFields, DFRecords, DFData);
+    {
+        // deep copy: separate storage, identical content
+        ASSERT_NE(dst.Data(), nullptr);
+        EXPECT_NE(dst.Data(), orig.Data());
+        ExpectFilled<Cfg>(dst);
+    }
 
-    // independence after assignment
-    dst[DFFields[1], DFRecords[1]] = -1;
-    auto const origVal = orig.GetValue(DFFields[1], DFRecords[1]);
-    ASSERT_TRUE(origVal.HasValue());
-    EXPECT_EQ(*origVal, DFData[1][1]);
+    {
+        // independence after assignment
+        dst[Cfg::FieldKey(1), Cfg::RecordKey(1)] = -1;
+        auto const origVal = orig.GetValue(Cfg::FieldKey(1), Cfg::RecordKey(1));
+        ASSERT_TRUE(origVal.HasValue());
+        EXPECT_EQ(*origVal, static_cast<int>(1 * Cfg::FLD_COUNT + 1));
+    }
 }
 
 /**
  *  @brief Self-copy-assignment is a no-op and keeps the dataframe valid.
- *  @see   lugizmo::DataFrame::operator=(DataFrame const&) noexcept -> DataFrame&;
+ *  @see   lugizmo::DataFrame::operator=(DataFrame const&) noexcept -> DataFrame&
  */
-TEST(lugizmo_dataframe_tors_row_major, self_copy_assignment)
+TYPED_TEST(RM_DataframeTors, SelfCopyAssignment)
 {
-    using namespace lugizmo;
-    using namespace lugizmo::test::integer;
-
-    auto df = DefaultDataframe();
+    using Cfg = TypeParam;
+    auto df = BuildFilled<Cfg>();
 
     // route through a pointer so the compiler does not flag the obvious self-assign
     auto const* const self = &df;
     df = *self;
 
     ASSERT_NE(df.Data(), nullptr);
-    EXPECT_EQ(df.Records().size(), DFRecCount);
-    EXPECT_EQ(df.Fields().size(), DFFldCount);
-    ExpectContentEquals(df, DFFields, DFRecords, DFData);
+    EXPECT_EQ(df.FieldSize(), Cfg::FLD_COUNT);
+    EXPECT_EQ(df.RecordSize(), Cfg::REC_COUNT);
+    ExpectFilled<Cfg>(df);
 }
+
+// ======= Memory release (index-neutral; counting resource) ======================================
 
 /**
  *  @brief The destructor releases every byte the dataframe allocated.
- *  @see   lugizmo::DataFrame::~DataFrame() noexcept;
+ *  @see   lugizmo::DataFrame::~DataFrame() noexcept
  */
-TEST(lugizmo_dataframe_tors_row_major, destructor_releases_memory)
+TEST(RM_DataframeTorsMemory, DestructorReleasesMemory)
 {
-    using namespace lugizmo;
-    using namespace lugizmo::test::integer;
-
     auto const res = std::make_shared<CountingResource>();
     {
-        auto const df = DataFrame<int, int, int>::FromFieldsAndRecords(DFFields, DFRecords, DFData, 0, res);
+        auto const df = BuildOnResource(res);
         ASSERT_NE(df.Data(), nullptr);
         ASSERT_GT(res->Outstanding(), 0u);
     }
@@ -253,17 +276,14 @@ TEST(lugizmo_dataframe_tors_row_major, destructor_releases_memory)
 
 /**
  *  @brief Move-assignment releases the target's previous storage and leaks nothing.
- *  @see   lugizmo::DataFrame::operator=(DataFrame&& other) noexcept -> DataFrame&;
+ *  @see   lugizmo::DataFrame::operator=(DataFrame&& other) noexcept -> DataFrame&
  */
-TEST(lugizmo_dataframe_tors_row_major, move_assignment_releases_target_memory)
+TEST(RM_DataframeTorsMemory, MoveAssignmentReleasesTargetMemory)
 {
-    using namespace lugizmo;
-    using namespace lugizmo::test::integer;
-
     auto const res = std::make_shared<CountingResource>();
     {
-        auto a = DataFrame<int, int, int>::FromFieldsAndRecords(DFFields, DFRecords, DFData, 0, res);
-        auto b = DataFrame<int, int, int>::FromFieldsAndRecords(DFFields, DFRecords, DFData, 0, res);
+        auto a = BuildOnResource(res);
+        auto b = BuildOnResource(res);
 
         auto const before = res->Outstanding();
         b = std::move(a);
@@ -271,7 +291,6 @@ TEST(lugizmo_dataframe_tors_row_major, move_assignment_releases_target_memory)
         EXPECT_LT(res->Outstanding(), before); // b's previous storage was released
         EXPECT_EQ(a.Data(), nullptr);          // NOLINT(bugprone-use-after-move) intentional
         ASSERT_NE(b.Data(), nullptr);
-        ExpectContentEquals(b, DFFields, DFRecords, DFData);
     }
 
     EXPECT_EQ(res->Outstanding(), 0u);

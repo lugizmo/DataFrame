@@ -70,11 +70,16 @@ is driven by **GoogleTest typed tests** (`TYPED_TEST_SUITE` + `TYPED_TEST`):
 
 Test file: [RM_DataframeTorsTest.cpp](/lib/test/RM_DataframeTorsTest.cpp)
 
-- [ ] ```DataFrame(DataFrame const&)```
-- [ ] ```operator=(DataFrame const&) -> auto```
-- [ ] ```DataFrame(DataFrame&& other)```
-- [ ] ```operator=(DataFrame&& other) -> DataFrame&```
-- [ ] ```~DataFrame()```
+| Done | Function Name                      | Returns     | UU | R1 | Rs |
+|------|------------------------------------|-------------|----|----|----|
+| ✅    | DataFrame(DataFrame const&)        |             | ✔  | ✔  | ✔  |
+| ✅    | operator=(DataFrame const&)        | DataFrame&  | ✔  | ✔  | ✔  |
+| ✅    | DataFrame(DataFrame&& other)       |             | ✔  | ✔  | ✔  |
+| ✅    | operator=(DataFrame&& other)       | DataFrame&  | ✔  | ✔  | ✔  |
+| ✅    | ~DataFrame()                       |             | ✔  | ✔  | ✔  |
+
+> Lifecycle is typed across all configs; the free path (`~DataFrame`, move-assign) is additionally
+> asserted with a counting memory resource in `RM_DataframeTorsMemory`.
 
 ### construction
 
