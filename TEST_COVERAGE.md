@@ -124,8 +124,12 @@ Range-family (sequence-index) only:
 
 Test file: [RM_DataframeDropTest.cpp](/lib/test/RM_DataframeDropTest.cpp)
 
-- [ ] ```DropField(F const& index) -> bool``` — UU:[ ] R1:[ ] Rs:[ ]
-- [ ] ```DropRecord(R const& index) -> bool``` — UU:[ ] R1:[ ] Rs:[ ]
+Value-index only (`requires DFUnqIndex`); not parameterised over index configs (`—` = n/a).
+
+| Done | Function Name              | Returns | UU | R1 | Rs |
+|------|----------------------------|---------|----|----|----|
+| ✅    | DropField(F const& index)  | bool    | ✔  | —  | —  |
+| ✅    | DropRecord(R const& index) | bool    | ✔  | —  | —  |
 
 ### properties
 
