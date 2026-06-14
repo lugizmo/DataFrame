@@ -34,7 +34,6 @@ if(LUGIZMO_DF_BUILD_TESTING)
             RM_DataframeUserTypesTest.cpp
             RM_DataframeDropTest.cpp
             RM_DataframeSortTest.cpp
-            #RM_DataframeTypedExampleTest.cpp
 
             main.cpp
     )

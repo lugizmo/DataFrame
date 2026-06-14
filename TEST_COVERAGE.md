@@ -58,7 +58,7 @@ is driven by **GoogleTest typed tests** (`TYPED_TEST_SUITE` + `TYPED_TEST`):
   between `AddFields(...)` for unique and `SetFieldRange(...)` for range; `step != 1` is a
   runtime bound carried by `RangeS2_IndexTest`, whose `MissingRecord()` returns an off-grid
   key.)
-- See `RM_DataframeTypedExampleTest.cpp` for the reference typed-test.
+- See `RM_DataframeAccessTest.cpp` for the reference typed-test.
 - Each index-agnostic behaviour is written **once** as a `TYPED_TEST` and runs against
   every config in the type list automatically.
 
