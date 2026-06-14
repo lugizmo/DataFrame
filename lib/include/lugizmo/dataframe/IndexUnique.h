@@ -34,7 +34,7 @@ namespace lugizmo {
      * @tparam T key type stored in the index.
      */
     template<typename T>
-    struct DFUniqueIndex final : DFBaseValueIndex<DFUniqueIndex<T>, T>
+    struct DFUniqueIndex final : DFBaseUniqueIndex<DFUniqueIndex<T>, T>
     {
         using KeyType      = T;
         using ConstKeyType = KeyType const;

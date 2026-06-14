@@ -210,4 +210,108 @@ TEST(lugizmo_dataframe_range_index_test, row_major_set_with_records)
 
 }
 
+TEST(lugizmo_dataframe_range_index_test, row_major_strided_record_range)
+{
+    using namespace lugizmo;
+    using DF = DataFrame<int, DFRangeIndex<int>, DFRangeIndex<int>>;
+
+    auto df = DF();
+    df.SetFieldRange(DFRangeIndexBounds<int>{.lower = 0, .upper = 3});                 // fields  0, 1, 2
+    df.SetRecordRange(DFRangeIndexBounds<int>{.lower = 0, .upper = 10, .step = 2}, 0); // records 0, 2, 4, 6, 8
+
+    // the matrix holds one row per on-grid record, not per key span
+    ASSERT_EQ(df.FieldSize(), 3);
+    ASSERT_EQ(df.RecordSize(), 5);
+    ASSERT_EQ(df.Records().size(), 5);
+
+    // staying on the step grid: assign and read back every (field, record) cell
+    int expected = 0;
+    for (int rec = 0; rec < 10; rec += 2)
+    {
+        for (int fld = 0; fld < 3; ++fld)
+        {
+            ASSERT_TRUE(df.AssignValue(fld, rec, expected));
+            auto const val = df.GetValue(fld, rec);
+            ASSERT_TRUE(val.HasValue());
+            ASSERT_EQ(*val, expected);
+            ++expected;
+        }
+    }
+
+    // off-grid record keys are not members -> access fails
+    ASSERT_FALSE(df.AssignValue(0, 1, 99));
+    ASSERT_FALSE(df.AssignValue(0, 3, 99));
+    ASSERT_FALSE(df.GetValue(0, 5).HasValue());
+    ASSERT_FALSE(df.GetValue(0, 7).HasValue());
+
+    // out-of-range record key fails as well
+    ASSERT_FALSE(df.GetValue(0, 10).HasValue());
+
+    // the physical buffer is dense (5 x 3) and in position order
+    ASSERT_NE(df.Data(), nullptr);
+    for (int i = 0; i < 15; ++i) ASSERT_EQ(df.Data()[i], i);
+}
+
+TEST(lugizmo_dataframe_range_index_test, row_major_strided_mdspan_mutation)
+{
+    using namespace lugizmo;
+    using DF = DataFrame<int, DFRangeIndex<int>, DFRangeIndex<int>>;
+
+    auto df = DF();
+    df.SetFieldRange(DFRangeIndexBounds<int>{.lower = 0, .upper = 2});                // fields  0, 1
+    df.SetRecordRange(DFRangeIndexBounds<int>{.lower = 0, .upper = 6, .step = 2}, 0); // records 0, 2, 4
+
+    // fill on-grid cells, observe the result through the mdspan
+    int v = 0;
+    for (int rec = 0; rec < 6; rec += 2)
+        for (int fld = 0; fld < 2; ++fld)
+            ASSERT_TRUE(df.AssignValue(fld, rec, v++));
+
+    {
+        auto const md = df.MDSpan();
+        ASSERT_EQ(md.extent(0), 3); // rows  == record count
+        ASSERT_EQ(md.extent(1), 2); // cols  == field count
+        for (size_t i = 0; i < 6; ++i) ASSERT_EQ(md.data_handle()[i], static_cast<int>(i));
+    }
+
+    // grow the record range from the back: upper 6 -> 10 adds records 6, 8 (default 0)
+    ASSERT_TRUE(df.SetRecordRange(DFRangeIndexBounds<int>{.lower = 0, .upper = 10, .step = 2}, 0));
+    ASSERT_EQ(df.RecordSize(), 5);
+
+    ASSERT_TRUE(df.AssignValue(0, 8, 80));
+    ASSERT_TRUE(df.AssignValue(1, 8, 81));
+    {
+        auto const md = df.MDSpan();
+        ASSERT_EQ(md.extent(0), 5);
+        ASSERT_EQ(md.extent(1), 2);
+        ASSERT_EQ((md[4, 0]), 80); // record 8 -> position 4
+        ASSERT_EQ((md[4, 1]), 81);
+        ASSERT_EQ((md[0, 0]), 0);  // original data preserved
+        ASSERT_EQ((md[2, 1]), 5);  // record 4 (pos 2), field 1
+        ASSERT_EQ((md[3, 0]), 0);  // record 6 (pos 3) was default-filled
+    }
+
+    // shrink the record range from the front: lower 0 -> 4 removes records 0, 2
+    ASSERT_TRUE(df.SetRecordRange(DFRangeIndexBounds<int>{.lower = 4, .upper = 10, .step = 2}, 0));
+    ASSERT_EQ(df.RecordSize(), 3); // records 4, 6, 8
+    {
+        auto const md = df.MDSpan();
+        ASSERT_EQ(md.extent(0), 3);
+        ASSERT_EQ((md[0, 0]), 4);  // record 4 is now position 0
+        ASSERT_EQ((md[0, 1]), 5);
+        ASSERT_EQ((md[2, 0]), 80); // record 8 is now position 2
+        ASSERT_EQ((md[2, 1]), 81);
+    }
+
+    // changing the step on a populated range is rejected; the dataframe is left untouched
+    auto const recordsBefore = df.RecordSize();
+    ASSERT_FALSE(df.SetRecordRange(DFRangeIndexBounds<int>{.lower = 4, .upper = 10, .step = 3}, 0));
+    ASSERT_EQ(df.RecordSize(), recordsBefore);
+    {
+        auto const md = df.MDSpan();
+        ASSERT_EQ((md[0, 0]), 4);
+        ASSERT_EQ((md[2, 1]), 81);
+    }
+}
+
 // TODO test adding ranges by using span<T>, initializer<T> & iterable<iterable<T>>

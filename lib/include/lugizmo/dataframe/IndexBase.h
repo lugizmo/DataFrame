@@ -24,7 +24,7 @@ namespace lugizmo {
      * @tparam KeyType Key type stored in the index.
      */
     template <typename Derived, typename KeyType>
-    struct DFBaseValueIndex
+    struct DFBaseUniqueIndex
     {
         /**
          * @brief  Returns all keys in physical (position) order.
@@ -123,7 +123,7 @@ namespace lugizmo {
     };
 
     /**
-     * @brief   CRTP interface for sequence indices that map a contiguous key range to positions.
+     * @brief   CRTP interface for range indices that map a contiguous key range to positions.
      * @details Forwards every operation to the concrete `Derived` index (e.g. `DFRangeIndex`),
      *          which stores only `[lower, upper)` bounds. Positions run `[0, Size())`, where
      *          position `0` is `LowerBound()`. Signatures mirror the concrete implementation.
@@ -132,7 +132,7 @@ namespace lugizmo {
      * @tparam KeyType Key type spanned by the range.
      */
     template <typename Derived, typename KeyType>
-    struct DFBaseSequenceIndex
+    struct DFBaseRangeIndex
     {
         /**
          * @brief  Returns the inclusive lower bound (the key at position `0`).
@@ -190,12 +190,26 @@ namespace lugizmo {
          * @brief Resolves a key to its position within the range.
          *
          * @param[in] key Key to look up.
-         * @return Position `key - LowerBound()`, or `std::nullopt` if the key is out of range.
+         * @return Position `(key - LowerBound()) / Step()`, or `std::nullopt` if the key is not a
+         *         member of the range.
          */
         [[nodiscard]]
         auto Position(KeyType const key) const noexcept -> std::optional<size_t>
         {
             return static_cast<Derived const*>(this)->Position(key);
+        }
+
+        /**
+         * @brief Resolves a position back to its key (the inverse of `Position`).
+         *
+         * @param[in] position Position within the range.
+         * @return Key `LowerBound() + position * Step()`, or `std::nullopt` if `position` is out
+         *         of range.
+         */
+        [[nodiscard]]
+        auto Key(size_t const position) const noexcept -> std::optional<KeyType>
+        {
+            return static_cast<Derived const*>(this)->Key(position);
         }
 
         /**
@@ -250,34 +264,34 @@ namespace lugizmo {
      *  @details Only checks if contains a KeyType and inherits from DFBaseValueIndex.
      */
     template<typename T>
-    concept DFValIndex = requires { typename T::KeyType; } && std::is_base_of_v<DFBaseValueIndex<T, typename T::KeyType>, T>;
+    concept DFUnqIndex = requires { typename T::KeyType; } && std::is_base_of_v<DFBaseUniqueIndex<T, typename T::KeyType>, T>;
 
     /**
      *  @brief   Concept of a Dataframe Value Index, where both type must be DFValIndex.
      *  @details Only checks if contains a KeyType and inherits from DFBaseValueIndex.
      */
     template<typename T1, typename T2>
-    concept DFValIndices = requires { DFValIndex<T1> and DFValIndex<T2>; };
+    concept DFUnqIndices = requires { DFUnqIndex<T1> and DFUnqIndex<T2>; };
 
     /**
-     *  @brief   Concept of a Dataframe Sequence Index.
-     *  @details Only checks if contains a KeyType and inherits from DFBaseSequenceIndex.
+     *  @brief   Concept of a Dataframe Range Index.
+     *  @details Only checks if contains a KeyType and inherits from DFBaseRangeIndex.
      */
     template<typename T>
-    concept DFSeqIndex = requires { typename T::KeyType; } && std::is_base_of_v<DFBaseSequenceIndex<T, typename T::KeyType>, T>;
+    concept DFRngIndex = requires { typename T::KeyType; } && std::is_base_of_v<DFBaseRangeIndex<T, typename T::KeyType>, T>;
 
     /**
-     *  @brief   Concept of a Dataframe Sequence Index, where both types must be DFSeqIndex.
-     *  @details Only checks if contains a KeyType and inherits from DFBaseSequenceIndex.
+     *  @brief   Concept of a Dataframe Range Index, where both types must be DFRngIndex.
+     *  @details Only checks if contains a KeyType and inherits from DFBaseRangeIndex.
      */
     template<typename T1, typename T2>
-    concept DFSeqIndices = requires { DFSeqIndex<T1> and DFSeqIndex<T2>; };
+    concept DFRngIndices = requires { DFRngIndex<T1> and DFRngIndex<T2>; };
 
     /**
      *  @brief Concept of a Dataframe Index Type.
      */
     template<typename T>
-    concept DFIdxType = DFValIndex<T> || DFSeqIndex<T>;
+    concept DFIdxType = DFUnqIndex<T> || DFRngIndex<T>;
 
 } // namespace lugizmo
 

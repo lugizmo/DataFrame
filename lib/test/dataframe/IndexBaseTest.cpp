@@ -17,8 +17,8 @@ TEST(lugizmo_dataframe_index_base_test, concepts)
     using namespace lugizmo;
 
     // unique index
-    constexpr auto valInt    = DFValIndex<DFUniqueIndex<int>>;
-    constexpr auto valStr    = DFValIndex<DFUniqueIndex<std::string>>;
+    constexpr auto valInt    = DFUnqIndex<DFUniqueIndex<int>>;
+    constexpr auto valStr    = DFUnqIndex<DFUniqueIndex<std::string>>;
     constexpr auto idxValInt = DFIdxType<DFUniqueIndex<std::string>>;
     constexpr auto idxValStr = DFIdxType<DFUniqueIndex<int>>;
     ASSERT_TRUE(valInt);
@@ -38,7 +38,7 @@ TEST(lugizmo_dataframe_index_base_test, concepts)
     //ASSERT_TRUE(idxValMulStr);
 
     // range index
-    constexpr auto seqInt    = DFSeqIndex<DFRangeIndex<int>>;
+    constexpr auto seqInt    = DFRngIndex<DFRangeIndex<int>>;
     constexpr auto idxSeqInt = DFIdxType<DFRangeIndex<int>>;
     ASSERT_TRUE(seqInt);
     ASSERT_TRUE(idxSeqInt);
@@ -51,8 +51,8 @@ TEST(lugizmo_dataframe_index_base_test, concepts)
     //ASSERT_TRUE(idxSeqMulInt);
 
     // not index
-    constexpr auto notValInt = DFValIndex<int>;
-    constexpr auto notSeqInt = DFSeqIndex<int>;
+    constexpr auto notValInt = DFUnqIndex<int>;
+    constexpr auto notSeqInt = DFRngIndex<int>;
     constexpr auto notIdxInt = DFIdxType<int>;
     ASSERT_FALSE(notValInt);
     ASSERT_FALSE(notSeqInt);

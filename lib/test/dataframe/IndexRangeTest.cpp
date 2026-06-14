@@ -6,10 +6,32 @@
 
 #include "gtest/gtest.h"
 
+#include <array>
+#include <chrono>
+#include <compare>
+#include <cstddef>
 #include <optional>
 #include <string>
 
 #include "lugizmo/dataframe/IndexRange.h"
+
+namespace {
+
+    /// @brief A minimal custom key type, affine over std::ptrdiff_t, satisfying DFRangeKey.
+    struct Tick
+    {
+        int value = 0;
+
+        constexpr auto operator<=>(Tick const&) const = default;
+
+        constexpr friend auto operator-(Tick a, Tick b) noexcept -> std::ptrdiff_t { return a.value - b.value; }
+        constexpr friend auto operator+(Tick t, std::ptrdiff_t n) noexcept -> Tick { return Tick{static_cast<int>(t.value + n)}; }
+    };
+
+    static_assert(lugizmo::DFRngKey<Tick>, "Tick should satisfy DFRangeKey.");
+    static_assert(lugizmo::DFRngKey<std::chrono::hours>, "std::chrono::hours should satisfy DFRangeKey.");
+
+} // namespace
 
 TEST(lugizmo_dataframe_index_range_test, int_default_index)
 {
@@ -160,4 +182,136 @@ TEST(lugizmo_dataframe_index_range_test, copy_constructor)
     ASSERT_TRUE(copy.InBound(-5));
     ASSERT_TRUE(copy.InBound(6));
     ASSERT_FALSE(copy.InBound(7));
+}
+
+TEST(lugizmo_dataframe_index_range_test, strided)
+{
+    constexpr auto index = lugizmo::DFRangeIndex(0, 10, 2); // 0, 2, 4, 6, 8
+
+    ASSERT_EQ(index.Step(), 2);
+    ASSERT_EQ(index.Size(), 5);
+    ASSERT_EQ(index.UpperBoundPosition(), 5);
+
+    // on-grid keys resolve to a position; off-grid and out-of-range keys do not
+    ASSERT_EQ(index.Position(0), 0);
+    ASSERT_EQ(index.Position(4), 2);
+    ASSERT_EQ(index.Position(8), 4);
+    ASSERT_EQ(index.Position(3), std::nullopt);  // not on the step grid
+    ASSERT_EQ(index.Position(10), std::nullopt); // out of range
+
+    // iteration yields the strided keys
+    constexpr auto expected = std::array{0, 2, 4, 6, 8};
+    size_t i = 0;
+    for (auto const key : index.Keys()) { ASSERT_EQ(key, expected.at(i++)); }
+    ASSERT_EQ(i, 5);
+
+    // an unaligned upper still counts the last element (ceil)
+    constexpr auto odd = lugizmo::DFRangeIndex(0, 9, 3); // 0, 3, 6
+    ASSERT_EQ(odd.Size(), 3);
+    ASSERT_EQ(odd.Position(6), 2);
+    ASSERT_EQ(odd.Position(9), std::nullopt);
+}
+
+TEST(lugizmo_dataframe_index_range_test, has_strided)
+{
+    constexpr auto index = lugizmo::DFRangeIndex(0, 10, 2); // 0, 2, 4, 6, 8
+
+    // on-grid keys are members; in-bounds but off-grid keys are not
+    ASSERT_TRUE(index.Has(0));
+    ASSERT_TRUE(index.Has(8));
+    ASSERT_FALSE(index.Has(3));   // in [0,10) but off the step grid
+    ASSERT_FALSE(index.Has(10));  // out of range
+
+    // exactly Size() keys in [lower, upper) are members
+    size_t members = 0;
+    for (int key = index.LowerBound(); key < index.UpperBound(); ++key)
+    {
+        if (index.Has(key)) ++members;
+    }
+    ASSERT_EQ(members, index.Size());
+
+    // contiguous range: every in-bounds key is a member
+    constexpr auto contiguous = lugizmo::DFRangeIndex(0, 5);
+    ASSERT_TRUE(contiguous.Has(3));
+    ASSERT_FALSE(contiguous.Has(5));
+}
+
+TEST(lugizmo_dataframe_index_range_test, bijection)
+{
+    constexpr auto index = lugizmo::DFRangeIndex(-5, 7); // step 1
+
+    // position -> key -> position round trips for every position
+    for (size_t pos = 0; pos < index.Size(); ++pos)
+    {
+        auto const key = index.Key(pos);
+        ASSERT_TRUE(key.has_value());
+        ASSERT_EQ(index.Position(*key), pos);
+    }
+
+    ASSERT_EQ(index.Key(0), -5);
+    ASSERT_EQ(index.Key(11), 6);
+    ASSERT_EQ(index.Key(12), std::nullopt); // out of range
+
+    // inverse direction for a strided range
+    constexpr auto strided = lugizmo::DFRangeIndex(0, 10, 2);
+    ASSERT_EQ(strided.Key(0), 0);
+    ASSERT_EQ(strided.Key(3), 6);
+    ASSERT_EQ(strided.Key(5), std::nullopt);
+}
+
+TEST(lugizmo_dataframe_index_range_test, chrono_hours)
+{
+    using namespace std::chrono;
+
+    auto const index = lugizmo::DFRangeIndex(hours{0}, hours{24}, hours{6}); // 0h, 6h, 12h, 18h
+
+    ASSERT_EQ(index.Size(), 4);
+    ASSERT_EQ(index.Step(), hours{6});
+    ASSERT_EQ(index.LowerBound(), hours{0});
+    ASSERT_EQ(index.UpperBound(), hours{24});
+
+    // forward: key -> position
+    ASSERT_EQ(index.Position(hours{0}), 0);
+    ASSERT_EQ(index.Position(hours{12}), 2);
+    ASSERT_EQ(index.Position(hours{18}), 3);
+    ASSERT_EQ(index.Position(hours{5}), std::nullopt);  // off the 6h grid
+    ASSERT_EQ(index.Position(hours{24}), std::nullopt); // out of range
+
+    // inverse: position -> key
+    ASSERT_EQ(index.Key(0), hours{0});
+    ASSERT_EQ(index.Key(3), hours{18});
+    ASSERT_EQ(index.Key(4), std::nullopt);
+
+    // membership respects the grid
+    ASSERT_TRUE(index.Has(hours{6}));
+    ASSERT_FALSE(index.Has(hours{7}));
+    ASSERT_FALSE(index.Has(hours{24}));
+
+    // iteration yields the strided time spans
+    constexpr auto expected = std::array{hours{0}, hours{6}, hours{12}, hours{18}};
+    size_t i = 0;
+
+    for(auto const span : index.Keys()) { ASSERT_EQ(span, expected.at(i++)); }
+    ASSERT_EQ(i, 4);
+}
+
+TEST(lugizmo_dataframe_index_range_test, custom_type)
+{
+    auto const index = lugizmo::DFRangeIndex(Tick{0}, Tick{10}, std::ptrdiff_t{2}); // 0, 2, 4, 6, 8
+
+    ASSERT_EQ(index.Size(), 5);
+    ASSERT_EQ(index.Step(), 2);
+    ASSERT_EQ(index.LowerBound(), Tick{0});
+    ASSERT_EQ(index.UpperBound(), Tick{10});
+
+    ASSERT_EQ(index.Position(Tick{4}), 2);
+    ASSERT_EQ(index.Position(Tick{3}), std::nullopt);  // off grid
+    ASSERT_EQ(index.Position(Tick{10}), std::nullopt); // out of range
+
+    ASSERT_EQ(index.Key(0), Tick{0});
+    ASSERT_EQ(index.Key(4), Tick{8});
+    ASSERT_EQ(index.Key(5), std::nullopt);
+
+    ASSERT_TRUE(index.Has(Tick{6}));
+    ASSERT_FALSE(index.Has(Tick{7}));
 }

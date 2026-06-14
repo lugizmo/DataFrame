@@ -37,7 +37,7 @@ namespace lugizmo {
 
         // Index Types
         using KeyType = I::ConstKeyType;
-        using Indices = std::conditional_t<DFSeqIndex<std::remove_const_t<I>>, DFRangeIndexBounds<std::remove_const_t<KeyType>>, std::span<KeyType>>;
+        using Indices = std::conditional_t<DFRngIndex<std::remove_const_t<I>>, DFRangeIndexBounds<std::remove_const_t<KeyType>>, std::span<KeyType>>;
 
         static_assert(not std::is_pointer_v<T>   && not std::is_pointer_v<KeyType>);
         static_assert(not std::is_reference_v<T> && not std::is_reference_v<KeyType>);
