@@ -1,8 +1,23 @@
-// Filename: IndexUniqueTest.cpp
+// Filename: LayoutRowMajorTest.cpp
 // Copyright 2024 Lukas Guz
 // Licensed under the Apache License, Version 2.0.
 // See the LICENSE file in the project root or at
 // http://www.apache.org/licenses/LICENSE-2.0 for full license information.
+
+//
+// Test the DFRowMajor row-major storage layout.
+// The following functions are tested here (with names of tests):
+//
+// DataframeLayoutRowBase (static buffer helpers):
+// ✅ Realloc* / ReallocAndShift  - Realloc / ReallocAndShift (grow + shift)
+// ✅ Free / FreeNoop             - Free
+// ✅ FillWith*                   - FillRows / FillRowByRow
+//
+// DataframeLayoutRow (ResizeRows over a live buffer):
+// ✅ ExpandWithDefault / ShrinkingRecords        - ResizeRows(default value)
+// ✅ AdjustWith*                                 - ResizeRows(span / iterable / initializer)
+// ✅ ShrinkAfterExpand / ExpandAfterExpand / ShrinkToZero - repeated ResizeRows
+//
 
 #include "gtest/gtest.h"
 
@@ -16,7 +31,7 @@
 
 // ====== LAYOUT ALLOCATE TEST =============================================================================================================
 
-TEST(lugizmo_dataframe_layout_row_base_test, realloc)
+TEST(DataframeLayoutRowBase, Realloc)
 {
     using T = int;
     std::pmr::memory_resource* memory = std::pmr::get_default_resource();
@@ -47,7 +62,7 @@ TEST(lugizmo_dataframe_layout_row_base_test, realloc)
     lugizmo::internal::DeallocateAligned(*memory, data, capacity);
 }
 
-TEST(lugizmo_dataframe_layout_row_base_test, realloc_zero_capacity)
+TEST(DataframeLayoutRowBase, ReallocZeroCapacity)
 {
     using T = int;
     std::pmr::memory_resource* memory = std::pmr::get_default_resource();
@@ -69,7 +84,7 @@ TEST(lugizmo_dataframe_layout_row_base_test, realloc_zero_capacity)
     lugizmo::internal::DeallocateAligned(*memory, data, capacity);
 }
 
-TEST(lugizmo_dataframe_layout_row_base_test, realloc_large_allocation)
+TEST(DataframeLayoutRowBase, ReallocLargeAllocation)
 {
     using T = int;
     std::pmr::memory_resource* memory = std::pmr::get_default_resource();
@@ -91,7 +106,7 @@ TEST(lugizmo_dataframe_layout_row_base_test, realloc_large_allocation)
     lugizmo::internal::DeallocateAligned(*memory, data, capacity);
 }
 
-TEST(lugizmo_dataframe_layout_row_base_test, realloc_and_shift)
+TEST(DataframeLayoutRowBase, ReallocAndShift)
 {
     using T = int;
     std::pmr::memory_resource* memory = std::pmr::get_default_resource();
@@ -122,7 +137,7 @@ TEST(lugizmo_dataframe_layout_row_base_test, realloc_and_shift)
     lugizmo::internal::DeallocateAligned(*memory, data, capacity);
 }
 
-TEST(lugizmo_dataframe_layout_row_base_test, free)
+TEST(DataframeLayoutRowBase, Free)
 {
     using T = int;
     std::pmr::memory_resource* memory = std::pmr::get_default_resource();
@@ -149,7 +164,7 @@ TEST(lugizmo_dataframe_layout_row_base_test, free)
     EXPECT_EQ(dataView.extent(1), 0) << "Column count should be zero after freeing.";
 }
 
-TEST(lugizmo_dataframe_layout_row_base_test, free_noop)
+TEST(DataframeLayoutRowBase, FreeNoop)
 {
     using T = int;
     std::pmr::memory_resource* memory = std::pmr::get_default_resource();
@@ -168,7 +183,7 @@ TEST(lugizmo_dataframe_layout_row_base_test, free_noop)
 
 // ====== LAYOUT FILL TEST =================================================================================================================
 
-TEST(lugizmo_dataframe_layout_row_base_test, fill_with_default_value)
+TEST(DataframeLayoutRowBase, FillWithDefaultValue)
 {
     using T = int;
     auto TestBuffer = std::array<std::byte, 8192>();
@@ -185,7 +200,7 @@ TEST(lugizmo_dataframe_layout_row_base_test, fill_with_default_value)
     lugizmo::internal::DeallocateAligned(TestMemory, data, capacity);
 }
 
-TEST(lugizmo_dataframe_layout_row_base_test, fill_with_span_values)
+TEST(DataframeLayoutRowBase, FillWithSpanValues)
 {
     using T = int;
     auto TestBuffer = std::array<std::byte, 8192>();
@@ -211,7 +226,7 @@ TEST(lugizmo_dataframe_layout_row_base_test, fill_with_span_values)
     lugizmo::internal::DeallocateAligned(TestMemory, data, capacity);
 }
 
-TEST(lugizmo_dataframe_layout_row_base_test, fill_with_iterable_of_iterable)
+TEST(DataframeLayoutRowBase, FillWithIterableOfIterable)
 {
     using T = int;
     auto TestBuffer = std::array<std::byte, 8192>();
@@ -237,7 +252,7 @@ TEST(lugizmo_dataframe_layout_row_base_test, fill_with_iterable_of_iterable)
     lugizmo::internal::DeallocateAligned(TestMemory, data, capacity);
 }
 
-TEST(lugizmo_dataframe_layout_row_base_test, fill_with_initializer_list)
+TEST(DataframeLayoutRowBase, FillWithInitializerList)
 {
     using T = int;
     auto TestBuffer = std::array<std::byte, 8192>();
@@ -263,7 +278,7 @@ TEST(lugizmo_dataframe_layout_row_base_test, fill_with_initializer_list)
     lugizmo::internal::DeallocateAligned(TestMemory, data, capacity);
 }
 
-TEST(lugizmo_dataframe_layout_row_base_test, fill_with_partial_iterable)
+TEST(DataframeLayoutRowBase, FillWithPartialIterable)
 {
     using T = int;
     auto TestBuffer = std::array<std::byte, 8192>();
@@ -291,7 +306,7 @@ TEST(lugizmo_dataframe_layout_row_base_test, fill_with_partial_iterable)
 
 // ====== EXPAND BY COUNTS TEST ============================================================================================================
 
-struct lugizmo_dataframe_layout_row_test : testing::Test
+struct DataframeLayoutRow : testing::Test
 {
 protected:
 
@@ -357,7 +372,7 @@ protected:
     }
 };
 
-TEST_F(lugizmo_dataframe_layout_row_test, expand_with_default)
+TEST_F(DataframeLayoutRow, ExpandWithDefault)
 {
     ASSERT_EQ(dataView.extent(0), 0);
     ASSERT_EQ(dataView.extent(1), colCount);
@@ -373,7 +388,7 @@ TEST_F(lugizmo_dataframe_layout_row_test, expand_with_default)
     }
 }
 
-TEST_F(lugizmo_dataframe_layout_row_test, shrinking_records)
+TEST_F(DataframeLayoutRow, ShrinkingRecords)
 {
     ASSERT_EQ(dataView.extent(0), 0);
     ASSERT_EQ(dataView.extent(1), colCount);
@@ -399,7 +414,7 @@ TEST_F(lugizmo_dataframe_layout_row_test, shrinking_records)
             EXPECT_EQ(data[row * colCount + col], static_cast<T>(col));
 }
 
-TEST_F(lugizmo_dataframe_layout_row_test, adjust_with_span)
+TEST_F(DataframeLayoutRow, AdjustWithSpan)
 {
     ASSERT_EQ(dataView.extent(0), 0);
     ASSERT_EQ(dataView.extent(1), colCount);
@@ -416,7 +431,7 @@ TEST_F(lugizmo_dataframe_layout_row_test, adjust_with_span)
     VerifyBuffer(data, static_cast<size_t>(dataView.extent(0)), static_cast<size_t>(dataView.extent(1)), {rowValues, rowValues, rowValues});
 }
 
-TEST_F(lugizmo_dataframe_layout_row_test, adjust_with_iterable_of_iterable)
+TEST_F(DataframeLayoutRow, AdjustWithIterableOfIterable)
 {
     ASSERT_EQ(dataView.extent(0), 0);
     ASSERT_EQ(dataView.extent(1), colCount);
@@ -439,7 +454,7 @@ TEST_F(lugizmo_dataframe_layout_row_test, adjust_with_iterable_of_iterable)
     }
 }
 
-TEST_F(lugizmo_dataframe_layout_row_test, adjust_with_initializer_of_initializer)
+TEST_F(DataframeLayoutRow, AdjustWithInitializerOfInitializer)
 {
     ASSERT_EQ(dataView.extent(0), 0);
     ASSERT_EQ(dataView.extent(1), colCount);
@@ -463,7 +478,7 @@ TEST_F(lugizmo_dataframe_layout_row_test, adjust_with_initializer_of_initializer
     EXPECT_EQ(data[11], 12);
 }
 
-TEST_F(lugizmo_dataframe_layout_row_test, shrink_after_expand_initializer_of_initializer)
+TEST_F(DataframeLayoutRow, ShrinkAfterExpandInitializer)
 {
     using InitializerList = std::initializer_list<std::initializer_list<int>>;
 
@@ -476,7 +491,7 @@ TEST_F(lugizmo_dataframe_layout_row_test, shrink_after_expand_initializer_of_ini
     EXPECT_EQ(dataView.extent(0), 2);
 }
 
-TEST_F(lugizmo_dataframe_layout_row_test, expand_after_expand_initializer_of_initializer)
+TEST_F(DataframeLayoutRow, ExpandAfterExpandInitializer)
 {
     using InitializerList = std::initializer_list<std::initializer_list<int>>;
 
@@ -501,7 +516,7 @@ TEST_F(lugizmo_dataframe_layout_row_test, expand_after_expand_initializer_of_ini
     EXPECT_EQ(data[17], 15);
 }
 
-TEST_F(lugizmo_dataframe_layout_row_test, shrink_to_zero)
+TEST_F(DataframeLayoutRow, ShrinkToZero)
 {
     using InitializerList = std::initializer_list<std::initializer_list<int>>;
 

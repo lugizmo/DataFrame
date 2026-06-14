@@ -1,8 +1,25 @@
-// Filename: IndexUniqueTest.cpp
+// Filename: IndexRangeTest.cpp
 // Copyright 2024 Lukas Guz
 // Licensed under the Apache License, Version 2.0.
 // See the LICENSE file in the project root or at
 // http://www.apache.org/licenses/LICENSE-2.0 for full license information.
+
+//
+// Test the DFRangeIndex computed (strided) range index.
+// The following functions are tested here (with names of tests):
+//
+// ✅ DefaultIndex      - DFRangeIndex() / Empty / Size / LowerBound / UpperBound
+// ✅ InvertedBounds    - DFRangeIndex(lower > upper) (normalizes to empty)
+// ✅ Accessors         - Size / LowerBound / UpperBound
+// ✅ InBound           - InBound(key)
+// ✅ SetBounds         - SetLowerBound / SetUpperBound (element-count deltas)
+// ✅ CopyConstructor   - DFRangeIndex(DFRangeIndex const&)
+// ✅ Strided           - Step / Size / Position / Keys (step != 1)
+// ✅ HasStrided        - Has(key) on a strided grid
+// ✅ Bijection         - Key(pos) <-> Position(key) round trip
+// ✅ ChronoHours       - DFRangeIndex<std::chrono::hours>
+// ✅ CustomType        - DFRangeIndex over a custom affine key (DFRngKey)
+//
 
 #include "gtest/gtest.h"
 
@@ -33,7 +50,7 @@ namespace {
 
 } // namespace
 
-TEST(lugizmo_dataframe_index_range_test, int_default_index)
+TEST(DataframeIndexRange, DefaultIndex)
 {
     constexpr auto index = lugizmo::DFRangeIndex<int>();
 
@@ -43,7 +60,7 @@ TEST(lugizmo_dataframe_index_range_test, int_default_index)
     ASSERT_EQ(index.UpperBound(), 0);
 }
 
-TEST(lugizmo_dataframe_index_range_test, int_wrong_init)
+TEST(DataframeIndexRange, InvertedBounds)
 {
     constexpr auto index = lugizmo::DFRangeIndex(10, 5);
     ASSERT_TRUE(index.Empty());
@@ -52,7 +69,7 @@ TEST(lugizmo_dataframe_index_range_test, int_wrong_init)
     ASSERT_EQ(index.UpperBound(), 0);
 }
 
-TEST(lugizmo_dataframe_index_range_test, int_get)
+TEST(DataframeIndexRange, Accessors)
 {
     constexpr auto index = lugizmo::DFRangeIndex(0, 10);
     ASSERT_FALSE(index.Empty());
@@ -61,7 +78,7 @@ TEST(lugizmo_dataframe_index_range_test, int_get)
     ASSERT_EQ(index.UpperBound(), 10);
 }
 
-TEST(lugizmo_dataframe_index_range_test, int_in_bound)
+TEST(DataframeIndexRange, InBound)
 {
     constexpr auto index = lugizmo::DFRangeIndex(0, 10);
 
@@ -81,7 +98,7 @@ TEST(lugizmo_dataframe_index_range_test, int_in_bound)
     ASSERT_FALSE(index.InBound(11));
 }
 
-TEST(lugizmo_dataframe_index_range_test, int_change)
+TEST(DataframeIndexRange, SetBounds)
 {
     // positive values index
     {
@@ -171,7 +188,7 @@ TEST(lugizmo_dataframe_index_range_test, int_change)
     }
 }
 
-TEST(lugizmo_dataframe_index_range_test, copy_constructor)
+TEST(DataframeIndexRange, CopyConstructor)
 {
     auto const index = lugizmo::DFRangeIndex(-5, 7);
     auto const copy  = lugizmo::DFRangeIndex(index);
@@ -184,7 +201,7 @@ TEST(lugizmo_dataframe_index_range_test, copy_constructor)
     ASSERT_FALSE(copy.InBound(7));
 }
 
-TEST(lugizmo_dataframe_index_range_test, strided)
+TEST(DataframeIndexRange, Strided)
 {
     constexpr auto index = lugizmo::DFRangeIndex(0, 10, 2); // 0, 2, 4, 6, 8
 
@@ -212,7 +229,7 @@ TEST(lugizmo_dataframe_index_range_test, strided)
     ASSERT_EQ(odd.Position(9), std::nullopt);
 }
 
-TEST(lugizmo_dataframe_index_range_test, has_strided)
+TEST(DataframeIndexRange, HasStrided)
 {
     constexpr auto index = lugizmo::DFRangeIndex(0, 10, 2); // 0, 2, 4, 6, 8
 
@@ -236,7 +253,7 @@ TEST(lugizmo_dataframe_index_range_test, has_strided)
     ASSERT_FALSE(contiguous.Has(5));
 }
 
-TEST(lugizmo_dataframe_index_range_test, bijection)
+TEST(DataframeIndexRange, Bijection)
 {
     constexpr auto index = lugizmo::DFRangeIndex(-5, 7); // step 1
 
@@ -259,7 +276,7 @@ TEST(lugizmo_dataframe_index_range_test, bijection)
     ASSERT_EQ(strided.Key(5), std::nullopt);
 }
 
-TEST(lugizmo_dataframe_index_range_test, chrono_hours)
+TEST(DataframeIndexRange, ChronoHours)
 {
     using namespace std::chrono;
 
@@ -295,7 +312,7 @@ TEST(lugizmo_dataframe_index_range_test, chrono_hours)
     ASSERT_EQ(i, 4);
 }
 
-TEST(lugizmo_dataframe_index_range_test, custom_type)
+TEST(DataframeIndexRange, CustomType)
 {
     auto const index = lugizmo::DFRangeIndex(Tick{0}, Tick{10}, std::ptrdiff_t{2}); // 0, 2, 4, 6, 8
 

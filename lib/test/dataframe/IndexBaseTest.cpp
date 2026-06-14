@@ -1,8 +1,15 @@
-// Filename: IndexUniqueTest.cpp
+// Filename: IndexBaseTest.cpp
 // Copyright 2024 Lukas Guz
 // Licensed under the Apache License, Version 2.0.
 // See the LICENSE file in the project root or at
 // http://www.apache.org/licenses/LICENSE-2.0 for full license information.
+
+//
+// Test the index concepts shared by all index types.
+// The following concepts are tested here (with names of tests):
+//
+// ✅ Concepts - DFUnqIndex / DFRngIndex / DFIdxType
+//
 
 #include "gtest/gtest.h"
 
@@ -12,7 +19,7 @@
 #include "lugizmo/dataframe/IndexRange.h"
 #include "lugizmo/dataframe/IndexUnique.h"
 
-TEST(lugizmo_dataframe_index_base_test, concepts)
+TEST(DataframeIndexBase, Concepts)
 {
     using namespace lugizmo;
 

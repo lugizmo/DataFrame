@@ -8,40 +8,16 @@
 // Test the whole DFUniqueIndex value index.
 // The following functions are tested here (with names of tests):
 //
-// ✅ construct
-// - DFUniqueIndex()
-// - DFUniqueIndex(std::pmr::memory_resource*, size_t)
-//
-// ✅ add
-// - Add(T&&)
-//
-// ✅ add_multiple
-// - AddMultiple(std::span<KeyType const>)
-//
-// ✅ has
-// - Has(C const&)
-//
-// ✅ key
-// - Key(size_t)
-//
-// ✅ position
-// - Position(C const&)
-//
-// ✅ access
-// - Keys()
-// - Size() / Empty()
-// - MaxPosition()
-//
-// ✅ drop
-// - Drop(T const&)
-//
-// ✅ sort
-// - Sort(Compare comp = {})
-//
-// ✅ tors
-// - DFUniqueIndex(DFUniqueIndex const&) / operator=(DFUniqueIndex const&)
-// - DFUniqueIndex(DFUniqueIndex&&)      / operator=(DFUniqueIndex&&)
-// - DFUniqueIndex(DFUniqueIndex const&, std::pmr::memory_resource*)
+// ✅ Construct    - DFUniqueIndex() / DFUniqueIndex(std::pmr::memory_resource*, size_t)
+// ✅ Add          - Add(T&&)
+// ✅ AddMultiple  - AddMultiple(std::span<KeyType const>)
+// ✅ Has          - Has(C const&)
+// ✅ Key          - Key(size_t)
+// ✅ Position     - Position(C const&)
+// ✅ Access       - Keys() / Size() / Empty() / MaxPosition()
+// ✅ Drop         - Drop(T const&)
+// ✅ Sort         - Sort(Compare comp = {})
+// ✅ Tors         - copy / move ctor + assignment / DFUniqueIndex(const&, memory_resource*)
 //
 
 #include "gtest/gtest.h"
@@ -68,7 +44,7 @@ inline auto CreateTestStringIndexUnique() -> lugizmo::DFUniqueIndex<std::string>
  *  @see   lugizmo::DFUniqueIndex::DFUniqueIndex()
  *         lugizmo::DFUniqueIndex::DFUniqueIndex(std::pmr::memory_resource*, size_t)
  */
-TEST(lugizmo_dataframe_index_unique_test, construct)
+TEST(DataframeIndexUnique, Construct)
 {
     using namespace lugizmo;
 
@@ -104,7 +80,7 @@ TEST(lugizmo_dataframe_index_unique_test, construct)
  *  @brief Adding keys assigns increasing positions; duplicates are rejected.
  *  @see   lugizmo::DFUniqueIndex::Add(T&&)
  */
-TEST(lugizmo_dataframe_index_unique_test, add)
+TEST(DataframeIndexUnique, Add)
 {
     using namespace lugizmo;
 
@@ -129,7 +105,7 @@ TEST(lugizmo_dataframe_index_unique_test, add)
  *  @brief AddMultiple returns the number of newly inserted keys and skips duplicates.
  *  @see   lugizmo::DFUniqueIndex::AddMultiple(std::span<KeyType const>)
  */
-TEST(lugizmo_dataframe_index_unique_test, add_multiple)
+TEST(DataframeIndexUnique, AddMultiple)
 {
     using namespace lugizmo;
 
@@ -165,7 +141,7 @@ TEST(lugizmo_dataframe_index_unique_test, add_multiple)
  *  @brief Has reports membership for stored keys and transparent string literals.
  *  @see   lugizmo::DFUniqueIndex::Has(C const&)
  */
-TEST(lugizmo_dataframe_index_unique_test, has)
+TEST(DataframeIndexUnique, Has)
 {
     auto const index = CreateTestStringIndexUnique();
 
@@ -185,7 +161,7 @@ TEST(lugizmo_dataframe_index_unique_test, has)
  *  @brief Key resolves a position back to its key and stays consistent after mutation.
  *  @see   lugizmo::DFUniqueIndex::Key(size_t)
  */
-TEST(lugizmo_dataframe_index_unique_test, key)
+TEST(DataframeIndexUnique, Key)
 {
     using namespace lugizmo;
 
@@ -230,7 +206,7 @@ TEST(lugizmo_dataframe_index_unique_test, key)
  *  @brief Position resolves a key to its position, or nullopt when absent.
  *  @see   lugizmo::DFUniqueIndex::Position(C const&)
  */
-TEST(lugizmo_dataframe_index_unique_test, position)
+TEST(DataframeIndexUnique, Position)
 {
     auto const index = CreateTestStringIndexUnique();
 
@@ -251,7 +227,7 @@ TEST(lugizmo_dataframe_index_unique_test, position)
  *  @brief Keys/Position/Size/Empty/MaxPosition expose the stored mapping and counts.
  *  @see   lugizmo::DFUniqueIndex::Keys, Position, Size, Empty, MaxPosition
  */
-TEST(lugizmo_dataframe_index_unique_test, access)
+TEST(DataframeIndexUnique, Access)
 {
     using namespace lugizmo;
 
@@ -296,7 +272,7 @@ TEST(lugizmo_dataframe_index_unique_test, access)
  *  @brief Drop removes a key, returns its old position, and compacts the remaining ones.
  *  @see   lugizmo::DFUniqueIndex::Drop(T const&)
  */
-TEST(lugizmo_dataframe_index_unique_test, drop)
+TEST(DataframeIndexUnique, Drop)
 {
     {
         // dropping front then back returns the dropped positions and updates MaxPosition
@@ -344,7 +320,7 @@ TEST(lugizmo_dataframe_index_unique_test, drop)
  *  @brief Sort orders keys, rebuilds positions, and returns the new-to-old permutation.
  *  @see   lugizmo::DFUniqueIndex::Sort(Compare comp = {})
  */
-TEST(lugizmo_dataframe_index_unique_test, sort)
+TEST(DataframeIndexUnique, Sort)
 {
     using namespace lugizmo;
 
@@ -394,7 +370,7 @@ TEST(lugizmo_dataframe_index_unique_test, sort)
  *  @see   lugizmo::DFUniqueIndex copy/move constructors and assignment operators
  *         lugizmo::DFUniqueIndex::DFUniqueIndex(DFUniqueIndex const&, std::pmr::memory_resource*)
  */
-TEST(lugizmo_dataframe_index_unique_test, tors)
+TEST(DataframeIndexUnique, Tors)
 {
     using namespace lugizmo;
 
