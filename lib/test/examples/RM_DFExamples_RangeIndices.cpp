@@ -1,21 +1,27 @@
-// Filename: DataFrameTest.cpp
+// Filename: RM_DFExamples_RangeIndices.cpp
 // Copyright 2024 Lukas Guz
 // Licensed under the Apache License, Version 2.0.
 // See the LICENSE file in the project root or at
 // http://www.apache.org/licenses/LICENSE-2.0 for full license information.
 
+//
+// Usability examples for range-indexed dataframes: building from bounds, growing/shrinking a
+// range, strided record ranges, and extracting the underlying mdspan. These read like real usage
+// and still ASSERT, but they probe how the API composes rather than exhaustively cover a function.
+//
+
 #include "gtest/gtest.h"
 
 #include "lugizmo/DataFrame.h"
 
-TEST(lugizmo_dataframe_range_index_test, layout_default_is_row_major)
+TEST(RM_DFExamples_RangeIndices, LayoutDefaultIsRowMajor)
 {
     using namespace lugizmo;
     using DF = DataFrame<int, DFRangeIndex<int>, DFRangeIndex<int>>;
     static_assert(std::is_same_v<DF::Layout, DFRowMajor<int>>);
 }
 
-TEST(lugizmo_dataframe_range_index_test, row_major_empty_initialization)
+TEST(RM_DFExamples_RangeIndices, EmptyInitialization)
 {
     using namespace lugizmo;
 
@@ -23,28 +29,28 @@ TEST(lugizmo_dataframe_range_index_test, row_major_empty_initialization)
     ASSERT_TRUE(df.Empty());
 }
 
-TEST(lugizmo_dataframe_range_index_test, row_major_initializations_range_only)
+TEST(RM_DFExamples_RangeIndices, InitializationsRangeOnly)
 {
     using namespace lugizmo;
     using DF = DataFrame<float, DFRangeIndex<int>, DFRangeIndex<int>>;
 
     // initialize step by step
     {
-        constexpr std::size_t FLD_COUNT = 10;
-        constexpr std::size_t REC_COUNT = 10;
+        constexpr std::size_t fldCount = 10;
+        constexpr std::size_t recCount = 10;
 
-        auto df = DF(FLD_COUNT * REC_COUNT);
+        auto df = DF(fldCount * recCount);
 
         // TODO add test where adding cols/rows in different order so first records then fields (some fields must be present for that).
-        for(size_t fld = 0; fld <= FLD_COUNT; ++fld) df.SetFieldRange(-1 * static_cast<int>(fld), fld, 42.f);
-        for(size_t rec = 0; rec <= REC_COUNT; ++rec) df.SetRecordRange(-1 * static_cast<int>(rec), rec, 42.f);
+        for(size_t fld = 0; fld <= fldCount; ++fld) df.SetFieldRange(-1 * static_cast<int>(fld), fld, 42.f);
+        for(size_t rec = 0; rec <= recCount; ++rec) df.SetRecordRange(-1 * static_cast<int>(rec), rec, 42.f);
 
         auto const dfFlds = df.Fields();
         auto const dfRecs = df.Records();
 
         ASSERT_TRUE(!df.Empty());
-        ASSERT_EQ(dfFlds.size(), FLD_COUNT * 2);
-        ASSERT_EQ(dfRecs.size(), REC_COUNT * 2);
+        ASSERT_EQ(dfFlds.size(), fldCount * 2);
+        ASSERT_EQ(dfRecs.size(), recCount * 2);
         ASSERT_TRUE(std::ranges::all_of(df.Values(), [](auto const val) { return val == 42.f; }));
     }
 
@@ -99,7 +105,7 @@ TEST(lugizmo_dataframe_range_index_test, row_major_initializations_range_only)
     }
 }
 
-TEST(lugizmo_dataframe_range_index_test, row_major_set_get_records)
+TEST(RM_DFExamples_RangeIndices, SetGetRecords)
 {
     using namespace lugizmo;
     using DF = DataFrame<int, DFRangeIndex<int>, DFRangeIndex<int>>;
@@ -205,12 +211,12 @@ TEST(lugizmo_dataframe_range_index_test, row_major_set_get_records)
     ASSERT_EQ(df.Records().size(), 0);
 }
 
-TEST(lugizmo_dataframe_range_index_test, row_major_set_with_records)
+TEST(RM_DFExamples_RangeIndices, SetWithRecords)
 {
 
 }
 
-TEST(lugizmo_dataframe_range_index_test, row_major_strided_record_range)
+TEST(RM_DFExamples_RangeIndices, StridedRecordRange)
 {
     using namespace lugizmo;
     using DF = DataFrame<int, DFRangeIndex<int>, DFRangeIndex<int>>;
@@ -252,7 +258,7 @@ TEST(lugizmo_dataframe_range_index_test, row_major_strided_record_range)
     for (int i = 0; i < 15; ++i) ASSERT_EQ(df.Data()[i], i);
 }
 
-TEST(lugizmo_dataframe_range_index_test, row_major_strided_mdspan_mutation)
+TEST(RM_DFExamples_RangeIndices, StridedMdspanMutation)
 {
     using namespace lugizmo;
     using DF = DataFrame<int, DFRangeIndex<int>, DFRangeIndex<int>>;

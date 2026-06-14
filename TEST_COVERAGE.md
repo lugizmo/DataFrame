@@ -217,10 +217,19 @@ Value-index only (`requires DFUnqIndex`; an arithmetic range is already ordered)
 
 ### Functional
 
-Test file: _TODO_
+Test file: [RM_DataFrameFunctionalTest.cpp](/lib/test/RM_DataFrameFunctionalTest.cpp)
 
-- [ ] ```ForEachOnField<Func>(F const& index, Func&& func) [const]```
-- [ ] ```ForEachOnRecord<Func>(R const& index, Func&& func) [const]```
+Value-index only (`requires DFValIndex`); `—` = n/a.
+
+| Done | Function Name                                  | Returns                 | UU | R1 | Rs |
+|------|------------------------------------------------|-------------------------|----|----|----|
+| ✅    | ForEachOnField<Func>(field, func)              | DFView<T, RecI>         | ✔  | —  | —  |
+| ✅    | ForEachOnField<Func>(field, func) const        | DFView<T const, RecI>   | ✔  | —  | —  |
+| ✅    | ForEachOnRecord<Func>(record, func) const      | DFView<T const, FldI>   | ✔  | —  | —  |
+| ☐    | ForEachOnRecord<Func>(record, func)            | DFView<T, FldI>         | ✘  | —  | —  |
+
+> Also covers View*/Select* composing with `std::ranges` adaptors (filter/transform). The
+> non-const (mutating) `ForEachOnRecord` is not implemented yet.
 
 ### IO
 

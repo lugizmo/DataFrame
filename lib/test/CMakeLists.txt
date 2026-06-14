@@ -16,10 +16,6 @@ if(LUGIZMO_DF_BUILD_TESTING)
             #dataframe/DFViewTest.cpp
             meta/DeducingThisTest.cpp
 
-            # old sources pending conversion / move
-            DataframeTest.cpp
-            DataframeRangeIndexTest.cpp
-
             # memory
             memory/MemoryTest.cpp
 
@@ -34,6 +30,10 @@ if(LUGIZMO_DF_BUILD_TESTING)
             RM_DataFrameUserTypesTest.cpp
             RM_DataFrameDropTest.cpp
             RM_DataFrameSortTest.cpp
+            RM_DataFrameFunctionalTest.cpp
+
+            # examples (usability, still asserting)
+            examples/RM_DFExamples_RangeIndices.cpp
 
             main.cpp
     )
