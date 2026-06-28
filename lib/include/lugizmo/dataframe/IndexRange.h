@@ -87,22 +87,29 @@ namespace lugizmo {
         }
 
         /// @copydoc Size()
-        [[nodiscard]] constexpr auto size() const noexcept -> size_t
+        [[nodiscard]] constexpr auto size() const noexcept -> size_t // NOLINT(readability-identifier-naming)
         {
             return Size();
         }
 
         /// @brief Returns whether the range spans no keys.
-        [[nodiscard]] constexpr auto Empty() const noexcept -> bool { return upper <= lower; }
+        [[nodiscard]] constexpr auto Empty() const noexcept -> bool
+        {
+            return upper <= lower;
+        }
 
         /// @copydoc Empty()
-        [[nodiscard]] constexpr auto empty() const noexcept -> bool { return Empty(); }
+        [[nodiscard]] constexpr auto empty() const noexcept -> bool // NOLINT(readability-identifier-naming)
+        {
+            return Empty();
+        }
 
         /**
          * @brief Random-access iterator over the keys of the range, advancing by `step`.
          */
         struct Iterator
         {
+            // NOLINTBEGIN(readability-identifier-naming)
             using value_type        = T;
             using difference_type   = std::ptrdiff_t;
             using iterator_category = std::random_access_iterator_tag;
@@ -117,52 +124,59 @@ namespace lugizmo {
             constexpr auto operator->() const noexcept -> T const* { return &value; }
 
             // Increment / decrement (by one stride)
-            constexpr Iterator& operator++() noexcept { value = static_cast<T>(value + step); return *this; }
-            constexpr Iterator& operator--() noexcept { value = static_cast<T>(value - step); return *this; }
+            constexpr auto operator++() noexcept -> Iterator& { value = static_cast<T>(value + step); return *this; }
+            constexpr auto operator--() noexcept -> Iterator& { value = static_cast<T>(value - step); return *this; }
 
-            constexpr Iterator operator++(int) noexcept { auto tmp = *this; ++(*this); return tmp; }
-            constexpr Iterator operator--(int) noexcept { auto tmp = *this; --(*this); return tmp; }
+            constexpr auto operator++(int) noexcept -> Iterator { auto tmp = *this; ++(*this); return tmp; }
+            constexpr auto operator--(int) noexcept -> Iterator { auto tmp = *this; --(*this); return tmp; }
 
             // Arithmetic (advance by `n` strides)
-            constexpr Iterator& operator+=(difference_type n) noexcept
+            constexpr auto operator+=(difference_type n) noexcept -> Iterator&
             {
                 value = static_cast<T>(value + n * step);
                 return *this;
             }
 
-            constexpr Iterator& operator-=(difference_type n) noexcept
+            constexpr auto operator-=(difference_type n) noexcept -> Iterator&
             {
                 value = static_cast<T>(value - n * step);
                 return *this;
             }
 
-            friend constexpr Iterator operator+(Iterator it, difference_type n) noexcept { it += n; return it; }
-            friend constexpr Iterator operator+(difference_type n, Iterator it) noexcept { it += n; return it; }
-            friend constexpr Iterator operator-(Iterator it, difference_type n) noexcept { it -= n; return it; }
-            friend constexpr difference_type operator-(Iterator a, Iterator b) noexcept
+            friend constexpr auto operator+(Iterator it, difference_type n) noexcept -> Iterator { it += n; return it; }
+            friend constexpr auto operator+(difference_type n, Iterator it) noexcept -> Iterator { it += n; return it; }
+            friend constexpr auto operator-(Iterator it, difference_type n) noexcept -> Iterator { it -= n; return it; }
+            friend constexpr auto operator-(Iterator a, Iterator b) noexcept -> difference_type
             {
                 return static_cast<difference_type>((a.value - b.value) / a.step);
             }
 
-            constexpr reference operator[](difference_type n) const noexcept { return static_cast<T>(value + n * step); }
+            constexpr auto operator[](difference_type n) const noexcept -> reference { return static_cast<T>(value + n * step); }
 
             // Comparisons (by current key)
-            constexpr bool operator==(Iterator const& other) const noexcept { return value == other.value; }
-            constexpr bool operator!=(Iterator const& other) const noexcept { return value != other.value; }
+            constexpr auto operator==(Iterator const& other) const noexcept -> bool { return value == other.value; }
+            constexpr auto operator!=(Iterator const& other) const noexcept -> bool { return value != other.value; }
 
-            constexpr bool operator<(Iterator  const& other) const noexcept { return value < other.value; }
-            constexpr bool operator<=(Iterator const& other) const noexcept { return value <= other.value; }
-            constexpr bool operator>(Iterator  const& other) const noexcept { return value > other.value; }
-            constexpr bool operator>=(Iterator const& other) const noexcept { return value >= other.value; }
+            constexpr auto operator<(Iterator  const& other) const noexcept -> bool { return value < other.value; }
+            constexpr auto operator<=(Iterator const& other) const noexcept -> bool { return value <= other.value; }
+            constexpr auto operator>(Iterator  const& other) const noexcept -> bool { return value > other.value; }
+            constexpr auto operator>=(Iterator const& other) const noexcept -> bool { return value >= other.value; }
         };
 
         using iterator = Iterator;
-        [[nodiscard]] constexpr Iterator begin() const noexcept { return Iterator{.value = lower, .step = step}; }
-        [[nodiscard]] constexpr Iterator end() const noexcept
+
+        [[nodiscard]] constexpr auto begin() const noexcept -> Iterator
+        {
+            return Iterator{.value = lower, .step = step};
+        }
+
+        [[nodiscard]] constexpr auto end() const noexcept -> Iterator
         {
             auto const count = static_cast<std::ptrdiff_t>(Size());
             return Iterator{.value = static_cast<T>(lower + count * step), .step = step};
         }
+
+        // NOLINTEND(readability-identifier-naming)
     };
 
     /**
@@ -502,6 +516,7 @@ namespace lugizmo {
 
         DFRangeIndexBounds<T> bounds;
     };
-}
+
+} // namespace lugizmo
 
 #endif // LUGIZMO_DF_INDEX_RANGE_H

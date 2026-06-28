@@ -93,7 +93,7 @@ namespace lugizmo {
          * @param[in] dataView Current data view.
          *
          * TODO Is it actually possible that the row is negative? Maybe just do a static_cast.
-         * @return Non-negative column count as `size_t`.
+         * @return Non-negative columns count as `size_t`.
          */
         static auto ColCount(MDSpan const& dataView) noexcept -> size_t
         {
