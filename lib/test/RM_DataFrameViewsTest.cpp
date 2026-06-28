@@ -40,7 +40,7 @@ namespace {
 
     // Builds a populated frame whose cell (field f, record r) holds `r * FLD_COUNT + f`.
     template<typename Cfg>
-    auto BuildFilled() -> typename Cfg::DF
+    auto BuildFilled() -> Cfg::DF
     {
         auto df = Cfg::Build();
         for (std::size_t f = 0; f < Cfg::FLD_COUNT; ++f)

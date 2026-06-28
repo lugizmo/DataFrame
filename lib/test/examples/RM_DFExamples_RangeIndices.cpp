@@ -211,11 +211,6 @@ TEST(RM_DFExamples_RangeIndices, SetGetRecords)
     ASSERT_EQ(df.Records().size(), 0);
 }
 
-TEST(RM_DFExamples_RangeIndices, SetWithRecords)
-{
-
-}
-
 TEST(RM_DFExamples_RangeIndices, StridedRecordRange)
 {
     using namespace lugizmo;
