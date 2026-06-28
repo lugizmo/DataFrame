@@ -36,7 +36,7 @@ namespace lugizmo {
         using Extents = std::dextents<std::ptrdiff_t, 1>;
         using Strides = std::layout_stride::mapping<Extents>;
         using IndexT  = I const*;
-        using KeyType = typename I::KeyType;
+        using KeyType = I::KeyType;
         using MDSpan  = std::mdspan<T, Extents, std::layout_stride>;
 
         template<typename Layout>
@@ -95,10 +95,10 @@ namespace lugizmo {
         {
             LUGIZMO_ASSERT_TRACE(begin <= end && end <= (isFieldView ? static_cast<std::size_t>(original.extent(0)) : static_cast<std::size_t>(original.extent(1))),
                             "DFView sub-range constructor received invalid begin/end bounds.");
-            std::size_t const newExtent_sz = end - begin;
+            std::size_t const newExtentSZ = end - begin;
 
             using IIdx           = Extents::index_type;
-            auto const newExtent = static_cast<IIdx>(newExtent_sz);
+            auto const newExtent = static_cast<IIdx>(newExtentSZ);
 
             if(isFieldView)
             {
@@ -176,12 +176,12 @@ namespace lugizmo {
 
             constexpr friend auto operator+(difference_type n, const Iterator& it) -> Iterator { return it + n; }
 
-            constexpr bool operator==(Iterator const& other) const noexcept { return ptr == other.ptr; }
-            constexpr bool operator!=(Iterator const& other) const noexcept { return ptr != other.ptr; }
-            constexpr bool operator<(Iterator const& other)  const noexcept { return ptr < other.ptr; }
-            constexpr bool operator<=(Iterator const& other) const noexcept { return ptr <= other.ptr; }
-            constexpr bool operator>(Iterator const& other)  const noexcept { return ptr > other.ptr; }
-            constexpr bool operator>=(Iterator const& other) const noexcept { return ptr >= other.ptr; }
+            constexpr auto operator==(Iterator const& other) const noexcept -> bool { return ptr == other.ptr; }
+            constexpr auto operator!=(Iterator const& other) const noexcept -> bool { return ptr != other.ptr; }
+            constexpr auto operator<(Iterator const& other)  const noexcept -> bool { return ptr < other.ptr; }
+            constexpr auto operator<=(Iterator const& other) const noexcept -> bool { return ptr <= other.ptr; }
+            constexpr auto operator>(Iterator const& other)  const noexcept -> bool { return ptr > other.ptr; }
+            constexpr auto operator>=(Iterator const& other) const noexcept -> bool { return ptr >= other.ptr; }
         };
 
         static_assert(std::random_access_iterator<Iterator>, "Validation for iterator requirement failed.");
@@ -305,7 +305,7 @@ namespace lugizmo {
     auto DFView<T, I>::Contains(KeyType const& key) -> bool
     {
         if(not dfIndex) return false;
-        return dfIndex->Contains(key);
+        return dfIndex->Has(key);
     }
 
     template <typename T, typename I>
