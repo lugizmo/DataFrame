@@ -61,6 +61,50 @@ namespace lugizmo::test {
         static auto MissingRecord()                -> int { return 99; }                        // out of the record set
     };
 
+    /// @brief Unique field index x strided range record index.
+    struct UniqueRange_IndexTest // NOLINT(readability-identifier-naming)
+    {
+        using DF = DataFrame<int, int, DFRangeIndex<int>>;
+
+        static constexpr std::size_t FLD_COUNT = TEST_FLD_COUNT;
+        static constexpr std::size_t REC_COUNT = TEST_REC_COUNT;
+
+        static auto Build() -> DF
+        {
+            DF df;
+            df.AddFields(std::array{10, 20, 30});
+            df.SetRecordRange(DFRangeIndexBounds{.lower = 0, .upper = 6, .step = 2}, 0); // 0, 2, 4
+            return df;
+        }
+
+        static auto FieldKey(std::size_t const i)  -> int { return static_cast<int>((i + 1) * 10); } // 10, 20, 30
+        static auto RecordKey(std::size_t const i) -> int { return static_cast<int>(i * 2); }         // 0, 2, 4
+        static auto MissingField()                 -> int { return 99; }                              // out of the field set
+        static auto MissingRecord()                -> int { return 1; }                               // off the step-2 grid
+    };
+
+    /// @brief Strided range field index x unique record index.
+    struct RangeUnique_IndexTest // NOLINT(readability-identifier-naming)
+    {
+        using DF = DataFrame<int, DFRangeIndex<int>, int>;
+
+        static constexpr std::size_t FLD_COUNT = TEST_FLD_COUNT;
+        static constexpr std::size_t REC_COUNT = TEST_REC_COUNT;
+
+        static auto Build() -> DF
+        {
+            DF df;
+            df.SetFieldRange(DFRangeIndexBounds{.lower = 0, .upper = 6, .step = 2}); // 0, 2, 4
+            df.AddRecords(std::array{10, 20, 30});
+            return df;
+        }
+
+        static auto FieldKey(std::size_t const i)  -> int { return static_cast<int>(i * 2); }          // 0, 2, 4
+        static auto RecordKey(std::size_t const i) -> int { return static_cast<int>((i + 1) * 10); }  // 10, 20, 30
+        static auto MissingField()                 -> int { return 1; }                               // off the step-2 grid
+        static auto MissingRecord()                -> int { return 99; }                              // out of the record set
+    };
+
     /// @brief Range x range index, step == 1 (contiguous).
     struct RangeS1_IndexTest // NOLINT(readability-identifier-naming)
     {
@@ -94,19 +138,23 @@ namespace lugizmo::test {
         static auto Build() -> DF
         {
             DF df;
-            df.SetFieldRange(DFRangeIndexBounds{.lower = 0, .upper = 3});                 // 0, 1, 2
+            df.SetFieldRange(DFRangeIndexBounds{.lower = 0, .upper = 6, .step = 2});     // 0, 2, 4
             df.SetRecordRange(DFRangeIndexBounds{.lower = 0, .upper = 6, .step = 2}, 0);  // 0, 2, 4
             return df;
         }
 
-        static auto FieldKey(std::size_t const i)  -> int { return static_cast<int>(i); }       // 0, 1, 2
+        static auto FieldKey(std::size_t const i)  -> int { return static_cast<int>(i) * 2; }   // 0, 2, 4
         static auto RecordKey(std::size_t const i) -> int { return static_cast<int>(i) * 2; }   // 0, 2, 4
-        static auto MissingField()                 -> int { return 99; }                        // out of the field range
+        static auto MissingField()                 -> int { return 1; }                         // in range, off the step-2 grid
         static auto MissingRecord()                -> int { return 1; }                         // in range, off the step-2 grid
     };
 
     /// @brief Type list of index configurations for TYPED_TEST_SUITE.
-    using IndexConfigs = testing::Types<Unique_IndexTest, RangeS1_IndexTest, RangeS2_IndexTest>;
+    using IndexConfigs = testing::Types<Unique_IndexTest,
+                                        UniqueRange_IndexTest,
+                                        RangeUnique_IndexTest,
+                                        RangeS1_IndexTest,
+                                        RangeS2_IndexTest>;
 
 } // namespace lugizmo::test
 

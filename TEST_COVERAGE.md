@@ -39,9 +39,10 @@ Every *index-agnostic* function is exercised across index configurations
 - **UU** — `DFUniqueIndex` × `DFUniqueIndex`
 - **R1** — `DFRangeIndex` × `DFRangeIndex`, `step == 1`
 - **Rs** — `DFRangeIndex` × `DFRangeIndex`, `step != 1`
-- **Mix** — mixed (e.g. `DFRangeIndex` × `DFUniqueIndex`), where relevant
+- **Mix** — both `DFUniqueIndex` × `DFRangeIndex` and
+  `DFRangeIndex` × `DFUniqueIndex`, where relevant
 
-Each such function carries a matrix, e.g. `UU:[ ] R1:[ ] Rs:[ ]`.
+Each such function carries a matrix, e.g. `UU:[ ] R1:[ ] Rs:[ ] Mix:[ ]`.
 
 Index-*specific* functions (e.g. `SetFieldRange`, `AddField`, `UpsertValue`) belong to a
 single index family and are tracked without a matrix.
@@ -51,9 +52,10 @@ single index family and are tracked without a matrix.
 The index type is a compile-time `DataFrame` template parameter, so cross-index coverage
 is driven by **GoogleTest typed tests** (`TYPED_TEST_SUITE` + `TYPED_TEST`):
 
-- A shared `lib/test/RM_DataframeTestConfigs.h` defines config-traits types —
-  `Unique_IndexTest` (UU), `RangeS1_IndexTest` (R1), `RangeS2_IndexTest` (Rs), and a mixed
-  config where relevant — each exposing its `DataFrame` type plus helpers to **build a
+- A shared `lib/test/RM_HelperDFTestConfigs.h` defines config-traits types —
+  `Unique_IndexTest` (UU), `RangeS1_IndexTest` (R1), `RangeS2_IndexTest` (Rs),
+  `UniqueRange_IndexTest`, and `RangeUnique_IndexTest` — each exposing its `DataFrame`
+  type plus helpers to **build a
   populated frame and hand back valid / invalid keys**. (The traits hide the difference
   between `AddFields(...)` for unique and `SetFieldRange(...)` for range; `step != 1` is a
   runtime bound carried by `RangeS2_IndexTest`, whose `MissingRecord()` returns an off-grid
@@ -70,13 +72,13 @@ is driven by **GoogleTest typed tests** (`TYPED_TEST_SUITE` + `TYPED_TEST`):
 
 Test file: [RM_DataframeTorsTest.cpp](/lib/test/RM_DataframeTorsTest.cpp)
 
-| Done | Function Name                | Returns    | UU | R1 | Rs |
-|------|------------------------------|------------|----|----|----|
-| ✅    | DataFrame(DataFrame const&)  | DataFrame  | ✔  | ✔  | ✔  |
-| ✅    | operator=(DataFrame const&)  | DataFrame& | ✔  | ✔  | ✔  |
-| ✅    | DataFrame(DataFrame&& other) | DataFrame  | ✔  | ✔  | ✔  |
-| ✅    | operator=(DataFrame&& other) | DataFrame& | ✔  | ✔  | ✔  |
-| ✅    | ~DataFrame()                 |            | ✔  | ✔  | ✔  |
+| Done | Function Name                | Returns    | UU | R1 | Rs | Mix |
+|------|------------------------------|------------|----|----|----|-----|
+| ✅    | DataFrame(DataFrame const&)  | DataFrame  | ✔  | ✔  | ✔  | ✔   |
+| ✅    | operator=(DataFrame const&)  | DataFrame& | ✔  | ✔  | ✔  | ✔   |
+| ✅    | DataFrame(DataFrame&& other) | DataFrame  | ✔  | ✔  | ✔  | ✔   |
+| ✅    | operator=(DataFrame&& other) | DataFrame& | ✔  | ✔  | ✔  | ✔   |
+| ✅    | ~DataFrame()                 |            | ✔  | ✔  | ✔  | ✔   |
 
 > Lifecycle is typed across all configs; the free path (`~DataFrame`, move-assign) is additionally
 > asserted with a counting memory resource in `RM_DataframeTorsMemory`.
@@ -87,10 +89,10 @@ Test file: [RM_DataFrameConstructTest.cpp](/lib/test/RM_DataFrameConstructTest.c
 
 Constructors (index-agnostic):
 
-| Done | Function Name                            | Returns   | UU | R1 | Rs |
-|------|------------------------------------------|-----------|----|----|----|
-| ✅    | DataFrame(MemRsc res)                    | DataFrame | ✔  | ✔  | ✔  |
-| ✅    | DataFrame(size_t reservedValues, MemRsc) | DataFrame | ✔  | ✔  | ✔  |
+| Done | Function Name                            | Returns   | UU | R1 | Rs | Mix |
+|------|------------------------------------------|-----------|----|----|----|-----|
+| ✅    | DataFrame(MemRsc res)                    | DataFrame | ✔  | ✔  | ✔  | ✔   |
+| ✅    | DataFrame(size_t reservedValues, MemRsc) | DataFrame | ✔  | ✔  | ✔  | ✔   |
 
 `FromFields*` helpers are index-family-specific (`std::conditional_t` selects bounds vs. span), so
 they are tracked per family rather than via the UU/R1/Rs matrix — value family here, range family in
@@ -147,39 +149,39 @@ Test file: [RM_DataframeDropTest.cpp](/lib/test/RM_DataframeDropTest.cpp)
 
 Test file: [RM_DataframePropertiesTest.cpp](/lib/test/RM_DataframePropertiesTest.cpp)
 
-| Done | Function Name                          | Returns | UU | R1 | Rs |
-|------|----------------------------------------|---------|----|----|----|
-| ✅    | HasField<C>(C const& field) const      | bool    | ✔  | ✔  | ✔  |
-| ✅    | HasRecord<C>(C const& record) const    | bool    | ✔  | ✔  | ✔  |
-| ✅    | Size() const                           | size_t  | ✔  | ✔  | ✔  |
-| ✅    | FieldSize() const                      | size_t  | ✔  | ✔  | ✔  |
-| ✅    | RecordSize() const                     | size_t  | ✔  | ✔  | ✔  |
-| ✅    | Empty() const                          | bool    | ✔  | ✔  | ✔  |
+| Done | Function Name                          | Returns | UU | R1 | Rs | Mix |
+|------|----------------------------------------|---------|----|----|----|-----|
+| ✅    | HasField<C>(C const& field) const      | bool    | ✔  | ✔  | ✔  | ✔   |
+| ✅    | HasRecord<C>(C const& record) const    | bool    | ✔  | ✔  | ✔  | ✔   |
+| ✅    | Size() const                           | size_t  | ✔  | ✔  | ✔  | ✔   |
+| ✅    | FieldSize() const                      | size_t  | ✔  | ✔  | ✔  | ✔   |
+| ✅    | RecordSize() const                     | size_t  | ✔  | ✔  | ✔  | ✔   |
+| ✅    | Empty() const                          | bool    | ✔  | ✔  | ✔  | ✔   |
 
 ### Accessing Values
 
 Test file: [RM_DataframeAccessTest.cpp](/lib/test/RM_DataframeAccessTest.cpp)
 
-| Done | Function Name                                           | Returns                | UU | R1 | Rs |
-|------|---------------------------------------------------------|------------------------|----|----|----|
-| ✅    | GetValue(FldT const& field, RecT const& record) const   | OptionalRef<T const>   | ✔  | ✔  | ✔  |
-| ✅    | GetValue(FldT const& field, RecT const& record)         | OptionalRef<T>         | ✔  | ✔  | ✔  |
-| ✅    | operator[](FldT const& field, RecT const& record)       | T&                     | ✔  | ✔  | ✔  |
-| ✅    | operator[](FldT const& field, RecT const& record) const | T const&               | ✔  | ✔  | ✔  |
-| ✅    | Data() const                                            | T const*               | ✔  | ✔  | ✔  |
-| ✅    | MDSpan() const                                          | RecsData<T const>      | ✔  | ✔  | ✔  |
-| ✅    | Values(this auto& self)                                 | std::span<Value<Self>> | ✔  | ✔  | ✔  |
+| Done | Function Name                                           | Returns                | UU | R1 | Rs | Mix |
+|------|---------------------------------------------------------|------------------------|----|----|----|-----|
+| ✅    | GetValue(FldT const& field, RecT const& record) const   | OptionalRef<T const>   | ✔  | ✔  | ✔  | ✔   |
+| ✅    | GetValue(FldT const& field, RecT const& record)         | OptionalRef<T>         | ✔  | ✔  | ✔  | ✔   |
+| ✅    | operator[](FldT const& field, RecT const& record)       | T&                     | ✔  | ✔  | ✔  | ✔   |
+| ✅    | operator[](FldT const& field, RecT const& record) const | T const&               | ✔  | ✔  | ✔  | ✔   |
+| ✅    | Data() const                                            | T const*               | ✔  | ✔  | ✔  | ✔   |
+| ✅    | MDSpan() const                                          | RecsData<T const>      | ✔  | ✔  | ✔  | ✔   |
+| ✅    | Values(this auto& self)                                 | std::span<Value<Self>> | ✔  | ✔  | ✔  | ✔   |
 
 ### Mutating Values
 
 Test file: [RM_DataframeMutatingTest.cpp](/lib/test/RM_DataframeMutatingTest.cpp)
 
-| Done | Function Name                                                | Returns | UU | R1 | Rs |
-|------|--------------------------------------------------------------|---------|----|----|----|
-| ✅    | AssignValue(FldT const& field, RecT const& record, U&& value)| bool    | ✔  | ✔  | ✔  |
-| ✅    | UpsertValue(FldT const& field, RecT const& record, U&& value)| void    | ✔  | —  | —  |
-| ✅    | AssignFieldValues(FldT const& field, std::span<U const> vals)| bool    | ✔  | ✘  | ✘  |
-| ✅    | AssignRecordValues(RecT const& record, std::span<U const> vs)| bool    | ✔  | ✘  | ✘  |
+| Done | Function Name                                                 | Returns | UU | R1 | Rs | Mix |
+|------|---------------------------------------------------------------|---------|----|----|----|-----|
+| ✅    | AssignValue(FldT const& field, RecT const& record, U&& value) | bool    | ✔  | ✔  | ✔  | ✔   |
+| ✅    | UpsertValue(FldT const& field, RecT const& record, U&& value) | void    | ✔  | —  | —  | —   |
+| ✅    | AssignFieldValues(FldT const& field, std::span<U const> vals) | bool    | ✔  | ✘  | ✘  | ✘   |
+| ✅    | AssignRecordValues(RecT const& record, std::span<U const> vs) | bool    | ✔  | ✘  | ✘  | ✘   |
 
 - TODO `AssignFieldValues`/`AssignRecordValues` are index-agnostic but currently only covered for `UU`
 
@@ -187,18 +189,18 @@ Test file: [RM_DataframeMutatingTest.cpp](/lib/test/RM_DataframeMutatingTest.cpp
 
 Test file: [RM_DataframeViewsTest.cpp](/lib/test/RM_DataframeViewsTest.cpp)
 
-| Done | Function Name                              | Returns                       | UU | R1 | Rs |
-|------|--------------------------------------------|-------------------------------|----|----|----|
-| ✅    | ViewField(field) [const]                   | DFView<T[ const], RecI>       | ✔  | ✔  | ✔  |
-| ✅    | ViewFieldIndexed(field) [const]            | DFViewIndexed<T[ const], ...> | ✔  | ✔  | ✔  |
-| ✅    | ViewRecordIndexed(record) [const]          | DFViewIndexed<T[ const], ...> | ✔  | ✔  | ✔  |
-| ✅    | ViewRecord(record) [const]                 | DFView<T[ const], FldI>       | ✔  | ✔  | ✔  |
-| ✅    | operator\|(SelectField<F>) [const]         | DFView<T[ const], RecI>       | ✔  | ✔  | ✔  |
-| ✅    | operator\|(SelectRecord<R>) [const]        | DFView<T[ const], FldI>       | ✔  | ✔  | ✔  |
-| ✅    | operator\|(SelectFieldIndexed<F>) [const]  | DFViewIndexed<...>            | ✔  | ✔  | ✔  |
-| ✅    | operator\|(SelectRecordIndexed<R>) [const] | DFViewIndexed<...>            | ✔  | ✔  | ✔  |
-| ✅    | Fields() const                             | Flds                          | ✔  | ✔  | ✔  |
-| ✅    | Records() const                            | Recs                          | ✔  | ✔  | ✔  |
+| Done | Function Name                              | Returns                       | UU | R1 | Rs | Mix |
+|------|--------------------------------------------|-------------------------------|----|----|----|-----|
+| ✅    | ViewField(field) [const]                   | DFView<T[ const], RecI>       | ✔  | ✔  | ✔  | ✔   |
+| ✅    | ViewFieldIndexed(field) [const]            | DFViewIndexed<T[ const], ...> | ✔  | ✔  | ✔  | ✔   |
+| ✅    | ViewRecordIndexed(record) [const]          | DFViewIndexed<T[ const], ...> | ✔  | ✔  | ✔  | ✔   |
+| ✅    | ViewRecord(record) [const]                 | DFView<T[ const], FldI>       | ✔  | ✔  | ✔  | ✔   |
+| ✅    | operator\|(SelectField<F>) [const]         | DFView<T[ const], RecI>       | ✔  | ✔  | ✔  | ✔   |
+| ✅    | operator\|(SelectRecord<R>) [const]        | DFView<T[ const], FldI>       | ✔  | ✔  | ✔  | ✔   |
+| ✅    | operator\|(SelectFieldIndexed<F>) [const]  | DFViewIndexed<...>            | ✔  | ✔  | ✔  | ✔   |
+| ✅    | operator\|(SelectRecordIndexed<R>) [const] | DFViewIndexed<...>            | ✔  | ✔  | ✔  | ✔   |
+| ✅    | Fields() const                             | Flds                          | ✔  | ✔  | ✔  | ✔   |
+| ✅    | Records() const                            | Recs                          | ✔  | ✔  | ✔  | ✔   |
 
 ### Sort
 
