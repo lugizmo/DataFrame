@@ -271,7 +271,7 @@ namespace lugizmo {
      *  @details Only checks if contains a KeyType and inherits from DFBaseValueIndex.
      */
     template<typename T1, typename T2>
-    concept DFUnqIndices = requires { DFUnqIndex<T1> and DFUnqIndex<T2>; };
+    concept DFUnqIndices = DFUnqIndex<T1> && DFUnqIndex<T2>;
 
     /**
      *  @brief   Concept of a Dataframe Range Index.
@@ -285,7 +285,7 @@ namespace lugizmo {
      *  @details Only checks if contains a KeyType and inherits from DFBaseRangeIndex.
      */
     template<typename T1, typename T2>
-    concept DFRngIndices = requires { DFRngIndex<T1> and DFRngIndex<T2>; };
+    concept DFRngIndices = DFRngIndex<T1> && DFRngIndex<T2>;
 
     /**
      *  @brief Concept of a Dataframe Index Type.
