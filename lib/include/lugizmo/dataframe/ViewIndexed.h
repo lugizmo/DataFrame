@@ -9,6 +9,7 @@
 
 #include <cstddef>
 #include <iterator>
+#include <memory>
 #include <utility>
 #include <span>
 
@@ -36,8 +37,9 @@ namespace lugizmo {
         using MDSpanDF = View::template MDSpanDF<Layout>;
 
         // Index Types
-        using KeyType = I::ConstKeyType;
-        using Indices = std::conditional_t<DFRngIndex<std::remove_const_t<I>>, DFRangeIndexBounds<std::remove_const_t<KeyType>>, std::span<KeyType>>;
+        using KeyType       = I::ConstKeyType;
+        using Indices       = std::conditional_t<DFRngIndex<std::remove_const_t<I>>, DFRangeIndexBounds<std::remove_const_t<KeyType>>, std::span<KeyType>>;
+        using IndexIterator = Indices::iterator;
 
         static_assert(not std::is_pointer_v<T>   && not std::is_pointer_v<KeyType>);
         static_assert(not std::is_reference_v<T> && not std::is_reference_v<KeyType>);
@@ -58,6 +60,37 @@ namespace lugizmo {
     public:
 
         /**
+         * @brief Read-only reference-like access to an index key.
+         * @details The index iterator is stored by value. For unique indices it refers to
+         *          the stored key; for range indices it owns the generated key position.
+         */
+        class IndexReference
+        {
+            IndexIterator position;
+
+        public:
+            constexpr explicit IndexReference(IndexIterator indexPosition) noexcept :
+                position(indexPosition)
+            {
+            }
+
+            [[nodiscard]] constexpr auto HasValue() const noexcept -> bool { return true; }
+            [[nodiscard]] constexpr explicit operator bool() const noexcept { return true; }
+
+            [[nodiscard]] constexpr auto Pointer() const noexcept -> KeyType const*
+            {
+                return std::to_address(position);
+            }
+
+            [[nodiscard]] constexpr auto Get() const noexcept -> KeyType const& { return *Pointer(); }
+            [[nodiscard]] constexpr auto Value() const noexcept -> KeyType const& { return *Pointer(); }
+            [[nodiscard]] constexpr auto operator*() const noexcept -> KeyType const& { return *Pointer(); }
+            [[nodiscard]] constexpr auto operator->() const noexcept -> KeyType const* { return Pointer(); }
+        };
+
+        static_assert(std::is_trivially_copyable_v<IndexReference>, "Index reference should remain a lightweight iterator wrapper.");
+
+        /**
          *  @brief Value returned by the Iterator when dereferenced.
          *         Basically a pair of dataframe value and the associated
          *         index (either the field or record).
@@ -69,12 +102,15 @@ namespace lugizmo {
         struct IteratorValue
         {
             OptionalRef<T>       val;
-            OptionalRef<KeyType> idx;
+            IndexReference       idx;
 
-            constexpr IteratorValue(T* v, KeyType* i) noexcept : val(v), idx(i)
+            constexpr IteratorValue(T* value, IndexIterator indexPosition) noexcept :
+                val(value),
+                idx(indexPosition)
             {
-                LUGIZMO_ASSERT_TRACE(v != nullptr && i != nullptr, "IteratorValue requires non-null value and index pointers.");
+                LUGIZMO_ASSERT_TRACE(value != nullptr, "IteratorValue requires a non-null value pointer.");
             }
+
             constexpr ~IteratorValue() noexcept = default;
 
             constexpr IteratorValue(IteratorValue const& other) noexcept                    = default;
@@ -109,13 +145,11 @@ namespace lugizmo {
             DIt    ptr;
             IIt    indices;
             mutable OptVal current;
-            mutable DIt    indexedPtr;
-            mutable IIt    indexedIndices;
             mutable OptVal indexed;
 
             auto RefreshCurrent() const noexcept -> Val&
             {
-                current.emplace(ptr.operator->(), indices.operator->());
+                current.emplace(ptr.operator->(), indices);
                 return *current;
             }
 
@@ -142,8 +176,6 @@ namespace lugizmo {
                 ptr(),
                 indices(),
                 current(),
-                indexedPtr(),
-                indexedIndices(),
                 indexed()
             {
             }
@@ -152,8 +184,6 @@ namespace lugizmo {
                 ptr(data),
                 indices(indices),
                 current(),
-                indexedPtr(),
-                indexedIndices(),
                 indexed()
             {
             }
@@ -162,8 +192,6 @@ namespace lugizmo {
                 ptr(other.ptr),
                 indices(other.indices),
                 current(),
-                indexedPtr(),
-                indexedIndices(),
                 indexed()
             {
             }
@@ -172,8 +200,6 @@ namespace lugizmo {
                 ptr(std::move(other.ptr)),
                 indices(std::move(other.indices)),
                 current(),
-                indexedPtr(),
-                indexedIndices(),
                 indexed()
             {
             }
@@ -287,9 +313,7 @@ namespace lugizmo {
 
             auto operator[](difference_type const n) const -> reference
             {
-                indexedPtr     = ptr + n;
-                indexedIndices = indices + n;
-                indexed.emplace(indexedPtr.operator->(), indexedIndices.operator->());
+                indexed.emplace((ptr + n).operator->(), indices + n);
                 return *indexed;
             }
 
@@ -333,24 +357,26 @@ namespace lugizmo {
 
         [[nodiscard]] auto operator[](size_t const i) noexcept -> IteratorValue
         {
-            return IteratorValue(&dataView[i], &indexSpan[i]);
+            auto const offset = static_cast<std::ptrdiff_t>(i);
+            return IteratorValue((dataView.begin() + offset).operator->(), indexSpan.begin() + offset);
         }
 
         [[nodiscard]] auto operator[](size_t const i) const noexcept -> IteratorValue
         {
-            return IteratorValue(&dataView[i], &indexSpan[i]);
+            auto const offset = static_cast<std::ptrdiff_t>(i);
+            return IteratorValue((dataView.begin() + offset).operator->(), indexSpan.begin() + offset);
         }
 
         [[nodiscard]] auto operator()(size_t const i) noexcept -> std::optional<IteratorValue>
         {
             if(i >= dataView.Size()) return std::nullopt;
-            return IteratorValue(&dataView[i], &indexSpan[i]);
+            return (*this)[i];
         }
 
         [[nodiscard]] auto operator()(size_t const i) const noexcept -> std::optional<IteratorValue>
         {
             if(i >= dataView.Size()) return std::nullopt;
-            return IteratorValue(&dataView[i], &indexSpan[i]);
+            return (*this)[i];
         }
 
         [[nodiscard]]
@@ -494,6 +520,7 @@ namespace lugizmo {
         //[[nodiscard]] auto Front() const noexcept -> T const*;
         //[[nodiscard]] auto Back() noexcept -> T*;
         //[[nodiscard]] auto Back() const noexcept -> T const*;
-}
+
+} // namespace lugizmo
 
 #endif // LUGIZMO_DF_VIEW_INDEXED_H

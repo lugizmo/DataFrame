@@ -187,21 +187,18 @@ Test file: [RM_DataframeMutatingTest.cpp](/lib/test/RM_DataframeMutatingTest.cpp
 
 Test file: [RM_DataframeViewsTest.cpp](/lib/test/RM_DataframeViewsTest.cpp)
 
-| Done | Function Name                          | Returns                | UU | R1 | Rs |
-|------|----------------------------------------|------------------------|----|----|----|
-| ✅    | ViewField(field) [const]               | DFView<T[ const], RecI>         | ✔  | ✔  | ✔  |
-| ✅    | ViewFieldIndexed(field) [const]        | DFViewIndexed<T[ const], ...>   | ✔  | ✔  | ✔  |
-| ✅    | ViewRecordIndexed(record) [const]      | DFViewIndexed<T[ const], ...>   | ✔  | ✔  | ✔  |
-| ✅    | ViewRecord(record) [const]             | DFView<T[ const], FldI>         | ✔  | ✔  | ✔  |
-| ✅    | operator\|(SelectField<F>) [const]     | DFView<T[ const], RecI>         | ✔  | ✘  | ✘  |
-| ✅    | operator\|(SelectRecord<R>) [const]    | DFView<T[ const], FldI>         | ✔  | ✘  | ✘  |
-| ✅    | operator\|(SelectFieldIndexed<F>) [const]  | DFViewIndexed<...>          | ✔  | ✘  | ✘  |
-| ✅    | operator\|(SelectRecordIndexed<R>) [const] | DFViewIndexed<...>          | ✔  | ✘  | ✘  |
-| ✅    | Fields() const                         | Flds                   | ✔  | ✔  | ✔  |
-| ✅    | Records() const                        | Recs                   | ✔  | ✔  | ✔  |
-
-- TODO the four `operator\|` selectors are value-index only. Once range-index support is added,
-  the typed suite should extend to cover them.
+| Done | Function Name                              | Returns                       | UU | R1 | Rs |
+|------|--------------------------------------------|-------------------------------|----|----|----|
+| ✅    | ViewField(field) [const]                   | DFView<T[ const], RecI>       | ✔  | ✔  | ✔  |
+| ✅    | ViewFieldIndexed(field) [const]            | DFViewIndexed<T[ const], ...> | ✔  | ✔  | ✔  |
+| ✅    | ViewRecordIndexed(record) [const]          | DFViewIndexed<T[ const], ...> | ✔  | ✔  | ✔  |
+| ✅    | ViewRecord(record) [const]                 | DFView<T[ const], FldI>       | ✔  | ✔  | ✔  |
+| ✅    | operator\|(SelectField<F>) [const]         | DFView<T[ const], RecI>       | ✔  | ✔  | ✔  |
+| ✅    | operator\|(SelectRecord<R>) [const]        | DFView<T[ const], FldI>       | ✔  | ✔  | ✔  |
+| ✅    | operator\|(SelectFieldIndexed<F>) [const]  | DFViewIndexed<...>            | ✔  | ✔  | ✔  |
+| ✅    | operator\|(SelectRecordIndexed<R>) [const] | DFViewIndexed<...>            | ✔  | ✔  | ✔  |
+| ✅    | Fields() const                             | Flds                          | ✔  | ✔  | ✔  |
+| ✅    | Records() const                            | Recs                          | ✔  | ✔  | ✔  |
 
 ### Sort
 

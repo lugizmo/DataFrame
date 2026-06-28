@@ -477,7 +477,7 @@ namespace lugizmo {
          *  @brief   Alternative syntax for ViewField().
          *  @copydoc ViewField
          */
-        auto operator|(this auto& self, SelectField<FldT> const& index) noexcept -> ValueView<decltype(self), RecI> requires DFUnqIndex<FldI>
+        auto operator|(this auto& self, SelectField<FldT> const& index) noexcept -> ValueView<decltype(self), RecI>
         {
             return self.ViewField(index.val);
         }
@@ -486,7 +486,7 @@ namespace lugizmo {
          * @brief   Alternative syntax for ViewRecord()
          * @copydoc ViewRecord
          */
-        auto operator|(this auto& self, SelectRecord<RecT> const& index) noexcept -> ValueView<decltype(self), FldI> requires DFUnqIndex<RecI>
+        auto operator|(this auto& self, SelectRecord<RecT> const& index) noexcept -> ValueView<decltype(self), FldI>
         {
             return self.ViewRecord(index.val);
         }
@@ -495,7 +495,7 @@ namespace lugizmo {
          * @brief   Alternative syntax for ViewFieldIndexed()
          * @copydoc ViewFieldIndexed
          */
-        auto operator|(this auto& self, SelectFieldIndexed<FldT> const& index) noexcept -> IndexedValueView<decltype(self), RecI> requires DFUnqIndex<FldI>
+        auto operator|(this auto& self, SelectFieldIndexed<FldT> const& index) noexcept -> IndexedValueView<decltype(self), RecI>
         {
             return self.ViewFieldIndexed(index.val);
         }
@@ -504,7 +504,7 @@ namespace lugizmo {
          * @brief   Alternative syntax for GetRecordIndexed()
          * @copydoc ViewRecordIndexed
          */
-        auto operator|(this auto& self, SelectRecordIndexed<RecT> const& index) noexcept -> IndexedValueView<decltype(self), FldI> requires DFUnqIndex<RecI>
+        auto operator|(this auto& self, SelectRecordIndexed<RecT> const& index) noexcept -> IndexedValueView<decltype(self), FldI>
         {
             return self.ViewRecordIndexed(index.val);
         }
