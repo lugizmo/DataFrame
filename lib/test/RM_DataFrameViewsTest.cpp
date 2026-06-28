@@ -15,6 +15,7 @@
 // ✅ ViewFieldIndexed    - ViewFieldIndexed(field) [const]       -> DFViewIndexed<T[ const], RecI const>
 // ✅ ViewRecordIndexed   - ViewRecordIndexed(record) [const]     -> DFViewIndexed<T[ const], FldI const>
 // ✅ IndexedIterator     - DFViewIndexed::IteratorIdx
+// ✅ IndexedLookup       - DFViewIndexed::Contains / At
 // ✅ SelectField         - operator|(SelectField<F>) [const]     -> DFView<T[ const], RecI>
 // ✅ SelectRecord        - operator|(SelectRecord<R>) [const]    -> DFView<T[ const], FldI>
 // ✅ SelectFieldIndexed  - operator|(SelectFieldIndexed<F>) [const]  -> DFViewIndexed<...>
@@ -225,6 +226,42 @@ TYPED_TEST(RM_DataframeViews, ViewRecordIndexed)
         {
             EXPECT_EQ(*std::as_const(df).GetValue(Cfg::FieldKey(f), Cfg::RecordKey(0)), 7);
         }
+    }
+}
+
+/**
+ * @brief Indexed views resolve keys through the dataframe index for mutable and const access.
+ * @see   lugizmo::DFViewIndexed.Contains
+ * @see   lugizmo::DFViewIndexed.At
+ */
+TYPED_TEST(RM_DataframeViews, IndexedLookup)
+{
+    using Cfg = TypeParam;
+    auto df   = BuildFilled<Cfg>();
+
+    {
+        auto view = df.ViewFieldIndexed(Cfg::FieldKey(1));
+
+        EXPECT_TRUE(view.Contains(Cfg::RecordKey(2)));
+        EXPECT_FALSE(view.Contains(Cfg::MissingRecord()));
+
+        auto* value = view.At(Cfg::RecordKey(2));
+        ASSERT_NE(value, nullptr);
+        EXPECT_EQ(*value, static_cast<int>(2 * Cfg::FLD_COUNT + 1));
+        EXPECT_EQ(view.At(Cfg::MissingRecord()), nullptr);
+
+        *value = 77;
+        EXPECT_EQ(*std::as_const(df).GetValue(Cfg::FieldKey(1), Cfg::RecordKey(2)), 77);
+    }
+
+    {
+        auto const view = std::as_const(df).ViewRecordIndexed(Cfg::RecordKey(0));
+        auto const* value = view.At(Cfg::FieldKey(1));
+        static_assert(std::is_const_v<std::remove_pointer_t<decltype(value)>>);
+
+        ASSERT_NE(value, nullptr);
+        EXPECT_EQ(*value, 1);
+        EXPECT_EQ(view.At(Cfg::MissingField()), nullptr);
     }
 }
 

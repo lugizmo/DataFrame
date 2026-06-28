@@ -451,34 +451,20 @@ namespace lugizmo {
     template<typename T, typename  I>
     auto DFViewIndexed<T, I>::Contains(KeyType const& key) noexcept -> bool
     {
-        // TODO store additionally a reference to the
-        //      index type so that we don't have linear search here
-        return std::ranges::find(indexSpan, key) != indexSpan.end();
+        return dataView.Contains(key);
     }
 
-        template<typename T, typename  I>
-        auto DFViewIndexed<T, I>::At(KeyType const& key) noexcept -> T*
-        {
-            // TODO store additionally a reference to the
-            //      index type so that we don't have linear search here
-            auto pos = std::ranges::find(indexSpan, key);
-            if(pos == indexSpan.end()) return nullptr;
+    template<typename T, typename  I>
+    auto DFViewIndexed<T, I>::At(KeyType const& key) noexcept -> T*
+    {
+        return dataView.At(key);
+    }
 
-            LUGIZMO_ASSERT_TRACE(indexSpan.size() == dataView.Size(), "DFViewIndexed invariant failed: index and data view size mismatch.");
-            return &dataView[static_cast<size_t>(std::distance(indexSpan.begin(), pos))];
-        }
-
-        template<typename T, typename  I>
-        auto DFViewIndexed<T, I>::At(KeyType const& key) const noexcept -> T const*
-        {
-            // TODO store additionally a reference to the
-            //      index type so that we don't have linear search here
-            auto pos = std::ranges::find(indexSpan, key);
-            if(pos == indexSpan.end()) return nullptr;
-
-            LUGIZMO_ASSERT_TRACE(indexSpan.size() == dataView.Size(), "DFViewIndexed invariant failed: index and data view size mismatch.");
-            return &dataView[static_cast<size_t>(std::distance(indexSpan.begin(), pos))];
-        }
+    template<typename T, typename  I>
+    auto DFViewIndexed<T, I>::At(KeyType const& key) const noexcept -> T const*
+    {
+        return dataView.At(key);
+    }
 
         template<typename T, typename  I>
         auto DFViewIndexed<T, I>::TryAt(KeyType const& key) const noexcept -> std::optional<T>
