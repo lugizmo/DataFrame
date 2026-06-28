@@ -272,8 +272,7 @@ namespace lugizmo {
             auto operator-(IteratorIdx const& other) const -> difference_type
             {
                 auto const dataDistance  = ptr - other.ptr;
-                auto const indexDistance = indices - other.indices;
-                LUGIZMO_ASSERT_TRACE(dataDistance == indexDistance, "DFViewIndexed iterator data and index positions diverged.");
+                LUGIZMO_ASSERT_TRACE(dataDistance == (indices - other.indices), "DFViewIndexed iterator data and index positions diverged.");
                 return dataDistance;
             }
 

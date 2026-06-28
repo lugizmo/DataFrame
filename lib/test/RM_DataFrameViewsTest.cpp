@@ -13,6 +13,7 @@
 // ✅ ViewField           - ViewField(field) [const]              -> DFView<T[ const], RecI>
 // ✅ ViewFieldIndexed    - ViewFieldIndexed(field) [const]       -> DFViewIndexed<T[ const], RecI const>
 // ✅ ViewRecordIndexed   - ViewRecordIndexed(record) [const]     -> DFViewIndexed<T[ const], FldI const>
+// ✅ IndexedIterator     - DFViewIndexed::IteratorIdx
 // ✅ Fields              - Fields() const -> Flds
 // ✅ Records             - Records() const -> Recs
 //
@@ -28,6 +29,8 @@
 #include "gtest/gtest.h"
 
 #include <cstddef>
+#include <iterator>
+#include <ranges>
 #include <type_traits>
 #include <utility>
 
@@ -226,6 +229,81 @@ TYPED_TEST(RM_DataframeViews, ViewRecordIndexed)
             EXPECT_EQ(*std::as_const(df).GetValue(Cfg::FieldKey(f), Cfg::RecordKey(0)), 7);
         }
     }
+}
+
+/**
+ *  @brief Indexed view iterators keep value and key positions synchronized for every
+ *         random-access operation.
+ */
+TYPED_TEST(RM_DataframeViews, IndexedIterator)
+{
+    using Cfg = TypeParam;
+    auto df   = BuildFilled<Cfg>();
+    auto view = df.ViewFieldIndexed(Cfg::FieldKey(0));
+
+    using Iterator = decltype(view.begin());
+    static_assert(std::random_access_iterator<Iterator>);
+    static_assert(std::ranges::random_access_range<decltype(view)>);
+
+    auto const begin = view.begin();
+    auto const end   = view.end();
+
+    EXPECT_EQ(end - begin, static_cast<std::ptrdiff_t>(Cfg::REC_COUNT));
+    EXPECT_EQ(std::ranges::distance(view), static_cast<std::ptrdiff_t>(Cfg::REC_COUNT));
+
+    auto second = begin + 1;
+    EXPECT_EQ(second - begin, 1);
+    EXPECT_EQ(*second->val, static_cast<int>(Cfg::FLD_COUNT));
+    EXPECT_EQ(*second->idx, Cfg::RecordKey(1));
+
+    auto first = second - 1;
+    EXPECT_EQ(*first->val, 0);
+    EXPECT_EQ(*first->idx, Cfg::RecordKey(0));
+
+    auto symmetric = 2 + begin;
+    EXPECT_EQ(*symmetric->val, static_cast<int>(2 * Cfg::FLD_COUNT));
+    EXPECT_EQ(*symmetric->idx, Cfg::RecordKey(2));
+
+    auto advanced = begin;
+    advanced += 2;
+    EXPECT_EQ(*advanced->val, static_cast<int>(2 * Cfg::FLD_COUNT));
+    EXPECT_EQ(*advanced->idx, Cfg::RecordKey(2));
+    advanced -= 1;
+    EXPECT_EQ(*advanced->val, static_cast<int>(Cfg::FLD_COUNT));
+    EXPECT_EQ(*advanced->idx, Cfg::RecordKey(1));
+
+    auto const& indexed = begin[2];
+    EXPECT_EQ(*indexed.val, static_cast<int>(2 * Cfg::FLD_COUNT));
+    EXPECT_EQ(*indexed.idx, Cfg::RecordKey(2));
+
+    auto incremented = begin;
+    auto previous    = incremented++;
+    EXPECT_EQ(*previous->idx, Cfg::RecordKey(0));
+    EXPECT_EQ(*incremented->idx, Cfg::RecordKey(1));
+    previous = incremented--;
+    EXPECT_EQ(*previous->idx, Cfg::RecordKey(1));
+    EXPECT_EQ(*incremented->idx, Cfg::RecordKey(0));
+
+    EXPECT_LT(begin, end);
+    EXPECT_LE(begin, end);
+    EXPECT_GT(end, begin);
+    EXPECT_GE(end, begin);
+
+    Iterator copied = begin;
+    Iterator moved  = std::move(copied);
+    EXPECT_EQ(*moved->idx, Cfg::RecordKey(0));
+
+    Iterator copyAssigned;
+    copyAssigned = begin;
+    Iterator moveAssigned;
+    moveAssigned = std::move(copyAssigned);
+    EXPECT_EQ(*moveAssigned->idx, Cfg::RecordKey(0));
+
+    auto constView  = std::as_const(df).ViewFieldIndexed(Cfg::FieldKey(0));
+    auto constBegin = constView.begin();
+    static_assert(std::is_const_v<std::remove_pointer_t<decltype(constBegin->First())>>);
+    EXPECT_EQ(*constBegin[1].val, static_cast<int>(Cfg::FLD_COUNT));
+    EXPECT_EQ(*constBegin[1].idx, Cfg::RecordKey(1));
 }
 
 /**

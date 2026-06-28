@@ -163,7 +163,8 @@ namespace lugizmo {
             constexpr auto operator>=(Iterator const& other) const noexcept -> bool { return value >= other.value; }
         };
 
-        using iterator = Iterator;
+        using iterator         = Iterator;
+        using reverse_iterator = std::reverse_iterator<Iterator>;
 
         [[nodiscard]] constexpr auto begin() const noexcept -> Iterator
         {
@@ -176,12 +177,32 @@ namespace lugizmo {
             return Iterator{.value = static_cast<T>(lower + count * step), .step = step};
         }
 
+        [[nodiscard]] constexpr auto rbegin() const noexcept -> reverse_iterator
+        {
+            return reverse_iterator(end());
+        }
+
+        [[nodiscard]] constexpr auto rend() const noexcept -> reverse_iterator
+        {
+            return reverse_iterator(begin());
+        }
+
+        [[nodiscard]] constexpr auto crbegin() const noexcept -> reverse_iterator
+        {
+            return rbegin();
+        }
+
+        [[nodiscard]] constexpr auto crend() const noexcept -> reverse_iterator
+        {
+            return rend();
+        }
+
         // NOLINTEND(readability-identifier-naming)
     };
 
     /**
      * @brief   Strided range index mapping a key range `[lower, upper)` to positions `[0, Size())`.
-     * @details Like a pandas `RangeIndex`: holds only `(lower, upper, step)` and resolves
+     * @details `RangeIndex`: holds only `(lower, upper, step)` and resolves
      *          `position <-> key` in closed form, with no per-element storage. `step` defaults to
      *          one unit (the contiguous case). See `DFRangeKey` for the admitted key types.
      *

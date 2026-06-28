@@ -17,6 +17,7 @@
 // ✅ Strided           - Step / Size / Position / Keys (step != 1)
 // ✅ HasStrided        - Has(key) on a strided grid
 // ✅ Bijection         - Key(pos) <-> Position(key) round trip
+// ✅ Iterators         - forward/reverse random-access iterator contract
 // ✅ ChronoHours       - DFRangeIndex<std::chrono::hours>
 // ✅ CustomType        - DFRangeIndex over a custom affine key (DFRngKey)
 //
@@ -27,7 +28,9 @@
 #include <chrono>
 #include <compare>
 #include <cstddef>
+#include <iterator>
 #include <optional>
+#include <ranges>
 #include <string>
 
 #include "lugizmo/dataframe/IndexRange.h"
@@ -274,6 +277,57 @@ TEST(DataframeIndexRange, Bijection)
     ASSERT_EQ(strided.Key(0), 0);
     ASSERT_EQ(strided.Key(3), 6);
     ASSERT_EQ(strided.Key(5), std::nullopt);
+}
+
+TEST(DataframeIndexRange, Iterators)
+{
+    using Bounds = lugizmo::DFRangeIndexBounds<int>;
+
+    static_assert(std::random_access_iterator<Bounds::iterator>);
+    static_assert(std::random_access_iterator<Bounds::reverse_iterator>);
+    static_assert(std::ranges::random_access_range<Bounds>);
+
+    // An unaligned upper bound exercises the computed one-past-end position: 2, 5, 8.
+    constexpr auto bounds = Bounds{.lower = 2, .upper = 9, .step = 3};
+    auto begin            = bounds.begin();
+    auto const end        = bounds.end();
+
+    EXPECT_EQ(*begin, 2);
+    EXPECT_EQ(*begin.operator->(), 2);
+    EXPECT_EQ(end - begin, 3);
+    EXPECT_EQ(std::ranges::distance(bounds), 3);
+    EXPECT_EQ(begin[2], 8);
+    EXPECT_EQ(*(begin + 2), 8);
+    EXPECT_EQ(*(2 + begin), 8);
+
+    auto const beforeIncrement = begin++;
+    EXPECT_EQ(*beforeIncrement, 2);
+    EXPECT_EQ(*begin, 5);
+    EXPECT_EQ(*++begin, 8);
+    EXPECT_EQ(*begin--, 8);
+    EXPECT_EQ(*begin, 5);
+    EXPECT_EQ(*--begin, 2);
+
+    begin += 2;
+    EXPECT_EQ(*begin, 8);
+    begin -= 1;
+    EXPECT_EQ(*begin, 5);
+    EXPECT_LT(begin, end);
+    EXPECT_LE(begin, end);
+    EXPECT_GT(end, begin);
+    EXPECT_GE(end, begin);
+
+    auto reverse = bounds.rbegin();
+    EXPECT_EQ(*reverse, 8);
+    EXPECT_EQ(bounds.rend() - reverse, 3);
+    EXPECT_EQ(reverse[1], 5);
+    EXPECT_EQ(*(reverse + 2), 2);
+    EXPECT_EQ(*bounds.crbegin(), 8);
+    EXPECT_EQ(bounds.crend(), bounds.rend());
+
+    constexpr auto empty = Bounds{.lower = 4, .upper = 4, .step = 2};
+    EXPECT_EQ(empty.begin(), empty.end());
+    EXPECT_EQ(empty.rbegin(), empty.rend());
 }
 
 TEST(DataframeIndexRange, ChronoHours)
