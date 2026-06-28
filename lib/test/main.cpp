@@ -6,8 +6,8 @@
 
 #include "gtest/gtest.h"
 
-auto main() -> int
+auto main(int argc, char** argv) -> int
 {
-    testing::InitGoogleTest();
+    testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }
