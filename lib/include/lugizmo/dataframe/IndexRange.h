@@ -79,7 +79,8 @@ namespace lugizmo {
         [[nodiscard]] constexpr auto Size() const noexcept -> size_t
         {
             LUGIZMO_ASSERT(lower <= upper, "DFRangeIndexBounds requires lower <= upper.");
-            if(upper <= lower) return 0;
+            LUGIZMO_ASSERT(step > DiffType{0}, "DFRangeIndexBounds requires a positive step.");
+            if(upper <= lower || step <= DiffType{0}) return 0;
 
             // Ceiling division so an unaligned `upper` still counts the last element.
             auto const span = upper - lower;
@@ -95,7 +96,7 @@ namespace lugizmo {
         /// @brief Returns whether the range spans no keys.
         [[nodiscard]] constexpr auto Empty() const noexcept -> bool
         {
-            return upper <= lower;
+            return upper <= lower or step <= DiffType{0};
         }
 
         /// @copydoc Empty()
@@ -385,6 +386,11 @@ namespace lugizmo {
         constexpr auto SetLowerBound(KeyType const key) noexcept -> std::optional<ssize_t>
         {
             if(key > bounds.upper || key == bounds.lower) return std::nullopt;
+            if(!Empty())
+            {
+                auto const distance = key < bounds.lower ? bounds.lower - key : key - bounds.lower;
+                if(distance % bounds.step != DiffType{0}) return std::nullopt;
+            }
 
             auto const oldSize = static_cast<ssize_t>(Size());
             bounds.lower = key;
@@ -402,6 +408,11 @@ namespace lugizmo {
         constexpr auto SetUpperBound(KeyType const key) noexcept -> std::optional<ssize_t>
         {
             if(key < bounds.lower || key == bounds.upper) return std::nullopt;
+            if(!Empty())
+            {
+                auto const distance = key < bounds.upper ? bounds.upper - key : key - bounds.upper;
+                if(distance % bounds.step != DiffType{0}) return std::nullopt;
+            }
 
             auto const oldSize = static_cast<ssize_t>(Size());
             bounds.upper = key;
@@ -434,7 +445,7 @@ namespace lugizmo {
          *
          * @details Deltas are in elements (not key span), so they apply directly to the row/column
          *          count for any step. Bound moves must stay on the step grid; an off-grid move is
-         *          rejected so existing positions keep their keys.
+         *          rejected, so existing positions keep their keys.
          *
          * @param[in] lower Optional new lower bound (unchanged when `std::nullopt`).
          * @param[in] upper Optional new upper bound (unchanged when `std::nullopt`).
@@ -457,7 +468,7 @@ namespace lugizmo {
                 auto const dist = (a < b) ? (b - a) : (a - b);
                 return dist % bounds.step == DiffType{0};
             };
-            if(!aligned(newLower, bounds.lower) || !aligned(newUpper, bounds.upper)) return { std::nullopt, std::nullopt };
+            if(!Empty() && (!aligned(newLower, bounds.lower) || !aligned(newUpper, bounds.upper))) return { std::nullopt, std::nullopt };
 
             // Element count of a `[lo, hi)` grid; never asserts (invalid/empty -> 0), so it is safe
             // to evaluate on configurations that are only intermediate (e.g. newLower > old upper).

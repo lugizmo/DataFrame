@@ -8,18 +8,20 @@
 // Test the DFRangeIndex computed (strided) range index.
 // The following functions are tested here (with names of tests):
 //
-// ✅ DefaultIndex      - DFRangeIndex() / Empty / Size / LowerBound / UpperBound
-// ✅ InvertedBounds    - DFRangeIndex(lower > upper) (normalizes to empty)
-// ✅ Accessors         - Size / LowerBound / UpperBound
-// ✅ InBound           - InBound(key)
-// ✅ SetBounds         - SetLowerBound / SetUpperBound (element-count deltas)
-// ✅ CopyConstructor   - DFRangeIndex(DFRangeIndex const&)
-// ✅ Strided           - Step / Size / Position / Keys (step != 1)
-// ✅ HasStrided        - Has(key) on a strided grid
-// ✅ Bijection         - Key(pos) <-> Position(key) round trip
-// ✅ Iterators         - forward/reverse random-access iterator contract
-// ✅ ChronoHours       - DFRangeIndex<std::chrono::hours>
-// ✅ CustomType        - DFRangeIndex over a custom affine key (DFRngKey)
+// ✅ DefaultIndex       - DFRangeIndex() / Empty / Size / LowerBound / UpperBound
+// ✅ InvertedBounds     - DFRangeIndex(lower > upper) (normalizes to empty)
+// ✅ Accessors          - Size / LowerBound / UpperBound
+// ✅ InBound            - InBound(key)
+// ✅ SetBounds          - SetLowerBound / SetUpperBound (element-count deltas)
+// ✅ SetStep            - SetStep validation and populated-range re-spacing
+// ✅ SetLowerUpperBound - atomic bound changes, grid alignment, and element deltas
+// ✅ CopyConstructor    - DFRangeIndex(DFRangeIndex const&)
+// ✅ Strided            - Step / Size / Position / Keys (step != 1)
+// ✅ HasStrided         - Has(key) on a strided grid
+// ✅ Bijection          - Key(pos) <-> Position(key) round trip
+// ✅ Iterators          - forward/reverse random-access iterator contract
+// ✅ ChronoHours        - DFRangeIndex<std::chrono::hours>
+// ✅ CustomType         - DFRangeIndex over a custom affine key (DFRngKey)
 //
 
 #include "gtest/gtest.h"
@@ -188,6 +190,101 @@ TEST(DataframeIndexRange, SetBounds)
         auto const addUpperBack = index.SetUpperBound(5);
         ASSERT_TRUE(addUpperBack.has_value() && addUpperBack.value() == 7);
         ASSERT_TRUE(index.Size() == 10);
+    }
+
+    // strided bounds only move in complete steps
+    {
+        auto index = lugizmo::DFRangeIndex(0, 10, 2); // 0, 2, 4, 6, 8
+
+        EXPECT_EQ(index.SetLowerBound(1), std::nullopt);
+        EXPECT_EQ(index.SetUpperBound(11), std::nullopt);
+        EXPECT_EQ(index.LowerBound(), 0);
+        EXPECT_EQ(index.UpperBound(), 10);
+
+        EXPECT_EQ(index.SetLowerBound(2), -1);
+        EXPECT_EQ(index.SetUpperBound(12), 1);
+        EXPECT_EQ(index.SetLowerBound(-2), 2);
+        EXPECT_EQ(index.SetUpperBound(8), -2);
+        EXPECT_EQ(index.Size(), 5);
+        EXPECT_EQ(index.Key(0), -2);
+        EXPECT_EQ(index.Key(4), 6);
+    }
+}
+
+TEST(DataframeIndexRange, SetStep)
+{
+    auto index = lugizmo::DFRangeIndex<int>();
+
+    EXPECT_FALSE(index.SetStep(0));
+    EXPECT_FALSE(index.SetStep(-1));
+    EXPECT_EQ(index.Step(), 1);
+
+    EXPECT_TRUE(index.SetStep(2));
+    EXPECT_TRUE(index.SetStep(2));
+    EXPECT_EQ(index.Step(), 2);
+
+    auto const changes = index.SetLowerUpperBound(1, 7); // 1, 3, 5
+    ASSERT_TRUE(changes.second.has_value());
+    EXPECT_EQ(*changes.second, 3);
+    EXPECT_FALSE(index.SetStep(3));
+    EXPECT_EQ(index.Step(), 2);
+
+    constexpr auto zeroStep     = lugizmo::DFRangeIndex(0, 5, 0);
+    constexpr auto negativeStep = lugizmo::DFRangeIndex(0, 5, -2);
+    static_assert(zeroStep.Step() == 1);
+    static_assert(negativeStep.Step() == 1);
+}
+
+TEST(DataframeIndexRange, SetLowerUpperBound)
+{
+    // An empty range can establish a new grid anchor regardless of its previous bounds.
+    {
+        auto index = lugizmo::DFRangeIndex<int>();
+        ASSERT_TRUE(index.SetStep(2));
+
+        auto const [lowerChange, upperChange] = index.SetLowerUpperBound(1, 7); // 1, 3, 5
+        ASSERT_TRUE(lowerChange.has_value());
+        ASSERT_TRUE(upperChange.has_value());
+        EXPECT_EQ(*lowerChange, 0);
+        EXPECT_EQ(*upperChange, 3);
+        EXPECT_EQ(index.LowerBound(), 1);
+        EXPECT_EQ(index.UpperBound(), 7);
+
+        auto const rejected = index.SetLowerUpperBound(2, 8); // off the established step grid
+        EXPECT_FALSE(rejected.first.has_value());
+        EXPECT_FALSE(rejected.second.has_value());
+        EXPECT_EQ(index.LowerBound(), 1);
+        EXPECT_EQ(index.UpperBound(), 7);
+
+        auto const [addLower, addUpper] = index.SetLowerUpperBound(-1, 9);
+        ASSERT_TRUE(addLower.has_value());
+        ASSERT_TRUE(addUpper.has_value());
+        EXPECT_EQ(*addLower, 1);
+        EXPECT_EQ(*addUpper, 1);
+        EXPECT_EQ(index.Size(), 5);
+
+        auto const inverted = index.SetLowerUpperBound(10, 0);
+        EXPECT_FALSE(inverted.first.has_value());
+        EXPECT_FALSE(inverted.second.has_value());
+        EXPECT_EQ(index.LowerBound(), -1);
+        EXPECT_EQ(index.UpperBound(), 9);
+    }
+
+    // Non-integral affine keys use the same alignment and element-delta contract.
+    {
+        using namespace std::chrono;
+        auto index = lugizmo::DFRangeIndex(hours{0}, hours{24}, hours{6});
+
+        auto const rejected = index.SetLowerUpperBound(hours{-5}, hours{30});
+        EXPECT_FALSE(rejected.first.has_value());
+        EXPECT_FALSE(rejected.second.has_value());
+
+        auto const [addLower, addUpper] = index.SetLowerUpperBound(hours{-6}, hours{30});
+        ASSERT_TRUE(addLower.has_value());
+        ASSERT_TRUE(addUpper.has_value());
+        EXPECT_EQ(*addLower, 1);
+        EXPECT_EQ(*addUpper, 1);
+        EXPECT_EQ(index.Size(), 6);
     }
 }
 
