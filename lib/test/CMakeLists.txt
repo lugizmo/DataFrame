@@ -31,6 +31,7 @@ if(LUGIZMO_DF_BUILD_TESTING)
             RM_DataFrameDropTest.cpp
             RM_DataFrameSortTest.cpp
             RM_DataFrameFunctionalTest.cpp
+            RM_DataFrameIOTest.cpp
 
             # examples (usability, still asserting)
             examples/RM_DFExamples_RangeIndices.cpp

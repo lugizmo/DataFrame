@@ -90,8 +90,8 @@ namespace lugizmo {
 
         using FldT = FldI::KeyType;     // underlying type of field index
         using RecT = RecI::KeyType;     // underlying type of record index
-        using Flds = FldI::KeyView;     // stored view into field indices  TODO introduce IndexView?
-        using Recs = RecI::KeyView;     // stored view into record indices TODO introduce IndexView?
+        using Flds = FldI::KeyView;     // read-only standard range over field keys
+        using Recs = RecI::KeyView;     // read-only standard range over record keys
 
         /// @brief Value type generated from self distinguish const category.
         template<typename Self>
@@ -629,8 +629,14 @@ namespace lugizmo {
 
     private:
 
-        static_assert(std::is_trivially_copyable_v<Flds>, "Fields() returns this.");
-        static_assert(std::is_trivially_copyable_v<Recs>, "Records() returns this.");
+        static_assert(std::ranges::random_access_range<Flds> && std::ranges::sized_range<Flds>,
+                      "Fields() requires a sized random-access range of field keys.");
+        static_assert(std::ranges::random_access_range<Recs> && std::ranges::sized_range<Recs>,
+                      "Records() requires a sized random-access range of record keys.");
+        static_assert(std::same_as<std::ranges::range_value_t<Flds>, FldT>,
+                      "Fields() must yield the field key type.");
+        static_assert(std::same_as<std::ranges::range_value_t<Recs>, RecT>,
+                      "Records() must yield the record key type.");
 
         // data section
         MemRsc     backingRes;     // memory resource to use
@@ -1613,28 +1619,24 @@ namespace lugizmo {
         auto const& extents = recsData.extents();
         auto const colCount = extents.extent(1);
         auto const rowCount = extents.extent(0);
+        using MatrixIndex   = typename DataMatrix::index_type;
 
-        stream << "Row Index" << sep;
-        auto fldCount = 0;
-        auto const maxFields = *fldIndex.MaxPosition();
-        for(auto const& fld : Fields())
-        {
-            stream << fld;
-            if(fldCount++; fldCount != maxFields + 1) stream << sep;
-            else                                      stream << '\n';
-        }
+        stream << "Row Index";
+        for(auto const& fld : Fields()) stream << sep << fld;
+        stream << '\n';
 
         auto const recs = Records();
-        for(size_t i = 0; i < rowCount; ++i)
+        auto rec         = std::ranges::begin(recs);
+        for(MatrixIndex i = 0; i < rowCount; ++i)
         {
-            fldCount = 0;
-            stream << recs[i] << sep;
-            for(size_t j = 0; j < colCount; ++j)
+            LUGIZMO_ASSERT_TRACE(rec != std::ranges::end(recs), "PrintCSV expected a record key for every stored row.");
+            stream << *rec;
+            for(MatrixIndex j = 0; j < colCount; ++j)
             {
-                stream << recsData[i, j];
-                if(fldCount++; fldCount != colCount) stream << sep;
-                else                                 stream << '\n';
+                stream << sep << recsData[i, j];
             }
+            stream << '\n';
+            ++rec;
         }
     }
 
