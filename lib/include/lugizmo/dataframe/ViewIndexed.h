@@ -50,7 +50,7 @@ namespace lugizmo {
         Indices indexSpan;
 
         explicit DFViewIndexed(View&& view, Indices const indices) noexcept :
-            dataView(std::forward<View>(view)),
+            dataView(std::move(view)),
             indexSpan(indices)
         {
         }
@@ -82,9 +82,11 @@ namespace lugizmo {
             constexpr auto operator=(IteratorValue&& other) noexcept -> IteratorValue&      = default;
             constexpr auto operator=(IteratorValue const& other) noexcept -> IteratorValue& = default;
 
+            // NOLINTBEGIN(readability-identifier-naming)
             constexpr auto first()        noexcept -> T*             { return val.Pointer(); }
             constexpr auto first()  const noexcept -> T const*       { return val.Pointer(); }
             constexpr auto second() const noexcept -> KeyType const* { return idx.Pointer(); }
+            // NOLINTEND(readability-identifier-naming)
 
             constexpr auto First()        noexcept -> T*             { return val.Pointer(); }
             constexpr auto First()  const noexcept -> T const*       { return val.Pointer(); }
@@ -107,20 +109,31 @@ namespace lugizmo {
             DIt    ptr;
             IIt    indices;
             mutable OptVal current;
+            mutable DIt    indexedPtr;
+            mutable IIt    indexedIndices;
+            mutable OptVal indexed;
 
-            void SetCurrent(DIt& p, IIt& i)
+            auto RefreshCurrent() const noexcept -> Val&
             {
-                LUGIZMO_ASSERT_TRACE(current.has_value(), "IteratorIdx expected current value storage to be initialized.");
-                current.emplace(Val(p.operator->(), i.operator->()));
+                current.emplace(ptr.operator->(), indices.operator->());
+                return *current;
+            }
+
+            void InvalidateCaches() noexcept
+            {
+                current.reset();
+                indexed.reset();
             }
 
         public:
 
+            // NOLINTBEGIN(readability-identifier-naming)
             using iterator_category = std::random_access_iterator_tag;
             using difference_type   = std::ptrdiff_t;
             using value_type        = Val;
             using pointer           = Val*;
             using reference         = Val&;
+            // NOLINTEND(readability-identifier-naming)
 
             static_assert(std::is_same_v<decltype(std::declval<DIt>().operator->()), T*>);
             static_assert(std::is_same_v<decltype(std::declval<IIt>().operator->()), KeyType const*>);
@@ -128,47 +141,88 @@ namespace lugizmo {
             IteratorIdx() noexcept :
                 ptr(),
                 indices(),
-                current()
+                current(),
+                indexedPtr(),
+                indexedIndices(),
+                indexed()
             {
             }
 
             IteratorIdx(DIt data, IIt indices) noexcept :
                 ptr(data),
                 indices(indices),
-                current(Val(this->ptr.operator->(), this->indices.operator->()))
+                current(),
+                indexedPtr(),
+                indexedIndices(),
+                indexed()
             {
             }
 
-            IteratorIdx(IteratorIdx const& other) noexcept = default;
-            auto operator=(IteratorIdx const& other) noexcept -> IteratorIdx& = default;
+            IteratorIdx(IteratorIdx const& other) noexcept :
+                ptr(other.ptr),
+                indices(other.indices),
+                current(),
+                indexedPtr(),
+                indexedIndices(),
+                indexed()
+            {
+            }
+
+            IteratorIdx(IteratorIdx&& other) noexcept :
+                ptr(std::move(other.ptr)),
+                indices(std::move(other.indices)),
+                current(),
+                indexedPtr(),
+                indexedIndices(),
+                indexed()
+            {
+            }
+
+            auto operator=(IteratorIdx const& other) noexcept -> IteratorIdx&
+            {
+                if(this == &other) return *this;
+
+                ptr     = other.ptr;
+                indices = other.indices;
+                InvalidateCaches();
+                return *this;
+            }
+
+            auto operator=(IteratorIdx&& other) noexcept -> IteratorIdx&
+            {
+                if(this == &other) return *this;
+
+                ptr     = std::move(other.ptr);
+                indices = std::move(other.indices);
+                InvalidateCaches();
+                return *this;
+            }
+
+            ~IteratorIdx() noexcept = default;
 
             auto operator*()  const noexcept -> reference
             {
-                LUGIZMO_ASSERT(current.has_value(), "Cannot dereference DFViewIndexed end iterator.");
-                return *current;
+                return RefreshCurrent();
             }
             auto operator->() const noexcept -> pointer
             {
-                LUGIZMO_ASSERT(current.has_value(), "Cannot dereference DFViewIndexed end iterator.");
-                return &*current;
+                return &RefreshCurrent();
             }
 
             auto operator*()  noexcept -> reference
             {
-                LUGIZMO_ASSERT(current.has_value(), "Cannot dereference DFViewIndexed end iterator.");
-                return *current;
+                return RefreshCurrent();
             }
             auto operator->() noexcept -> pointer
             {
-                LUGIZMO_ASSERT(current.has_value(), "Cannot dereference DFViewIndexed end iterator.");
-                return &*current;
+                return &RefreshCurrent();
             }
 
             auto operator++() -> IteratorIdx&
             {
                 ptr.operator++();
                 indices.operator++();
-                SetCurrent(ptr, indices);
+                InvalidateCaches();
 
                 return *this;
             }
@@ -184,7 +238,7 @@ namespace lugizmo {
             {
                 ptr.operator--();
                 indices.operator--();
-                SetCurrent(ptr, indices);
+                InvalidateCaches();
 
                 return *this;
             }
@@ -198,42 +252,46 @@ namespace lugizmo {
 
             auto operator+(difference_type const n) const -> IteratorIdx
             {
-                return IteratorIdx(ptr + n * ptr.stride, indices + n);
+                return IteratorIdx(ptr + n, indices + n);
             }
 
             auto operator+=(difference_type const n) -> IteratorIdx&
             {
                 ptr.operator+=(n);
                 indices += n;
-                SetCurrent(ptr, indices);
+                InvalidateCaches();
 
                 return *this;
             }
 
             auto operator-(difference_type const n) const -> IteratorIdx
             {
-                return IteratorIdx(ptr - n * ptr.stride, indices - n);
+                return IteratorIdx(ptr - n, indices - n);
             }
 
             auto operator-(IteratorIdx const& other) const -> difference_type
             {
-                return (ptr - other.ptr) / ptr.stride;
+                auto const dataDistance  = ptr - other.ptr;
+                auto const indexDistance = indices - other.indices;
+                LUGIZMO_ASSERT_TRACE(dataDistance == indexDistance, "DFViewIndexed iterator data and index positions diverged.");
+                return dataDistance;
             }
 
             auto operator-=(difference_type const n) -> IteratorIdx&
             {
                 ptr.operator-=(n);
                 indices.operator-=(n);
-                SetCurrent(ptr, indices);
+                InvalidateCaches();
 
                 return *this;
             }
 
-            // TODO: check why argument is not used
-            auto operator[](difference_type const) const -> reference
+            auto operator[](difference_type const n) const -> reference
             {
-                LUGIZMO_ASSERT(current.has_value(), "Cannot index DFViewIndexed iterator without a current value.");
-                return *current;
+                indexedPtr     = ptr + n;
+                indexedIndices = indices + n;
+                indexed.emplace(indexedPtr.operator->(), indexedIndices.operator->());
+                return *indexed;
             }
 
             friend auto operator+(difference_type n, const IteratorIdx& it) -> IteratorIdx
@@ -241,13 +299,13 @@ namespace lugizmo {
                 return it + n;
             }
 
-            bool operator==(IteratorIdx const& other) const noexcept { return ptr == other.ptr; }
-            bool operator!=(IteratorIdx const& other) const noexcept { return ptr != other.ptr; }
+            auto operator==(IteratorIdx const& other) const noexcept -> bool { return ptr == other.ptr; }
+            auto operator!=(IteratorIdx const& other) const noexcept -> bool { return ptr != other.ptr; }
 
-            bool operator<(IteratorIdx  const& other) const noexcept { return ptr < other.ptr; }
-            bool operator<=(IteratorIdx const& other) const noexcept { return ptr <= other.ptr; }
-            bool operator>(IteratorIdx  const& other) const noexcept { return ptr > other.ptr; }
-            bool operator>=(IteratorIdx const& other) const noexcept { return ptr >= other.ptr; }
+            auto operator<(IteratorIdx  const& other) const noexcept -> bool { return ptr < other.ptr; }
+            auto operator<=(IteratorIdx const& other) const noexcept -> bool { return ptr <= other.ptr; }
+            auto operator>(IteratorIdx  const& other) const noexcept -> bool { return ptr > other.ptr; }
+            auto operator>=(IteratorIdx const& other) const noexcept -> bool { return ptr >= other.ptr; }
         };
 
         static_assert(std::random_access_iterator<IteratorIdx>, "Validation for iterator requirement failed.");
@@ -297,37 +355,37 @@ namespace lugizmo {
         }
 
         [[nodiscard]]
-        auto begin() noexcept -> IteratorIdx
+        auto begin() noexcept -> IteratorIdx // NOLINT(readability-identifier-naming)
         {
             return IteratorIdx(dataView.begin(), indexSpan.begin());
         }
 
         [[nodiscard]]
-        auto end() noexcept -> IteratorIdx
+        auto end() noexcept -> IteratorIdx // NOLINT(readability-identifier-naming)
         {
             return IteratorIdx(dataView.end(), indexSpan.end());
         }
 
         [[nodiscard]]
-        auto begin() const noexcept -> IteratorIdx
+        auto begin() const noexcept -> IteratorIdx // NOLINT(readability-identifier-naming)
         {
             return IteratorIdx(dataView.cbegin(), indexSpan.begin());
         }
 
         [[nodiscard]]
-        auto end() const noexcept -> IteratorIdx
+        auto end() const noexcept -> IteratorIdx // NOLINT(readability-identifier-naming)
         {
             return IteratorIdx(dataView.cend(), indexSpan.end());
         }
 
         [[nodiscard]]
-        auto cbegin() const& noexcept -> IteratorIdx
+        auto cbegin() const& noexcept -> IteratorIdx // NOLINT(readability-identifier-naming)
         {
             return IteratorIdx(dataView.cbegin(), indexSpan.begin());
         }
 
         [[nodiscard]]
-        auto cend() const& noexcept -> IteratorIdx
+        auto cend() const& noexcept -> IteratorIdx // NOLINT(readability-identifier-naming)
         {
             return IteratorIdx(dataView.cend(), indexSpan.end());
         }
@@ -408,7 +466,7 @@ namespace lugizmo {
         auto DFViewIndexed<T, I>::Unwrap(KeyType const& key) noexcept -> RemovedOptional<T>* requires OptionalType<T>
         {
             auto* ref = At(key);
-            if(not ref)              return nullptr;
+            if(ref == nullptr)       return nullptr;
             if(not ref->has_value()) return nullptr;
 
             return &(*ref).value();
@@ -418,7 +476,7 @@ namespace lugizmo {
         auto DFViewIndexed<T, I>::Unwrap(KeyType const& key) const noexcept -> RemovedOptional<T> const* requires OptionalType<T>
         {
             auto* ref = At(key);
-            if(not ref)              return nullptr;
+            if(ref == nullptr)       return nullptr;
             if(not ref->has_value()) return nullptr;
 
             return &(*ref).value();
@@ -428,7 +486,7 @@ namespace lugizmo {
         auto DFViewIndexed<T, I>::TryUnwrap(KeyType const& key) const noexcept -> std::optional<RemovedOptional<T>> requires OptionalType<T>
         {
             auto const* ref = Unwrap(key);
-            if(not ref) return std::nullopt;
+            if(ref == nullptr) return std::nullopt;
 
             return {*ref};
         }
