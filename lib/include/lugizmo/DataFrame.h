@@ -714,7 +714,7 @@ namespace lugizmo {
 
         size_t const fldIndicesSize = fldIndices.size();
         size_t const recIndicesSize = recIndices.size();
-        LUGIZMO_ASSERT(recIndicesSize == recValues.size() || recValues.empty(), "FromFieldsAndRecord expects either no record values or exactly one record-size value span.");
+        LUGIZMO_ASSERT(fldIndicesSize == recValues.size() || recValues.empty(), "FromFieldsAndRecord expects either no record values or exactly one value per field.");
 
         auto reserve = std::max<size_t>(fldIndicesSize * recIndicesSize, capacity);
         auto df      = DataFrame(reserve, std::move(res));
