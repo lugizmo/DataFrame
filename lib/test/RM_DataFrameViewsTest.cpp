@@ -11,6 +11,7 @@
 // Typed across every index configuration (suite RM_DataframeViews):
 //
 // ✅ ViewField           - ViewField(field) [const]              -> DFView<T[ const], RecI>
+// ✅ ViewRecord          - ViewRecord(record) [const]            -> DFView<T[ const], FldI>
 // ✅ ViewFieldIndexed    - ViewFieldIndexed(field) [const]       -> DFViewIndexed<T[ const], RecI const>
 // ✅ ViewRecordIndexed   - ViewRecordIndexed(record) [const]     -> DFViewIndexed<T[ const], FldI const>
 // ✅ IndexedIterator     - DFViewIndexed::IteratorIdx
@@ -19,7 +20,6 @@
 //
 // Value-index only -- the sequence overload is not implemented yet (suite RM_DataframeViewsValue):
 //
-// ✅ ViewRecord          - ViewRecord(record) [const]            -> DFView<T[ const], FldI>
 // ✅ SelectField         - operator|(SelectField<F>) [const]     -> DFView<T[ const], RecI>
 // ✅ SelectRecord        - operator|(SelectRecord<R>) [const]    -> DFView<T[ const], FldI>
 // ✅ SelectFieldIndexed  - operator|(SelectFieldIndexed<F>) [const]  -> DFViewIndexed<...>
@@ -113,9 +113,9 @@ TYPED_TEST(RM_DataframeViews, ViewField)
  *  @brief ViewRecord spans a row over the fields (const + mutable).
  *  @see   lugizmo::DataFrame.ViewRecord(record)
  */
-TEST(RM_DataframeViewsValue, ViewRecord)
+TYPED_TEST(RM_DataframeViews, ViewRecord)
 {
-    using Cfg = Unique_IndexTest;
+    using Cfg = TypeParam;
     auto df   = BuildFilled<Cfg>();
 
     {

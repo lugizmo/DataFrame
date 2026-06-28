@@ -459,10 +459,10 @@ namespace lugizmo {
         /**
          * @return      View into a record (handling layout) if record found in dataframe.
          * @param index record index to try getting data for.
-         */
+        */
         template<typename RecordLookup>
         [[nodiscard]]
-        auto ViewRecord(this auto& self, RecordLookup const& index) noexcept -> ValueView<decltype(self), FldI> requires DFUnqIndex<FldI>;
+        auto ViewRecord(this auto& self, RecordLookup const& index) noexcept -> ValueView<decltype(self), FldI>;
 
         /**
          * @return      View into a record (handling layout) if record found in dataframe.
@@ -1462,7 +1462,7 @@ namespace lugizmo {
 
     template<typename T, typename F, typename R, typename L>
     template<typename RecordLookup>
-    auto DataFrame<T, F, R, L>::ViewRecord(this auto& self, RecordLookup const& index) noexcept -> ValueView<decltype(self), FldI> requires DFUnqIndex<FldI>
+    auto DataFrame<T, F, R, L>::ViewRecord(this auto& self, RecordLookup const& index) noexcept -> ValueView<decltype(self), FldI>
     {
         static_assert(requires(RecI const& recordIndex, RecordLookup const& lookup) { recordIndex.Position(lookup); },
                       "DataFrame record lookup requires the exact key type or transparent hash/equality support.");
@@ -1470,13 +1470,35 @@ namespace lugizmo {
         auto const pos = self.recIndex.Position(index);
         if(not pos.has_value()) return ValueView<decltype(self), FldI>{};
 
-        if constexpr(meta::IsConstThis<decltype(self)>())
+        if constexpr(DFUnqIndex<FldI>)
         {
-            return ValueView<decltype(self), FldI>::RecordView(static_cast<ConstDataMatrix>(self.recsData), &self.fldIndex, *pos);
+            if constexpr(meta::IsConstThis<decltype(self)>())
+            {
+                return ValueView<decltype(self), FldI>::RecordView(static_cast<ConstDataMatrix>(self.recsData), &self.fldIndex, *pos);
+            }
+            else
+            {
+                return ValueView<decltype(self), FldI>::RecordView(self.recsData, &self.fldIndex, *pos);
+            }
         }
         else
         {
-            return ValueView<decltype(self), FldI>::RecordView(self.recsData, &self.fldIndex, *pos);
+            if constexpr(meta::IsConstThis<decltype(self)>())
+            {
+                return ValueView<decltype(self), FldI>::RecordView(static_cast<ConstDataMatrix>(self.recsData),
+                                                                   &self.fldIndex,
+                                                                   *pos,
+                                                                   self.fldIndex.LowerBoundPosition(),
+                                                                   self.fldIndex.UpperBoundPosition());
+            }
+            else
+            {
+                return ValueView<decltype(self), FldI>::RecordView(self.recsData,
+                                                                   &self.fldIndex,
+                                                                   *pos,
+                                                                   self.fldIndex.LowerBoundPosition(),
+                                                                   self.fldIndex.UpperBoundPosition());
+            }
         }
     }
 

@@ -192,7 +192,7 @@ Test file: [RM_DataframeViewsTest.cpp](/lib/test/RM_DataframeViewsTest.cpp)
 | ✅    | ViewField(field) [const]               | DFView<T[ const], RecI>         | ✔  | ✔  | ✔  |
 | ✅    | ViewFieldIndexed(field) [const]        | DFViewIndexed<T[ const], ...>   | ✔  | ✔  | ✔  |
 | ✅    | ViewRecordIndexed(record) [const]      | DFViewIndexed<T[ const], ...>   | ✔  | ✔  | ✔  |
-| ✅    | ViewRecord(record) [const]             | DFView<T[ const], FldI>         | ✔  | ✘  | ✘  |
+| ✅    | ViewRecord(record) [const]             | DFView<T[ const], FldI>         | ✔  | ✔  | ✔  |
 | ✅    | operator\|(SelectField<F>) [const]     | DFView<T[ const], RecI>         | ✔  | ✘  | ✘  |
 | ✅    | operator\|(SelectRecord<R>) [const]    | DFView<T[ const], FldI>         | ✔  | ✘  | ✘  |
 | ✅    | operator\|(SelectFieldIndexed<F>) [const]  | DFViewIndexed<...>          | ✔  | ✘  | ✘  |
@@ -200,9 +200,8 @@ Test file: [RM_DataframeViewsTest.cpp](/lib/test/RM_DataframeViewsTest.cpp)
 | ✅    | Fields() const                         | Flds                   | ✔  | ✔  | ✔  |
 | ✅    | Records() const                        | Recs                   | ✔  | ✔  | ✔  |
 
-- TODO `ViewRecord` and the four `operator\|` selectors are value-index only because their `requires
-     DFSeqIndex` overloads are not implemented yet (the `✘` for `R1`/`Rs` is missing *production*, not
-     a missing test). Once added, the typed suite extends to cover them.
+- TODO the four `operator\|` selectors are value-index only. Once range-index support is added,
+  the typed suite should extend to cover them.
 
 ### Sort
 
