@@ -22,6 +22,10 @@
 // ✅ IteratorConstness   - DFView::begin element access
 // ✅ Front               - DFView::Front
 // ✅ Back                - DFView::Back
+// ✅ RBegin              - DFView::rbegin
+// ✅ REnd                - DFView::rend
+// ✅ CRBegin             - DFView::crbegin
+// ✅ CREnd               - DFView::crend
 // ✅ IndexedIterator     - DFViewIndexed::IteratorIdx
 // ✅ IndexedLookup       - DFViewIndexed::Contains / At
 // ✅ SelectField         - operator|(SelectField<F>) [const]     -> DFView<T[ const], RecI>
@@ -370,6 +374,75 @@ TYPED_TEST(RM_DataframeViews, Back)
 
     auto const empty = df.ViewField(Cfg::MissingField());
     EXPECT_EQ(empty.Back(), nullptr);
+}
+
+/**
+ * @brief rbegin starts at the final value and preserves element constness.
+ * @see   lugizmo::DFView.rbegin
+ */
+TYPED_TEST(RM_DataframeViews, RBegin)
+{
+    using Cfg = TypeParam;
+    auto df   = BuildFilled<Cfg>();
+
+    auto const mutableView = df.ViewField(Cfg::FieldKey(0));
+    auto reverse           = mutableView.rbegin();
+    static_assert(!std::is_const_v<std::remove_reference_t<decltype(*reverse)>>);
+    ASSERT_NE(reverse, mutableView.rend());
+    EXPECT_EQ(*reverse, static_cast<int>((Cfg::REC_COUNT - 1) * Cfg::FLD_COUNT));
+    *reverse = 201;
+
+    auto const constView = std::as_const(df).ViewField(Cfg::FieldKey(0));
+    auto constReverse    = constView.rbegin();
+    static_assert(std::is_const_v<std::remove_reference_t<decltype(*constReverse)>>);
+    EXPECT_EQ(*constReverse, 201);
+}
+
+/**
+ * @brief rend is one past the reversed sequence and its predecessor is the first value.
+ * @see   lugizmo::DFView.rend
+ */
+TYPED_TEST(RM_DataframeViews, REnd)
+{
+    using Cfg = TypeParam;
+    auto df   = BuildFilled<Cfg>();
+    auto view = df.ViewField(Cfg::FieldKey(0));
+
+    EXPECT_EQ(view.rend() - view.rbegin(), static_cast<std::ptrdiff_t>(Cfg::REC_COUNT));
+    EXPECT_EQ(*(view.rend() - 1), 0);
+
+    auto const empty = df.ViewField(Cfg::MissingField());
+    EXPECT_EQ(empty.rbegin(), empty.rend());
+}
+
+/**
+ * @brief crbegin starts at the final value of a const-element view.
+ * @see   lugizmo::DFView.crbegin
+ */
+TYPED_TEST(RM_DataframeViews, CRBegin)
+{
+    using Cfg = TypeParam;
+    auto df   = BuildFilled<Cfg>();
+    auto const view = std::as_const(df).ViewField(Cfg::FieldKey(0));
+
+    auto reverse = view.crbegin();
+    static_assert(std::is_const_v<std::remove_reference_t<decltype(*reverse)>>);
+    ASSERT_NE(reverse, view.crend());
+    EXPECT_EQ(*reverse, static_cast<int>((Cfg::REC_COUNT - 1) * Cfg::FLD_COUNT));
+}
+
+/**
+ * @brief crend terminates const reverse traversal after every value.
+ * @see   lugizmo::DFView.crend
+ */
+TYPED_TEST(RM_DataframeViews, CREnd)
+{
+    using Cfg = TypeParam;
+    auto df   = BuildFilled<Cfg>();
+    auto const view = std::as_const(df).ViewField(Cfg::FieldKey(0));
+
+    EXPECT_EQ(view.crend() - view.crbegin(), static_cast<std::ptrdiff_t>(Cfg::REC_COUNT));
+    EXPECT_EQ(*(view.crend() - 1), 0);
 }
 
 /**

@@ -207,7 +207,10 @@ namespace lugizmo {
             constexpr auto operator>=(Iterator const& other) const noexcept -> bool { return ptr >= other.ptr; }
         };
 
+        using reverse_iterator = std::reverse_iterator<Iterator>; // NOLINT(readability-identifier-naming)
+
         static_assert(std::random_access_iterator<Iterator>, "Validation for iterator requirement failed.");
+        static_assert(std::random_access_iterator<reverse_iterator>, "Validation for reverse iterator requirement failed.");
 
         // empty view
         DFView() noexcept :
@@ -306,6 +309,42 @@ namespace lugizmo {
 
         [[nodiscard]] constexpr auto cbegin() const noexcept -> Iterator { return begin(); } // NOLINT(readability-identifier-naming)
         [[nodiscard]] constexpr auto cend() const noexcept -> Iterator { return end(); }     // NOLINT(readability-identifier-naming)
+
+        [[nodiscard]]
+        constexpr auto rbegin() noexcept -> reverse_iterator // NOLINT(readability-identifier-naming)
+        {
+            return reverse_iterator(end());
+        }
+
+        [[nodiscard]]
+        constexpr auto rend() noexcept -> reverse_iterator // NOLINT(readability-identifier-naming)
+        {
+            return reverse_iterator(begin());
+        }
+
+        [[nodiscard]]
+        constexpr auto rbegin() const noexcept -> reverse_iterator // NOLINT(readability-identifier-naming)
+        {
+            return reverse_iterator(end());
+        }
+
+        [[nodiscard]]
+        constexpr auto rend() const noexcept -> reverse_iterator // NOLINT(readability-identifier-naming)
+        {
+            return reverse_iterator(begin());
+        }
+
+        [[nodiscard]]
+        constexpr auto crbegin() const noexcept -> reverse_iterator // NOLINT(readability-identifier-naming)
+        {
+            return reverse_iterator(cend());
+        }
+
+        [[nodiscard]]
+        constexpr auto crend() const noexcept -> reverse_iterator // NOLINT(readability-identifier-naming)
+        {
+            return reverse_iterator(cbegin());
+        }
 
         template <typename RangeAdaptor>
         [[nodiscard]]
