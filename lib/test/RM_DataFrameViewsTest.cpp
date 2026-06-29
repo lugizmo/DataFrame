@@ -15,6 +15,13 @@
 // ✅ ViewFieldIndexed    - ViewFieldIndexed(field) [const]       -> DFViewIndexed<T[ const], RecI const>
 // ✅ ViewRecordIndexed   - ViewRecordIndexed(record) [const]     -> DFViewIndexed<T[ const], FldI const>
 // ✅ Contains            - DFView::Contains(key) const
+// ✅ IndexOperator       - DFView::operator[]
+// ✅ CheckedIndexOperator- DFView::operator()
+// ✅ At                  - DFView::At
+// ✅ TryAt               - DFView::TryAt
+// ✅ IteratorConstness   - DFView::begin element access
+// ✅ Front               - DFView::Front
+// ✅ Back                - DFView::Back
 // ✅ IndexedIterator     - DFViewIndexed::IteratorIdx
 // ✅ IndexedLookup       - DFViewIndexed::Contains / At
 // ✅ SelectField         - operator|(SelectField<F>) [const]     -> DFView<T[ const], RecI>
@@ -29,6 +36,7 @@
 
 #include <cstddef>
 #include <iterator>
+#include <optional>
 #include <ranges>
 #include <type_traits>
 #include <utility>
@@ -188,6 +196,180 @@ TYPED_TEST(RM_DataframeViews, Contains)
         EXPECT_FALSE(empty.Contains(Cfg::RecordKey(0)));
         EXPECT_FALSE(empty.Contains(Cfg::MissingRecord()));
     }
+}
+
+/**
+ * @brief Positional indexing follows span-like element constness.
+ * @see   lugizmo::DFView.operator[]
+ */
+TYPED_TEST(RM_DataframeViews, IndexOperator)
+{
+    using Cfg = TypeParam;
+    auto df   = BuildFilled<Cfg>();
+
+    {
+        auto const view = df.ViewField(Cfg::FieldKey(0));
+        static_assert(!std::is_const_v<std::remove_reference_t<decltype(view[0])>>);
+
+        view[0] = 101;
+        EXPECT_EQ(*std::as_const(df).GetValue(Cfg::FieldKey(0), Cfg::RecordKey(0)), 101);
+    }
+
+    {
+        auto const view = std::as_const(df).ViewField(Cfg::FieldKey(0));
+        static_assert(std::is_const_v<std::remove_reference_t<decltype(view[0])>>);
+        EXPECT_EQ(view[0], 101);
+    }
+}
+
+/**
+ * @brief Checked positional access preserves element constness and reports misses.
+ * @see   lugizmo::DFView.operator()
+ */
+TYPED_TEST(RM_DataframeViews, CheckedIndexOperator)
+{
+    using Cfg = TypeParam;
+    auto df   = BuildFilled<Cfg>();
+
+    {
+        auto const view = df.ViewField(Cfg::FieldKey(0));
+        auto value      = view(0);
+        static_assert(!std::is_const_v<std::remove_reference_t<decltype(value.Value())>>);
+
+        ASSERT_TRUE(value.HasValue());
+        value.Value() = 102;
+        EXPECT_FALSE(view(Cfg::REC_COUNT).HasValue());
+        EXPECT_EQ(*std::as_const(df).GetValue(Cfg::FieldKey(0), Cfg::RecordKey(0)), 102);
+    }
+
+    {
+        auto const view = std::as_const(df).ViewField(Cfg::FieldKey(0));
+        auto value      = view(0);
+        static_assert(std::is_const_v<std::remove_reference_t<decltype(value.Value())>>);
+        ASSERT_TRUE(value.HasValue());
+        EXPECT_EQ(value.Value(), 102);
+    }
+}
+
+/**
+ * @brief Key lookup returns pointers whose constness follows the element type.
+ * @see   lugizmo::DFView.At
+ */
+TYPED_TEST(RM_DataframeViews, At)
+{
+    using Cfg = TypeParam;
+    auto df   = BuildFilled<Cfg>();
+
+    {
+        auto const view = df.ViewRecord(Cfg::RecordKey(0));
+        auto* value     = view.At(Cfg::FieldKey(0));
+        static_assert(!std::is_const_v<std::remove_pointer_t<decltype(value)>>);
+
+        ASSERT_NE(value, nullptr);
+        *value = 103;
+        EXPECT_EQ(view.At(Cfg::MissingField()), nullptr);
+    }
+
+    {
+        auto const view = std::as_const(df).ViewRecord(Cfg::RecordKey(0));
+        auto* value     = view.At(Cfg::FieldKey(0));
+        static_assert(std::is_const_v<std::remove_pointer_t<decltype(value)>>);
+
+        ASSERT_NE(value, nullptr);
+        EXPECT_EQ(*value, 103);
+        EXPECT_EQ(view.At(Cfg::MissingField()), nullptr);
+    }
+}
+
+/**
+ * @brief TryAt returns an unqualified value copy for mutable and const-element views.
+ * @see   lugizmo::DFView.TryAt
+ */
+TYPED_TEST(RM_DataframeViews, TryAt)
+{
+    using Cfg = TypeParam;
+    auto df   = BuildFilled<Cfg>();
+
+    auto const mutableView = df.ViewField(Cfg::FieldKey(0));
+    auto mutableCopy       = mutableView.TryAt(Cfg::RecordKey(1));
+    static_assert(std::same_as<decltype(mutableCopy), std::optional<int>>);
+    ASSERT_TRUE(mutableCopy.has_value());
+    EXPECT_EQ(*mutableCopy, static_cast<int>(Cfg::FLD_COUNT));
+
+    auto const constView = std::as_const(df).ViewField(Cfg::FieldKey(0));
+    auto constCopy       = constView.TryAt(Cfg::RecordKey(1));
+    static_assert(std::same_as<decltype(constCopy), std::optional<int>>);
+    ASSERT_TRUE(constCopy.has_value());
+    EXPECT_EQ(*constCopy, static_cast<int>(Cfg::FLD_COUNT));
+    EXPECT_FALSE(constView.TryAt(Cfg::MissingRecord()).has_value());
+}
+
+/**
+ * @brief Iteration uses the same span-like element constness as direct access.
+ * @see   lugizmo::DFView.begin
+ */
+TYPED_TEST(RM_DataframeViews, IteratorConstness)
+{
+    using Cfg = TypeParam;
+    auto df   = BuildFilled<Cfg>();
+
+    auto const mutableView = df.ViewField(Cfg::FieldKey(0));
+    static_assert(!std::is_const_v<std::remove_reference_t<decltype(*mutableView.begin())>>);
+    *mutableView.begin() = 104;
+
+    auto const constView = std::as_const(df).ViewField(Cfg::FieldKey(0));
+    static_assert(std::is_const_v<std::remove_reference_t<decltype(*constView.begin())>>);
+    EXPECT_EQ(*constView.begin(), 104);
+}
+
+/**
+ * @brief Front returns the first value with element-based constness.
+ * @see   lugizmo::DFView.Front
+ */
+TYPED_TEST(RM_DataframeViews, Front)
+{
+    using Cfg = TypeParam;
+    auto df   = BuildFilled<Cfg>();
+
+    auto const mutableView = df.ViewField(Cfg::FieldKey(0));
+    auto* mutableFront     = mutableView.Front();
+    static_assert(!std::is_const_v<std::remove_pointer_t<decltype(mutableFront)>>);
+    ASSERT_NE(mutableFront, nullptr);
+    *mutableFront = 105;
+
+    auto const constView = std::as_const(df).ViewField(Cfg::FieldKey(0));
+    auto* constFront     = constView.Front();
+    static_assert(std::is_const_v<std::remove_pointer_t<decltype(constFront)>>);
+    ASSERT_NE(constFront, nullptr);
+    EXPECT_EQ(*constFront, 105);
+
+    auto const empty = df.ViewField(Cfg::MissingField());
+    EXPECT_EQ(empty.Front(), nullptr);
+}
+
+/**
+ * @brief Back returns the final value with element-based constness.
+ * @see   lugizmo::DFView.Back
+ */
+TYPED_TEST(RM_DataframeViews, Back)
+{
+    using Cfg = TypeParam;
+    auto df   = BuildFilled<Cfg>();
+
+    auto const mutableView = df.ViewField(Cfg::FieldKey(0));
+    auto* mutableBack      = mutableView.Back();
+    static_assert(!std::is_const_v<std::remove_pointer_t<decltype(mutableBack)>>);
+    ASSERT_NE(mutableBack, nullptr);
+    *mutableBack = 106;
+
+    auto const constView = std::as_const(df).ViewField(Cfg::FieldKey(0));
+    auto* constBack      = constView.Back();
+    static_assert(std::is_const_v<std::remove_pointer_t<decltype(constBack)>>);
+    ASSERT_NE(constBack, nullptr);
+    EXPECT_EQ(*constBack, 106);
+
+    auto const empty = df.ViewField(Cfg::MissingField());
+    EXPECT_EQ(empty.Back(), nullptr);
 }
 
 /**

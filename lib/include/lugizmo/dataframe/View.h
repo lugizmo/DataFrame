@@ -28,16 +28,16 @@ namespace lugizmo {
     template<typename T, typename I>
     class DFView
     {
-        static constexpr bool IS_CONST_VIEW = std::is_const_v<T>;
-
         template<typename Ti, typename Ii>
         friend class DFViewIndexed;
 
-        using Extents = std::dextents<std::ptrdiff_t, 1>;
-        using Strides = std::layout_stride::mapping<Extents>;
-        using IndexT  = I const*;
-        using KeyType = I::KeyType;
-        using MDSpan  = std::mdspan<T, Extents, std::layout_stride>;
+        using Extents       = std::dextents<std::ptrdiff_t, 1>;
+        using Strides       = std::layout_stride::mapping<Extents>;
+        using IndexT        = I const*;
+        using KeyType       = I::KeyType;
+        using MDSpan        = std::mdspan<T, Extents, std::layout_stride>;
+        using CopiedValue   = std::remove_const_t<T>;
+        using UnwrappedType = std::conditional_t<std::is_const_v<T>, RemovedOptional<T> const, RemovedOptional<T>>;
 
         template<typename Layout>
         using MDSpanDF = std::mdspan<T, std::dextents<std::ptrdiff_t, 2>, Layout>;
@@ -167,9 +167,9 @@ namespace lugizmo {
             // NOLINTBEGIN(readability-identifier-naming)
             using iterator_category = std::random_access_iterator_tag;
             using difference_type   = std::ptrdiff_t;
-            using value_type        = T;
-            using pointer           = std::conditional_t<IS_CONST_VIEW, T const*, T*>;
-            using reference         = std::conditional_t<IS_CONST_VIEW, T const&, T&>;
+            using value_type        = std::remove_const_t<T>;
+            using pointer           = T*;
+            using reference         = T&;
             // NOLINTEND(readability-identifier-naming)
 
             constexpr Iterator() noexcept : ptr(nullptr), stride(0) {}
@@ -250,7 +250,7 @@ namespace lugizmo {
         [[nodiscard]] constexpr auto Empty() const noexcept -> bool  { return Size() == 0; }
 
         [[nodiscard]] constexpr auto operator[](size_t i) noexcept -> T& { return view[i]; }
-        [[nodiscard]] constexpr auto operator[](size_t i) const noexcept -> const T& { return view[i]; }
+        [[nodiscard]] constexpr auto operator[](size_t i) const noexcept -> T& { return view[i]; }
 
         [[nodiscard]]
         constexpr auto operator()(size_t i) noexcept -> OptionalRef<T>
@@ -259,26 +259,26 @@ namespace lugizmo {
         }
 
         [[nodiscard]]
-        constexpr auto operator()(size_t i) const noexcept -> OptionalRef<T const>
+        constexpr auto operator()(size_t i) const noexcept -> OptionalRef<T>
         {
-            return i < static_cast<size_t>(view.extent(0)) ? OptionalRef<T const>(view[i]) : OptionalRef<T const>();
+            return i < static_cast<size_t>(view.extent(0)) ? OptionalRef<T>(view[i]) : OptionalRef<T>();
         }
 
         [[nodiscard]] auto Contains(KeyType const& key) const noexcept -> bool;
 
         [[nodiscard]] auto At(KeyType const& key) noexcept -> T*;
-        [[nodiscard]] auto At(KeyType const& key) const noexcept -> T const*;
+        [[nodiscard]] auto At(KeyType const& key) const noexcept -> T*;
 
-        [[nodiscard]] auto TryAt(KeyType const& key) const noexcept -> std::optional<T>;
+        [[nodiscard]] auto TryAt(KeyType const& key) const noexcept -> std::optional<CopiedValue>;
 
-        [[nodiscard]] auto Unwrap(KeyType const& key) noexcept -> RemovedOptional<T>* requires OptionalType<T>;
-        [[nodiscard]] auto Unwrap(KeyType const& key) const noexcept -> RemovedOptional<T> const* requires OptionalType<T>;
+        [[nodiscard]] auto Unwrap(KeyType const& key) noexcept -> UnwrappedType* requires OptionalType<T>;
+        [[nodiscard]] auto Unwrap(KeyType const& key) const noexcept -> UnwrappedType* requires OptionalType<T>;
         [[nodiscard]] auto TryUnwrap(KeyType const& key) const noexcept -> std::optional<RemovedOptional<T>> requires OptionalType<T>;
 
         [[nodiscard]] auto Front() noexcept -> T*;
-        [[nodiscard]] auto Front() const noexcept -> T const*;
+        [[nodiscard]] auto Front() const noexcept -> T*;
         [[nodiscard]] auto Back() noexcept -> T*;
-        [[nodiscard]] auto Back() const noexcept -> T const*;
+        [[nodiscard]] auto Back() const noexcept -> T*;
 
         [[nodiscard]]
         constexpr auto begin() noexcept -> Iterator // NOLINT(readability-identifier-naming)
@@ -339,21 +339,21 @@ namespace lugizmo {
     }
 
     template<typename T, typename I>
-    auto DFView<T, I>::At(KeyType const& key) const noexcept -> T const*
+    auto DFView<T, I>::At(KeyType const& key) const noexcept -> T*
     {
         auto const position = LocalPosition(key);
         return position.has_value() ? &view[*position] : nullptr;
     }
 
     template<typename T, typename I>
-    auto DFView<T, I>::TryAt(KeyType const& key) const noexcept -> std::optional<T>
+    auto DFView<T, I>::TryAt(KeyType const& key) const noexcept -> std::optional<CopiedValue>
     {
         auto* ref = At(key);
-        return std::optional<T>(ref ? *ref : std::optional<T>{});
+        return ref != nullptr ? std::optional<CopiedValue>(*ref) : std::nullopt;
     }
 
     template<typename T, typename I>
-    auto DFView<T, I>::Unwrap(KeyType const& key) noexcept -> RemovedOptional<T>* requires OptionalType<T>
+    auto DFView<T, I>::Unwrap(KeyType const& key) noexcept -> UnwrappedType* requires OptionalType<T>
     {
         auto* ref = At(key);
         if(ref == nullptr)       return nullptr;
@@ -363,9 +363,9 @@ namespace lugizmo {
     }
 
     template<typename T, typename I>
-    auto DFView<T, I>::Unwrap(KeyType const& key) const noexcept -> RemovedOptional<T> const* requires OptionalType<T>
+    auto DFView<T, I>::Unwrap(KeyType const& key) const noexcept -> UnwrappedType* requires OptionalType<T>
     {
-        auto const* ref = At(key);
+        auto* ref = At(key);
         if(ref == nullptr)       return nullptr;
         if(not ref->has_value()) return nullptr;
 
@@ -376,7 +376,7 @@ namespace lugizmo {
     auto DFView<T, I>::TryUnwrap(KeyType const &key) const noexcept -> std::optional<RemovedOptional<T>>
         requires OptionalType<T>
     {
-        auto const *ref = Unwrap(key);
+        auto const* ref = Unwrap(key);
         if(ref == nullptr) return std::nullopt;
 
         return {*ref};
@@ -390,7 +390,7 @@ namespace lugizmo {
     }
 
     template<typename T, typename I>
-    auto DFView<T, I>::Front() const noexcept -> T const*
+    auto DFView<T, I>::Front() const noexcept -> T*
     {
         if(Empty()) return nullptr;
         return &view[0];
@@ -404,7 +404,7 @@ namespace lugizmo {
     }
 
     template<typename T, typename I>
-    auto DFView<T, I>::Back() const noexcept -> T const*
+    auto DFView<T, I>::Back() const noexcept -> T*
     {
         if(Empty()) return nullptr;
         return &view[Size() - 1];

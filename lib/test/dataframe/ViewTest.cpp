@@ -12,6 +12,8 @@
 // ✅ IndexOperatorOptionalRef  - operator()(key) -> OptionalRef / At
 // ✅ FieldViewSubrange         - FieldView(..., begin, end) key translation
 // ✅ RecordViewSubrange        - RecordView(..., begin, end) key translation
+// ✅ Unwrap                    - Unwrap(key)
+// ✅ TryUnwrap                 - TryUnwrap(key)
 //
 
 #include "gtest/gtest.h"
@@ -19,7 +21,9 @@
 #include <array>
 #include <cstddef>
 #include <mdspan>
+#include <optional>
 #include <string>
+#include <type_traits>
 
 #include "lugizmo/DataFrame.h"
 #include "lugizmo/dataframe/IndexRange.h"
@@ -112,4 +116,54 @@ TEST(DataframeView, RecordViewSubrange)
     EXPECT_EQ(*view.At(30), 6);
     EXPECT_EQ(view.At(10), nullptr);
     EXPECT_EQ(view.At(40), nullptr);
+}
+
+TEST(DataframeView, Unwrap)
+{
+    using namespace lugizmo;
+
+    auto df = DataFrame<std::optional<int>, int, int>();
+    df.AddField(0);
+    df.AddRecords(std::array{10, 20});
+    ASSERT_TRUE(df.AssignValue(0, 10, std::optional{7}));
+
+    auto const mutableView = df.ViewField(0);
+    auto* mutableValue     = mutableView.Unwrap(10);
+    static_assert(!std::is_const_v<std::remove_pointer_t<decltype(mutableValue)>>);
+    ASSERT_NE(mutableValue, nullptr);
+    *mutableValue = 8;
+    EXPECT_EQ(mutableView.Unwrap(20), nullptr);
+    EXPECT_EQ(mutableView.Unwrap(99), nullptr);
+
+    auto const constView = std::as_const(df).ViewField(0);
+    auto* constValue     = constView.Unwrap(10);
+    static_assert(std::is_const_v<std::remove_pointer_t<decltype(constValue)>>);
+    ASSERT_NE(constValue, nullptr);
+    EXPECT_EQ(*constValue, 8);
+    EXPECT_EQ(constView.Unwrap(20), nullptr);
+    EXPECT_EQ(constView.Unwrap(99), nullptr);
+}
+
+TEST(DataframeView, TryUnwrap)
+{
+    using namespace lugizmo;
+
+    auto df = DataFrame<std::optional<int>, int, int>();
+    df.AddField(0);
+    df.AddRecords(std::array{10, 20});
+    ASSERT_TRUE(df.AssignValue(0, 10, std::optional{7}));
+
+    auto const mutableView = df.ViewField(0);
+    auto mutableCopy       = mutableView.TryUnwrap(10);
+    static_assert(std::same_as<decltype(mutableCopy), std::optional<int>>);
+    ASSERT_TRUE(mutableCopy.has_value());
+    EXPECT_EQ(*mutableCopy, 7);
+
+    auto const constView = std::as_const(df).ViewField(0);
+    auto constCopy       = constView.TryUnwrap(10);
+    static_assert(std::same_as<decltype(constCopy), std::optional<int>>);
+    ASSERT_TRUE(constCopy.has_value());
+    EXPECT_EQ(*constCopy, 7);
+    EXPECT_FALSE(constView.TryUnwrap(20).has_value());
+    EXPECT_FALSE(constView.TryUnwrap(99).has_value());
 }
