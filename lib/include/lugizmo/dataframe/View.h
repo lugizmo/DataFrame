@@ -27,8 +27,9 @@ namespace lugizmo {
         template<typename T, typename I>
         class DFViewIterator
         {
-            T*             ptr;
+            T*             data;
             std::ptrdiff_t stride;
+            std::ptrdiff_t position;
 
         public:
 
@@ -43,7 +44,7 @@ namespace lugizmo {
             // ======== CONSTRUCTION ===============================================================================================================================================
 
             constexpr DFViewIterator() noexcept;
-            constexpr DFViewIterator(T* data, std::ptrdiff_t stride) noexcept;
+            constexpr DFViewIterator(T* dataPtr, std::ptrdiff_t stride, std::ptrdiff_t position = 0) noexcept;
 
             constexpr DFViewIterator(DFViewIterator const& other) noexcept = default;
             constexpr DFViewIterator(DFViewIterator&& other) noexcept = default;
@@ -88,8 +89,6 @@ namespace lugizmo {
 
     /**
      * TODO doc
-     * TODO make view not eagerly create view so that it can be used
-     *      lazy with ranges.
      * @tparam T
      */
     template<typename T, typename I>
@@ -192,14 +191,16 @@ namespace lugizmo {
 
     template<typename T, typename I>
     constexpr internal::DFViewIterator<T, I>::DFViewIterator() noexcept :
-        ptr(nullptr),
-        stride(0)
+        data(nullptr),
+        stride(0),
+        position(0)
     {}
 
     template<typename T, typename I>
-    constexpr internal::DFViewIterator<T, I>::DFViewIterator(T* const data, std::ptrdiff_t const stride) noexcept :
-        ptr(data),
-        stride(stride)
+    constexpr internal::DFViewIterator<T, I>::DFViewIterator(T* const dataPtr, std::ptrdiff_t const stride, std::ptrdiff_t const position) noexcept :
+        data(dataPtr),
+        stride(stride),
+        position(position)
     {}
 
     // ======== ITERATOR: ACCESS ===================================================================================================================================================
@@ -207,31 +208,31 @@ namespace lugizmo {
     template<typename T, typename I>
     constexpr auto internal::DFViewIterator<T, I>::operator*() const noexcept -> reference
     {
-        return *ptr;
+        return *(data + position * stride);
     }
 
     template<typename T, typename I>
     constexpr auto internal::DFViewIterator<T, I>::operator->() const noexcept -> pointer
     {
-        return ptr;
+        return data + position * stride;
     }
 
     template<typename T, typename I>
     constexpr auto internal::DFViewIterator<T, I>::operator*() noexcept -> reference
     {
-        return *ptr;
+        return *(data + position * stride);
     }
 
     template<typename T, typename I>
     constexpr auto internal::DFViewIterator<T, I>::operator->() noexcept -> pointer
     {
-        return ptr;
+        return data + position * stride;
     }
 
     template<typename T, typename I>
     constexpr auto internal::DFViewIterator<T, I>::operator[](difference_type const n) const -> reference
     {
-        return *(ptr + n * stride);
+        return *(data + (position + n) * stride);
     }
 
     // ======== ITERATOR: MOVEMENT =================================================================================================================================================
@@ -239,7 +240,7 @@ namespace lugizmo {
     template<typename T, typename I>
     constexpr auto internal::DFViewIterator<T, I>::operator++() -> DFViewIterator&
     {
-        ptr += stride;
+        ++position;
         return *this;
     }
 
@@ -254,7 +255,7 @@ namespace lugizmo {
     template<typename T, typename I>
     constexpr auto internal::DFViewIterator<T, I>::operator--() -> DFViewIterator&
     {
-        ptr -= stride;
+        --position;
         return *this;
     }
 
@@ -269,32 +270,32 @@ namespace lugizmo {
     template<typename T, typename I>
     constexpr auto internal::DFViewIterator<T, I>::operator+(difference_type const n) const -> DFViewIterator
     {
-        return DFViewIterator(ptr + n * stride, stride);
+        return DFViewIterator(data, stride, position + n);
     }
 
     template<typename T, typename I>
     constexpr auto internal::DFViewIterator<T, I>::operator+=(difference_type const n) -> DFViewIterator&
     {
-        ptr += n * stride;
+        position += n;
         return *this;
     }
 
     template<typename T, typename I>
     constexpr auto internal::DFViewIterator<T, I>::operator-(difference_type const n) const -> DFViewIterator
     {
-        return DFViewIterator(ptr - n * stride, stride);
+        return DFViewIterator(data, stride, position - n);
     }
 
     template<typename T, typename I>
     constexpr auto internal::DFViewIterator<T, I>::operator-(DFViewIterator const& other) const -> difference_type
     {
-        return (ptr - other.ptr) / stride;
+        return position - other.position;
     }
 
     template<typename T, typename I>
     constexpr auto internal::DFViewIterator<T, I>::operator-=(difference_type const n) -> DFViewIterator&
     {
-        ptr -= n * stride;
+        position -= n;
         return *this;
     }
 
@@ -309,37 +310,37 @@ namespace lugizmo {
     template<typename T, typename I>
     constexpr auto internal::DFViewIterator<T, I>::operator==(DFViewIterator const& other) const noexcept -> bool
     {
-        return ptr == other.ptr;
+        return data == other.data && position == other.position;
     }
 
     template<typename T, typename I>
     constexpr auto internal::DFViewIterator<T, I>::operator!=(DFViewIterator const& other) const noexcept -> bool
     {
-        return ptr != other.ptr;
+        return !(*this == other);
     }
 
     template<typename T, typename I>
     constexpr auto internal::DFViewIterator<T, I>::operator<(DFViewIterator const& other) const noexcept -> bool
     {
-        return ptr < other.ptr;
+        return position < other.position;
     }
 
     template<typename T, typename I>
     constexpr auto internal::DFViewIterator<T, I>::operator<=(DFViewIterator const& other) const noexcept -> bool
     {
-        return ptr <= other.ptr;
+        return position <= other.position;
     }
 
     template<typename T, typename I>
     constexpr auto internal::DFViewIterator<T, I>::operator>(DFViewIterator const& other) const noexcept -> bool
     {
-        return ptr > other.ptr;
+        return position > other.position;
     }
 
     template<typename T, typename I>
     constexpr auto internal::DFViewIterator<T, I>::operator>=(DFViewIterator const& other) const noexcept -> bool
     {
-        return ptr >= other.ptr;
+        return position >= other.position;
     }
 
     // ======== CONSTRUCTION =======================================================================================================================================================
@@ -353,6 +354,10 @@ namespace lugizmo {
         static_assert(std::is_same_v<Layout, std::layout_right> || std::is_same_v<Layout, std::layout_left>);
 
         using IIdx = Extents::index_type;
+        auto const dataAt = [dataPtr = original.data_handle()](IIdx const offset) -> T* {
+            return dataPtr == nullptr ? nullptr : dataPtr + offset;
+        };
+
         if constexpr(std::is_same_v<Layout, std::layout_right>)
         {
             if(isFieldView)
@@ -361,13 +366,13 @@ namespace lugizmo {
                 auto const stride = static_cast<IIdx>(original.extent(1));
                 auto mapping = Strides(Extents(static_cast<IIdx>(original.extent(0))), std::array{stride});
                 auto const off = static_cast<IIdx>(index);
-                view = MDSpan(original.data_handle() + off, mapping);
+                view = MDSpan(dataAt(off), mapping);
             }
             else
             {
                 auto mapping = Strides(Extents(static_cast<IIdx>(original.extent(1))), std::array{static_cast<IIdx>(1)});
                 auto const off = static_cast<IIdx>(index) * static_cast<IIdx>(original.extent(1));
-                view = MDSpan(original.data_handle() + off, mapping);
+                view = MDSpan(dataAt(off), mapping);
             }
         }
         else if constexpr(std::is_same_v<Layout, std::layout_left>)
@@ -376,14 +381,14 @@ namespace lugizmo {
             {
                 auto mapping = Strides(Extents(static_cast<IIdx>(original.extent(0))), std::array{static_cast<IIdx>(1)});
                 auto const off = static_cast<IIdx>(index);
-                view = MDSpan(original.data_handle() + off, mapping);
+                view = MDSpan(dataAt(off), mapping);
             }
             else
             {
                 auto const stride = static_cast<IIdx>(original.extent(0));
                 auto mapping = Strides(Extents(static_cast<IIdx>(original.extent(1))), std::array{stride});
                 auto const off = static_cast<IIdx>(index) * stride;
-                view = MDSpan(original.data_handle() + off, mapping);
+                view = MDSpan(dataAt(off), mapping);
             }
         }
     }
@@ -400,6 +405,9 @@ namespace lugizmo {
 
         using IIdx           = Extents::index_type;
         auto const newExtent = static_cast<IIdx>(newExtentSZ);
+        auto const dataAt = [dataPtr = original.data_handle()](IIdx const offset) -> T* {
+            return dataPtr == nullptr ? nullptr : dataPtr + offset;
+        };
 
         if(isFieldView)
         {
@@ -409,14 +417,14 @@ namespace lugizmo {
                 auto mapping = Strides(Extents(newExtent), std::array{stride});
 
                 auto const off = static_cast<IIdx>(begin) * stride + static_cast<IIdx>(index);
-                view = MDSpan(original.data_handle() + off, mapping);
+                view = MDSpan(dataAt(off), mapping);
             }
             else if constexpr(std::is_same_v<Layout, std::layout_left>)
             {
                 auto mapping = Strides(Extents(newExtent), std::array{static_cast<IIdx>(1)});
 
                 auto const off = static_cast<IIdx>(index) * static_cast<IIdx>(original.extent(0)) + static_cast<IIdx>(begin);
-                view = MDSpan(original.data_handle() + off, mapping);
+                view = MDSpan(dataAt(off), mapping);
             }
         }
         else
@@ -426,7 +434,7 @@ namespace lugizmo {
                 auto mapping = Strides(Extents(newExtent), std::array{static_cast<IIdx>(1)});
 
                 auto const off = static_cast<IIdx>(index) * static_cast<IIdx>(original.extent(1)) + static_cast<IIdx>(begin);
-                view = MDSpan(original.data_handle() + off, mapping);
+                view = MDSpan(dataAt(off), mapping);
             }
             else if constexpr(std::is_same_v<Layout, std::layout_left>)
             {
@@ -434,7 +442,7 @@ namespace lugizmo {
                 auto mapping = Strides(Extents(newExtent), std::array{stride});
 
                 auto const off = static_cast<IIdx>(begin) * stride + static_cast<IIdx>(index);
-                view = MDSpan(original.data_handle() + off, mapping);
+                view = MDSpan(dataAt(off), mapping);
             }
         }
     }
@@ -592,7 +600,7 @@ namespace lugizmo {
     template<typename T, typename I>
     constexpr auto DFView<T, I>::end() noexcept -> Iterator
     {
-        return Iterator(view.data_handle() + static_cast<std::ptrdiff_t>(view.extent(0)) * view.mapping().stride(0), view.mapping().stride(0));
+        return Iterator(view.data_handle(), view.mapping().stride(0), static_cast<std::ptrdiff_t>(view.extent(0)));
     }
 
     template<typename T, typename I>
@@ -604,7 +612,7 @@ namespace lugizmo {
     template<typename T, typename I>
     constexpr auto DFView<T, I>::end() const noexcept -> Iterator
     {
-        return Iterator(view.data_handle() + static_cast<std::ptrdiff_t>(view.extent(0)) * view.mapping().stride(0), view.mapping().stride(0));
+        return Iterator(view.data_handle(), view.mapping().stride(0), static_cast<std::ptrdiff_t>(view.extent(0)));
     }
 
     template<typename T, typename I>
