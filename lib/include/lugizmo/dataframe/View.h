@@ -24,6 +24,21 @@ namespace lugizmo {
 
     namespace internal {
 
+        /**
+         * @brief Random-access iterator over a potentially strided `DFView`.
+         *
+         * The iterator retains the view's base address and stride together with a
+         * logical position. Consequently, an end iterator does not require forming
+         * a pointer beyond the storage backing a strided view.
+         *
+         * Dereferencing requires a position in the half-open range `[begin, end)`.
+         * Ordering, arithmetic between two iterators, and iterator difference require
+         * both iterators to originate from the same view.
+         *
+         * @tparam T Element type, including its const qualification.
+         * @tparam I Index type used to keep iterators from unrelated `DFView`
+         *           specializations type-distinct.
+         */
         template<typename T, typename I>
         class DFViewIterator
         {
@@ -88,8 +103,38 @@ namespace lugizmo {
     } // namespace internal
 
     /**
-     * TODO doc
-     * @tparam T
+     * @brief Non-owning one-dimensional view over one field or record of a dataframe.
+     *
+     * `DFView` presents the selected values as a random-access range. Depending on
+     * the dataframe layout and selected axis, consecutive logical values may be
+     * separated by a stride in the underlying storage. Positional access and
+     * iteration hide that stride.
+     *
+     * @par Element constness
+     * Element mutability is determined by `T`, in the same way as for `std::span`.
+     * A const `DFView<T, I>` object still provides `T&` when `T` is mutable. A
+     * `DFView<T const, I>` provides read-only access.
+     *
+     * @par Ownership, lifetime, and invalidation
+     * The view owns neither the values nor the index used for key lookup. Both must
+     * outlive the view. The values must also outlive every iterator, pointer, or
+     * reference obtained from it; iterators do not retain or use the index. Copying
+     * a view is cheap and does not extend either lifetime.
+     *
+     * A view produced by `DataFrame` is invalidated by destruction or movement of
+     * that dataframe and by any structural operation that changes its fields,
+     * records, storage, or ordering. Value-only updates do not invalidate the view.
+     * After invalidation, using the view or anything obtained from it is undefined.
+     *
+     * @par Index contract
+     * The stored index describes the keys along the viewed axis: record keys for a
+     * field view and field keys for a record view. It must continue to describe the
+     * same logical positions for the lifetime of the view. A null index disables
+     * keyed lookup but does not affect positional access or iteration.
+     *
+     * @tparam T Element type, including its const qualification.
+     * @tparam I Index type whose `KeyType` and `Position` operation provide keyed
+     *           lookup along the viewed axis.
      */
     template<typename T, typename I>
     class DFView
@@ -112,11 +157,11 @@ namespace lugizmo {
 
         [[nodiscard]] auto LocalPosition(KeyType const& key) const noexcept -> std::optional<size_t>;
 
-        /// record TODO doc
-        ///        TODO test layout_left
+        /// @brief Constructs a full field or record view after its axis position was resolved.
         template<typename Layout>
         DFView(MDSpanDF<Layout> original, IndexT originalIndex, size_t index, bool isFieldView) noexcept;
 
+        /// @brief Constructs a half-open positional subrange after its axis position was resolved.
         template<typename Layout>
         DFView(MDSpanDF<Layout> original, IndexT originalIndex, size_t index, size_t begin, size_t end, bool isFieldView) noexcept;
 
@@ -124,7 +169,10 @@ namespace lugizmo {
 
         // ======== TYPES ==========================================================================================================================================================
 
-        using Iterator         = internal::DFViewIterator<T, I>;
+        /// @brief Random-access iterator whose reference type follows the const qualification of `T`.
+        using Iterator = internal::DFViewIterator<T, I>;
+
+        /// @brief Reverse iterator over the same strided sequence.
         using reverse_iterator = std::reverse_iterator<Iterator>; // NOLINT(readability-identifier-naming)
 
         static_assert(std::random_access_iterator<Iterator>, "Validation for iterator requirement failed.");
@@ -132,57 +180,165 @@ namespace lugizmo {
 
         // ======== CONSTRUCTION ===================================================================================================================================================
 
+        /**
+         * @brief Constructs an empty view with no index.
+         * @post `Empty()` is true and `begin() == end()`.
+         */
         DFView() noexcept;
 
+        /**
+         * @brief Creates a view over all fields of one record.
+         *
+         * @param original Original matrix whose first extent is records and the second extent is fields.
+         * @param dfIndex  Optional pointer to the field index used by `Contains` and `At`.
+         * @param recIndex Zero-based position of the selected record.
+         *
+         * @pre `recIndex < original.extent(0)`.
+         *
+         * @return Non-owning view containing `original.extent(1)` values.
+         */
         template<typename Layout>
         [[nodiscard]] static auto RecordView(MDSpanDF<Layout> original, IndexT dfIndex, size_t recIndex) noexcept -> DFView;
 
+        /**
+         * @brief Creates a view over all records of one field.
+         *
+         * @param original Original matrix whose first extent is records and the second extent is fields.
+         * @param dfIndex  Optional pointer to the record index used by `Contains` and `At`.
+         * @param fldIndex Zero-based position of the selected field.
+         *
+         * @pre `fldIndex < original.extent(1)`.
+         *
+         * @return Non-owning view containing `original.extent(0)` values.
+         */
         template<typename Layout>
         [[nodiscard]] static auto FieldView(MDSpanDF<Layout> original, IndexT dfIndex, size_t fldIndex) noexcept -> DFView;
 
+        /**
+         * @brief Creates a view over a half-open field range of one record.
+         *
+         * @param original Original matrix whose first extent is records and the second extent is fields.
+         * @param dfIndex  Optional pointer to the full field index used by `Contains` and `At`.
+         * @param recIndex Zero-based position of the selected record.
+         * @param fldBegin First included field position.
+         * @param fldEnd   One-past-last included field position.
+         *
+         * @pre `recIndex < original.extent(0)`.
+         * @pre `fldBegin <= fldEnd <= original.extent(1)`.
+         *
+         * @return Non-owning view containing `fldEnd - fldBegin` values.
+         */
         template<typename Layout>
         [[nodiscard]] static auto RecordView(MDSpanDF<Layout> original, IndexT dfIndex, size_t recIndex, size_t fldBegin, size_t fldEnd) noexcept -> DFView;
 
+        /**
+         * @brief Creates a view over a half-open record range of one field.
+         *
+         * @param original Original matrix whose first extent is records and the second extent is fields.
+         * @param dfIndex  Optional pointer to the full record index used by `Contains` and `At`.
+         * @param fldIndex Zero-based position of the selected field.
+         * @param recBegin First included record position.
+         * @param recEnd   One-past-last included record position.
+         *
+         * @pre `fldIndex < original.extent(1)`.
+         * @pre `recBegin <= recEnd <= original.extent(0)`.
+         *
+         * @return Non-owning view containing `recEnd - recBegin` values.
+         */
         template<typename Layout>
         [[nodiscard]] static auto FieldView(MDSpanDF<Layout> original, IndexT dfIndex, size_t fldIndex, size_t recBegin, size_t recEnd) noexcept -> DFView;
 
         // ======== CAPACITY =======================================================================================================================================================
 
+        /// @return Number of logical values in the view.
         [[nodiscard]] constexpr auto Size() const noexcept -> size_t;
+
+        /// @return True when the view contains no logical values.
         [[nodiscard]] constexpr auto Empty() const noexcept -> bool;
 
         // ======== POSITIONAL ACCESS ==============================================================================================================================================
 
+        /// @brief Returns the value at a zero-based logical position without bound checking.
+        /// @pre `i < Size()`.
         [[nodiscard]] constexpr auto operator[](size_t i) noexcept -> T&;
+
+        /// @copydoc operator[](size_t)
         [[nodiscard]] constexpr auto operator[](size_t i) const noexcept -> T&;
+
+        /// @return Reference to the value at `i`, or an empty `OptionalRef` when `i >= Size()`.
         [[nodiscard]] constexpr auto operator()(size_t i) noexcept -> OptionalRef<T>;
+
+        /// @copydoc operator()(size_t)
         [[nodiscard]] constexpr auto operator()(size_t i) const noexcept -> OptionalRef<T>;
 
+        /// @return Pointer to the first value, or null when the view is empty.
         [[nodiscard]] auto Front() noexcept -> T*;
+
+        /// @copydoc Front()
         [[nodiscard]] auto Front() const noexcept -> T*;
+
+        /// @return Pointer to the final value or null when the view is empty.
         [[nodiscard]] auto Back() noexcept -> T*;
+
+        /// @copydoc Back()
         [[nodiscard]] auto Back() const noexcept -> T*;
 
         // ======== KEY ACCESS =====================================================================================================================================================
 
+        /**
+         * @brief  Checks whether a key belongs to this view.
+         * @return True only when the index contains `key` and its position lies in
+         *         this view's positional range. Returns false when no index is attached.
+         */
         [[nodiscard]] auto Contains(KeyType const& key) const noexcept -> bool;
+
+        /**
+         * @brief  It looks up a value by its key without copying it.
+         * @return Pointer to the corresponding value, or null when the key is absent,
+         *         outside a subrange, or no index is attached.
+         */
         [[nodiscard]] auto At(KeyType const& key) noexcept -> T*;
+
+        /// @copydoc At(KeyType const&)
         [[nodiscard]] auto At(KeyType const& key) const noexcept -> T*;
 
         // ======== ITERATORS ======================================================================================================================================================
 
         // NOLINTBEGIN(readability-identifier-naming)
+        /// @return Iterator to the first logical value.
         [[nodiscard]] constexpr auto begin() noexcept -> Iterator;
+
+        /// @return Iterator one past the final logical value.
         [[nodiscard]] constexpr auto end() noexcept -> Iterator;
+
+        /// @copydoc begin()
         [[nodiscard]] constexpr auto begin() const noexcept -> Iterator;
+
+        /// @copydoc end()
         [[nodiscard]] constexpr auto end() const noexcept -> Iterator;
+
+        /// @return Iterator to the first value; element mutability still follows `T`.
         [[nodiscard]] constexpr auto cbegin() const noexcept -> Iterator;
+
+        /// @return Iterator one past the final value; element mutability still follows `T`.
         [[nodiscard]] constexpr auto cend() const noexcept -> Iterator;
+
+        /// @return Reverse iterator to the final logical value.
         [[nodiscard]] constexpr auto rbegin() noexcept -> reverse_iterator;
+
+        /// @return Reverse iterator one past the first logical value.
         [[nodiscard]] constexpr auto rend() noexcept -> reverse_iterator;
+
+        /// @copydoc rbegin()
         [[nodiscard]] constexpr auto rbegin() const noexcept -> reverse_iterator;
+
+        /// @copydoc rend()
         [[nodiscard]] constexpr auto rend() const noexcept -> reverse_iterator;
+
+        /// @return Reverse iterator to the final value; element mutability still follows `T`.
         [[nodiscard]] constexpr auto crbegin() const noexcept -> reverse_iterator;
+
+        /// @return Reverse iterator one past the first value; element mutability still follows `T`.
         [[nodiscard]] constexpr auto crend() const noexcept -> reverse_iterator;
         // NOLINTEND(readability-identifier-naming)
     };
@@ -666,12 +822,34 @@ namespace lugizmo {
     // NOLINTEND(readability-identifier-naming)
     // ======== RANGE ADAPTORS =====================================================================================================================================================
 
+    /**
+     * @brief Applies a range adaptor to a mutable lvalue `DFView`.
+     *
+     * The adaptor receives an ` std::ranges::subrange ` containing copies of the
+     * view's iterators. The resulting range does not depend on the `DFView` object
+     * itself but remains non-owning: the underlying values must remain alive, and
+     * structural dataframe mutations still invalidate it.
+     *
+     * @note This overload accepts mutable lvalue views. Broader standard-view and
+     *       borrowed-range compatibility is tracked separately.
+     */
     template<typename T, typename I, typename RangeAdaptor>
     [[nodiscard]] auto operator|(DFView<T, I>& view, RangeAdaptor&& adaptor)
     {
         return std::forward<RangeAdaptor>(adaptor)(std::ranges::subrange(view.begin(), view.end()));
     }
 
+    /**
+     * @brief Applies a range adaptor to a const or temporary `DFView`.
+     *
+     * Constness of the referenced elements continues to follow `T`, not the
+     * constness of the `DFView` object. A temporary `DFView` may be destroyed after
+     * the adaptor result is created because the result stores an iterator state rather
+     * than a reference to that wrapper. The underlying values must nevertheless
+     * remain alive, and structural dataframe mutations invalidate the result.
+     *
+     * @note Broader standard-view and borrowed-range compatibility is tracked separately.
+     */
     template<typename T, typename I, typename RangeAdaptor>
     [[nodiscard]] auto operator|(DFView<T, I> const& view, RangeAdaptor&& adaptor)
     {
