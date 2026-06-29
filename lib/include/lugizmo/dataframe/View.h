@@ -163,17 +163,23 @@ namespace lugizmo {
             std::ptrdiff_t stride;
 
         public:
+
+            // NOLINTBEGIN(readability-identifier-naming)
             using iterator_category = std::random_access_iterator_tag;
             using difference_type   = std::ptrdiff_t;
             using value_type        = T;
             using pointer           = std::conditional_t<IS_CONST_VIEW, T const*, T*>;
             using reference         = std::conditional_t<IS_CONST_VIEW, T const&, T&>;
+            // NOLINTEND(readability-identifier-naming)
 
             constexpr Iterator() noexcept : ptr(nullptr), stride(0) {}
             constexpr Iterator(T* data, std::ptrdiff_t const stride) noexcept : ptr(data), stride(stride) {}
 
             constexpr Iterator(Iterator const& other) noexcept = default;
-            constexpr auto operator=(Iterator const& other) -> Iterator& = default;
+            constexpr Iterator(Iterator&& other) noexcept = default;
+            constexpr auto operator=(Iterator const& other) noexcept -> Iterator& = default;
+            constexpr auto operator=(Iterator&& other) noexcept -> Iterator& = default;
+            constexpr ~Iterator() noexcept = default;
 
             constexpr auto operator*() const noexcept -> reference { return *ptr; }
             constexpr auto operator->() const noexcept -> pointer  { return ptr; }
@@ -275,31 +281,31 @@ namespace lugizmo {
         [[nodiscard]] auto Back() const noexcept -> T const*;
 
         [[nodiscard]]
-        constexpr auto begin() noexcept -> Iterator
+        constexpr auto begin() noexcept -> Iterator // NOLINT(readability-identifier-naming)
         {
             return Iterator(view.data_handle(), view.mapping().stride(0));
         }
 
         [[nodiscard]]
-        constexpr auto end() noexcept -> Iterator
+        constexpr auto end() noexcept -> Iterator // NOLINT(readability-identifier-naming)
         {
             return Iterator(view.data_handle() + static_cast<std::ptrdiff_t>(view.extent(0)) * view.mapping().stride(0), view.mapping().stride(0));
         }
 
         [[nodiscard]]
-        constexpr auto begin() const noexcept -> Iterator
+        constexpr auto begin() const noexcept -> Iterator // NOLINT(readability-identifier-naming)
         {
             return Iterator(view.data_handle(), view.mapping().stride(0));
         }
 
         [[nodiscard]]
-        constexpr auto end() const noexcept -> Iterator
+        constexpr auto end() const noexcept -> Iterator // NOLINT(readability-identifier-naming)
         {
             return Iterator(view.data_handle() + static_cast<std::ptrdiff_t>(view.extent(0)) * view.mapping().stride(0), view.mapping().stride(0));
         }
 
-        [[nodiscard]] constexpr auto cbegin() const noexcept -> Iterator { return begin(); }
-        [[nodiscard]] constexpr auto cend() const noexcept -> Iterator { return end(); }
+        [[nodiscard]] constexpr auto cbegin() const noexcept -> Iterator { return begin(); } // NOLINT(readability-identifier-naming)
+        [[nodiscard]] constexpr auto cend() const noexcept -> Iterator { return end(); }     // NOLINT(readability-identifier-naming)
 
         template <typename RangeAdaptor>
         [[nodiscard]]
