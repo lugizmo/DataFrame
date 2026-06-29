@@ -18,7 +18,6 @@
 // ✅ IndexOperator       - DFView::operator[]
 // ✅ CheckedIndexOperator- DFView::operator()
 // ✅ At                  - DFView::At
-// ✅ TryAt               - DFView::TryAt
 // ✅ IteratorConstness   - DFView::begin element access
 // ✅ Front               - DFView::Front
 // ✅ Back                - DFView::Back
@@ -40,7 +39,6 @@
 
 #include <cstddef>
 #include <iterator>
-#include <optional>
 #include <ranges>
 #include <type_traits>
 #include <utility>
@@ -283,29 +281,6 @@ TYPED_TEST(RM_DataframeViews, At)
         EXPECT_EQ(*value, 103);
         EXPECT_EQ(view.At(Cfg::MissingField()), nullptr);
     }
-}
-
-/**
- * @brief TryAt returns an unqualified value copy for mutable and const-element views.
- * @see   lugizmo::DFView.TryAt
- */
-TYPED_TEST(RM_DataframeViews, TryAt)
-{
-    using Cfg = TypeParam;
-    auto df   = BuildFilled<Cfg>();
-
-    auto const mutableView = df.ViewField(Cfg::FieldKey(0));
-    auto mutableCopy       = mutableView.TryAt(Cfg::RecordKey(1));
-    static_assert(std::same_as<decltype(mutableCopy), std::optional<int>>);
-    ASSERT_TRUE(mutableCopy.has_value());
-    EXPECT_EQ(*mutableCopy, static_cast<int>(Cfg::FLD_COUNT));
-
-    auto const constView = std::as_const(df).ViewField(Cfg::FieldKey(0));
-    auto constCopy       = constView.TryAt(Cfg::RecordKey(1));
-    static_assert(std::same_as<decltype(constCopy), std::optional<int>>);
-    ASSERT_TRUE(constCopy.has_value());
-    EXPECT_EQ(*constCopy, static_cast<int>(Cfg::FLD_COUNT));
-    EXPECT_FALSE(constView.TryAt(Cfg::MissingRecord()).has_value());
 }
 
 /**

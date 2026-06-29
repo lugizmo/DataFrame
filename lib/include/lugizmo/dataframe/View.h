@@ -36,8 +36,6 @@ namespace lugizmo {
         using IndexT        = I const*;
         using KeyType       = I::KeyType;
         using MDSpan        = std::mdspan<T, Extents, std::layout_stride>;
-        using CopiedValue   = std::remove_const_t<T>;
-        using UnwrappedType = std::conditional_t<std::is_const_v<T>, RemovedOptional<T> const, RemovedOptional<T>>;
 
         template<typename Layout>
         using MDSpanDF = std::mdspan<T, std::dextents<std::ptrdiff_t, 2>, Layout>;
@@ -272,12 +270,6 @@ namespace lugizmo {
         [[nodiscard]] auto At(KeyType const& key) noexcept -> T*;
         [[nodiscard]] auto At(KeyType const& key) const noexcept -> T*;
 
-        [[nodiscard]] auto TryAt(KeyType const& key) const noexcept -> std::optional<CopiedValue>;
-
-        [[nodiscard]] auto Unwrap(KeyType const& key) noexcept -> UnwrappedType* requires OptionalType<T>;
-        [[nodiscard]] auto Unwrap(KeyType const& key) const noexcept -> UnwrappedType* requires OptionalType<T>;
-        [[nodiscard]] auto TryUnwrap(KeyType const& key) const noexcept -> std::optional<RemovedOptional<T>> requires OptionalType<T>;
-
         [[nodiscard]] auto Front() noexcept -> T*;
         [[nodiscard]] auto Front() const noexcept -> T*;
         [[nodiscard]] auto Back() noexcept -> T*;
@@ -382,43 +374,6 @@ namespace lugizmo {
     {
         auto const position = LocalPosition(key);
         return position.has_value() ? &view[*position] : nullptr;
-    }
-
-    template<typename T, typename I>
-    auto DFView<T, I>::TryAt(KeyType const& key) const noexcept -> std::optional<CopiedValue>
-    {
-        auto* ref = At(key);
-        return ref != nullptr ? std::optional<CopiedValue>(*ref) : std::nullopt;
-    }
-
-    template<typename T, typename I>
-    auto DFView<T, I>::Unwrap(KeyType const& key) noexcept -> UnwrappedType* requires OptionalType<T>
-    {
-        auto* ref = At(key);
-        if(ref == nullptr)       return nullptr;
-        if(not ref->has_value()) return nullptr;
-
-        return &(*ref).value();
-    }
-
-    template<typename T, typename I>
-    auto DFView<T, I>::Unwrap(KeyType const& key) const noexcept -> UnwrappedType* requires OptionalType<T>
-    {
-        auto* ref = At(key);
-        if(ref == nullptr)       return nullptr;
-        if(not ref->has_value()) return nullptr;
-
-        return &(*ref).value();
-    }
-
-    template <typename T, typename I>
-    auto DFView<T, I>::TryUnwrap(KeyType const &key) const noexcept -> std::optional<RemovedOptional<T>>
-        requires OptionalType<T>
-    {
-        auto const* ref = Unwrap(key);
-        if(ref == nullptr) return std::nullopt;
-
-        return {*ref};
     }
 
     template<typename T, typename I>
