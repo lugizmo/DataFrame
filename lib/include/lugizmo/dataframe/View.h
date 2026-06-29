@@ -43,13 +43,29 @@ namespace lugizmo {
         using MDSpanDF = std::mdspan<T, std::dextents<std::ptrdiff_t, 2>, Layout>;
 
         IndexT dfIndex;
+        size_t indexOffset;
         MDSpan view;
+
+        [[nodiscard]]
+        auto LocalPosition(KeyType const& key) const noexcept -> std::optional<size_t>
+        {
+            if(dfIndex == nullptr) return std::nullopt;
+
+            auto const position = dfIndex->Position(key);
+            if(!position.has_value() || *position < indexOffset) return std::nullopt;
+
+            auto const localPosition = *position - indexOffset;
+            if(localPosition >= static_cast<size_t>(view.extent(0))) return std::nullopt;
+
+            return localPosition;
+        }
 
         /// record TODO doc
         ///        TODO test layout_left
         template<typename Layout>
         DFView(MDSpanDF<Layout> original, IndexT const originalIndex, size_t const index, bool const isFieldView) noexcept :
-            dfIndex(originalIndex)
+            dfIndex(originalIndex),
+            indexOffset(0)
         {
             static_assert(std::is_same_v<Layout, std::layout_right> || std::is_same_v<Layout, std::layout_left>);
 
@@ -91,7 +107,8 @@ namespace lugizmo {
 
         template<typename Layout>
         DFView(MDSpanDF<Layout> original, IndexT const originalIndex, size_t const index, size_t const begin, size_t const end, bool const isFieldView) noexcept :
-            dfIndex(originalIndex)
+            dfIndex(originalIndex),
+            indexOffset(begin)
         {
             LUGIZMO_ASSERT_TRACE(begin <= end && end <= (isFieldView ? static_cast<std::size_t>(original.extent(0)) : static_cast<std::size_t>(original.extent(1))),
                             "DFView sub-range constructor received invalid begin/end bounds.");
@@ -188,7 +205,8 @@ namespace lugizmo {
 
         // empty view
         DFView() noexcept :
-            dfIndex(nullptr)
+            dfIndex(nullptr),
+            indexOffset(0)
         {
             auto mapping = Strides(Extents(0), std::array<std::ptrdiff_t, 1>{1});
             view = MDSpan(nullptr, std::move(mapping));
@@ -304,36 +322,21 @@ namespace lugizmo {
     template<typename T, typename I>
     auto DFView<T, I>::Contains(KeyType const& key) const noexcept -> bool
     {
-        if(dfIndex == nullptr) return false;
-        return dfIndex->Has(key);
+        return LocalPosition(key).has_value();
     }
 
     template <typename T, typename I>
     auto DFView<T, I>::At(KeyType const& key) noexcept -> T*
     {
-        if(dfIndex == nullptr) return nullptr;
-
-        auto posOpt = dfIndex->Position(key);
-        if(!posOpt) return {};
-
-        size_t const pos = posOpt.value();
-        if(pos >= static_cast<size_t>(view.extent(0))) return nullptr;
-
-        return &view[pos];
+        auto const position = LocalPosition(key);
+        return position.has_value() ? &view[*position] : nullptr;
     }
 
     template<typename T, typename I>
     auto DFView<T, I>::At(KeyType const& key) const noexcept -> T const*
     {
-        if(dfIndex == nullptr) return nullptr;
-
-        auto posOpt = dfIndex->Position(key);
-        if (!posOpt) return {};
-
-        size_t const pos = posOpt.value();
-        if (pos >= static_cast<size_t>(view.extent(0))) return nullptr;
-
-        return &view[pos];
+        auto const position = LocalPosition(key);
+        return position.has_value() ? &view[*position] : nullptr;
     }
 
     template<typename T, typename I>
