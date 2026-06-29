@@ -14,6 +14,7 @@
 // ✅ ViewRecord          - ViewRecord(record) [const]            -> DFView<T[ const], FldI>
 // ✅ ViewFieldIndexed    - ViewFieldIndexed(field) [const]       -> DFViewIndexed<T[ const], RecI const>
 // ✅ ViewRecordIndexed   - ViewRecordIndexed(record) [const]     -> DFViewIndexed<T[ const], FldI const>
+// ✅ Contains            - DFView::Contains(key) const
 // ✅ IndexedIterator     - DFViewIndexed::IteratorIdx
 // ✅ IndexedLookup       - DFViewIndexed::Contains / At
 // ✅ SelectField         - operator|(SelectField<F>) [const]     -> DFView<T[ const], RecI>
@@ -148,6 +149,44 @@ TYPED_TEST(RM_DataframeViews, ViewRecord)
         ASSERT_NE(cell, nullptr);
         *cell = 999;
         EXPECT_EQ(*std::as_const(df).GetValue(Cfg::FieldKey(0), Cfg::RecordKey(0)), 999);
+    }
+}
+
+/**
+ * @brief Contains performs a read-only lookup through the opposite-axis index.
+ * @see   lugizmo::DFView.Contains
+ */
+TYPED_TEST(RM_DataframeViews, Contains)
+{
+    using Cfg = TypeParam;
+    auto df   = BuildFilled<Cfg>();
+
+    {
+        // A const field view resolves record keys without changing the view.
+        auto const view = std::as_const(df).ViewField(Cfg::FieldKey(0));
+        auto const firstRecord = Cfg::RecordKey(0);
+        static_assert(noexcept(view.Contains(firstRecord)));
+
+        EXPECT_TRUE(view.Contains(firstRecord));
+        EXPECT_TRUE(view.Contains(Cfg::RecordKey(Cfg::REC_COUNT - 1)));
+        EXPECT_FALSE(view.Contains(Cfg::MissingRecord()));
+    }
+
+    {
+        // A const view object created from a mutable frame supports the same lookup.
+        auto const view = df.ViewRecord(Cfg::RecordKey(0));
+
+        EXPECT_TRUE(view.Contains(Cfg::FieldKey(0)));
+        EXPECT_TRUE(view.Contains(Cfg::FieldKey(Cfg::FLD_COUNT - 1)));
+        EXPECT_FALSE(view.Contains(Cfg::MissingField()));
+    }
+
+    {
+        // The empty view returned for a missing selection contains no keys.
+        auto const empty = std::as_const(df).ViewField(Cfg::MissingField());
+        EXPECT_TRUE(empty.Empty());
+        EXPECT_FALSE(empty.Contains(Cfg::RecordKey(0)));
+        EXPECT_FALSE(empty.Contains(Cfg::MissingRecord()));
     }
 }
 

@@ -28,7 +28,7 @@ namespace lugizmo {
     template<typename T, typename I>
     class DFView
     {
-        static constexpr bool IsConstView = std::is_const_v<T>;
+        static constexpr bool IS_CONST_VIEW = std::is_const_v<T>;
 
         template<typename Ti, typename Ii>
         friend class DFViewIndexed;
@@ -149,8 +149,8 @@ namespace lugizmo {
             using iterator_category = std::random_access_iterator_tag;
             using difference_type   = std::ptrdiff_t;
             using value_type        = T;
-            using pointer           = std::conditional_t<IsConstView, T const*, T*>;
-            using reference         = std::conditional_t<IsConstView, T const&, T&>;
+            using pointer           = std::conditional_t<IS_CONST_VIEW, T const*, T*>;
+            using reference         = std::conditional_t<IS_CONST_VIEW, T const&, T&>;
 
             constexpr Iterator() noexcept : ptr(nullptr), stride(0) {}
             constexpr Iterator(T* data, std::ptrdiff_t const stride) noexcept : ptr(data), stride(stride) {}
@@ -240,7 +240,7 @@ namespace lugizmo {
             return i < static_cast<size_t>(view.extent(0)) ? OptionalRef<T const>(view[i]) : OptionalRef<T const>();
         }
 
-        [[nodiscard]] auto Contains(KeyType const& key) -> bool;
+        [[nodiscard]] auto Contains(KeyType const& key) const noexcept -> bool;
 
         [[nodiscard]] auto At(KeyType const& key) noexcept -> T*;
         [[nodiscard]] auto At(KeyType const& key) const noexcept -> T const*;
@@ -302,16 +302,16 @@ namespace lugizmo {
     static_assert(std::ranges::range<DFView<int const, DFUniqueIndex<int>>>, "Validation for range requirement failed.");
 
     template<typename T, typename I>
-    auto DFView<T, I>::Contains(KeyType const& key) -> bool
+    auto DFView<T, I>::Contains(KeyType const& key) const noexcept -> bool
     {
-        if(not dfIndex) return false;
+        if(dfIndex == nullptr) return false;
         return dfIndex->Has(key);
     }
 
     template <typename T, typename I>
     auto DFView<T, I>::At(KeyType const& key) noexcept -> T*
     {
-        if(not dfIndex) return nullptr;
+        if(dfIndex == nullptr) return nullptr;
 
         auto posOpt = dfIndex->Position(key);
         if(!posOpt) return {};
@@ -325,7 +325,7 @@ namespace lugizmo {
     template<typename T, typename I>
     auto DFView<T, I>::At(KeyType const& key) const noexcept -> T const*
     {
-        if(not dfIndex) return nullptr;
+        if(dfIndex == nullptr) return nullptr;
 
         auto posOpt = dfIndex->Position(key);
         if (!posOpt) return {};
@@ -347,7 +347,7 @@ namespace lugizmo {
     auto DFView<T, I>::Unwrap(KeyType const& key) noexcept -> RemovedOptional<T>* requires OptionalType<T>
     {
         auto* ref = At(key);
-        if(not ref)              return nullptr;
+        if(ref == nullptr)       return nullptr;
         if(not ref->has_value()) return nullptr;
 
         return &(*ref).value();
@@ -357,7 +357,7 @@ namespace lugizmo {
     auto DFView<T, I>::Unwrap(KeyType const& key) const noexcept -> RemovedOptional<T> const* requires OptionalType<T>
     {
         auto const* ref = At(key);
-        if(not ref)              return nullptr;
+        if(ref == nullptr)       return nullptr;
         if(not ref->has_value()) return nullptr;
 
         return &(*ref).value();
@@ -368,7 +368,7 @@ namespace lugizmo {
         requires OptionalType<T>
     {
         auto const *ref = Unwrap(key);
-        if (not ref) return std::nullopt;
+        if(ref == nullptr) return std::nullopt;
 
         return {*ref};
     }
