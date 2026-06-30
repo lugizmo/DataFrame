@@ -15,14 +15,22 @@
 // ✅ IteratorRandomAccess      - random-access operations on strided and contiguous views
 // ✅ IteratorStride            - iterator movement follows the mdspan stride
 // ✅ EmptyIterator             - safe iterator arithmetic on empty views
+// ✅ RangeAdaptorLValue        - standard filter/transform composition on an lvalue view
+// ✅ RangeAdaptorTemporary     - standard adaptor composition owns a temporary view wrapper
+// ✅ RangeAdaptorConstElements - standard adaptors preserve read-only elements
+// ✅ OutputRange               - standard algorithms mutate through a mutable view
+// ✅ BorrowedRange             - algorithms return usable iterators from temporary wrappers
 //
 
 #include "gtest/gtest.h"
 
+#include <algorithm>
 #include <array>
+#include <concepts>
 #include <cstddef>
 #include <mdspan>
 #include <ranges>
+#include <type_traits>
 
 #include "lugizmo/DataFrame.h"
 #include "lugizmo/dataframe/IndexRange.h"
@@ -221,4 +229,116 @@ TEST(DataframeView, EmptyIterator)
     EXPECT_EQ(field.begin(), field.end());
     EXPECT_EQ(field.end() - field.begin(), 0);
     EXPECT_EQ(std::ranges::distance(field), 0);
+}
+
+TEST(DataframeView, RangeAdaptorLValue)
+{
+    using namespace lugizmo;
+
+    auto values = std::array{0, 1,
+                             2, 3,
+                             4, 5,
+                             6, 7};
+    using Matrix = std::mdspan<int, std::dextents<std::ptrdiff_t, 2>, std::layout_right>;
+    auto matrix = Matrix(values.data(), 4, 2);
+
+    auto records = DFUniqueIndex<int>();
+    records.AddMultiple(std::array{10, 20, 30, 40});
+    auto field = DFView<int, DFUniqueIndex<int>>::FieldView(matrix, &records, 1);
+
+    auto adapted = field |
+                   std::views::filter([](int const value) { return value > 1; }) |
+                   std::views::transform([](int const value) { return value * 2; });
+    constexpr auto expected = std::array{6, 10, 14};
+
+    EXPECT_TRUE(std::ranges::equal(adapted, expected));
+}
+
+TEST(DataframeView, RangeAdaptorTemporary)
+{
+    using namespace lugizmo;
+
+    auto values = std::array{0, 1,
+                             2, 3,
+                             4, 5,
+                             6, 7};
+    using Matrix = std::mdspan<int, std::dextents<std::ptrdiff_t, 2>, std::layout_right>;
+    auto matrix = Matrix(values.data(), 4, 2);
+
+    auto records = DFUniqueIndex<int>();
+    records.AddMultiple(std::array{10, 20, 30, 40});
+
+    auto adapted = DFView<int, DFUniqueIndex<int>>::FieldView(matrix, &records, 0) |
+                   std::views::filter([](int const value) { return value >= 4; });
+    constexpr auto expected = std::array{4, 6};
+
+    EXPECT_TRUE(std::ranges::equal(adapted, expected));
+}
+
+TEST(DataframeView, RangeAdaptorConstElements)
+{
+    using namespace lugizmo;
+
+    auto values = std::array{0, 1,
+                             2, 3,
+                             4, 5,
+                             6, 7};
+    using Matrix = std::mdspan<int const, std::dextents<std::ptrdiff_t, 2>, std::layout_right>;
+    auto matrix = Matrix(values.data(), 4, 2);
+
+    auto records = DFUniqueIndex<int>();
+    records.AddMultiple(std::array{10, 20, 30, 40});
+    auto field = DFView<int const, DFUniqueIndex<int>>::FieldView(matrix, &records, 1);
+    auto adapted = field | std::views::filter([](int const value) { return value < 7; });
+
+    static_assert(std::is_const_v<std::remove_reference_t<std::ranges::range_reference_t<decltype(adapted)>>>);
+    constexpr auto expected = std::array{1, 3, 5};
+    EXPECT_TRUE(std::ranges::equal(adapted, expected));
+}
+
+TEST(DataframeView, OutputRange)
+{
+    using namespace lugizmo;
+
+    auto values = std::array{0, 1,
+                             2, 3,
+                             4, 5,
+                             6, 7};
+    using Matrix = std::mdspan<int, std::dextents<std::ptrdiff_t, 2>, std::layout_right>;
+    auto matrix = Matrix(values.data(), 4, 2);
+
+    auto records = DFUniqueIndex<int>();
+    records.AddMultiple(std::array{10, 20, 30, 40});
+    auto field = DFView<int, DFUniqueIndex<int>>::FieldView(matrix, &records, 0);
+
+    static_assert(std::ranges::output_range<decltype(field), int>);
+    static_assert(!std::ranges::output_range<DFView<int const, DFUniqueIndex<int>>, int>);
+    std::ranges::fill(field, 42);
+
+    constexpr auto expected = std::array{42, 1,
+                                         42, 3,
+                                         42, 5,
+                                         42, 7};
+    EXPECT_EQ(values, expected);
+}
+
+TEST(DataframeView, BorrowedRange)
+{
+    using namespace lugizmo;
+
+    auto values = std::array{0, 1,
+                             2, 3,
+                             4, 5,
+                             6, 7};
+    using Matrix = std::mdspan<int, std::dextents<std::ptrdiff_t, 2>, std::layout_right>;
+    auto const matrix = Matrix(values.data(), 4, 2);
+
+    auto records = DFUniqueIndex<int>();
+    records.AddMultiple(std::array{10, 20, 30, 40});
+    using View = DFView<int, DFUniqueIndex<int>>;
+
+    auto found = std::ranges::find(View::FieldView(matrix, &records, 1), 5);
+    static_assert(std::same_as<decltype(found), View::Iterator>);
+
+    EXPECT_EQ(*found, 5);
 }
