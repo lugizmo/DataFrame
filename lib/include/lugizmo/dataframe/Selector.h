@@ -18,7 +18,7 @@ namespace lugizmo {
     template <typename F>
     struct SelectField
     {
-        F const& val;
+        F const& val; // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
         constexpr explicit SelectField(F const& v) noexcept: val(v) {}
 
         constexpr SelectField(SelectField const&) noexcept = delete;
@@ -42,7 +42,7 @@ namespace lugizmo {
     template <typename F>
     struct SelectFieldIndexed
     {
-        F const& val;
+        F const& val; // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
         constexpr explicit SelectFieldIndexed(F const& v) noexcept: val(v) {}
 
         constexpr SelectFieldIndexed(SelectFieldIndexed const&) noexcept = delete;
@@ -62,7 +62,7 @@ namespace lugizmo {
     template <typename R>
     struct SelectRecord
     {
-        R const& val;
+        R const& val; // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
         constexpr explicit SelectRecord(R const& v) noexcept: val(v) {}
 
         constexpr SelectRecord(SelectRecord const&) noexcept = delete;
@@ -86,7 +86,7 @@ namespace lugizmo {
     template <typename F>
     struct SelectRecordIndexed
     {
-        F const& val;
+        F const& val; // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
         constexpr explicit SelectRecordIndexed(F const& v) noexcept: val(v) {}
 
         constexpr SelectRecordIndexed(SelectRecordIndexed const&) noexcept = delete;
