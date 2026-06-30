@@ -7,449 +7,387 @@
 #ifndef LUGIZMO_DF_VIEW_INDEXED_H
 #define LUGIZMO_DF_VIEW_INDEXED_H
 
+#include <concepts>
 #include <cstddef>
 #include <iterator>
-#include <memory>
+#include <optional>
+#include <ranges>
+#include <tuple>
+#include <type_traits>
 #include <utility>
-#include <span>
 
 #include "lugizmo/Assert.h"
-#include "lugizmo/container/OptionalRef.h"
 
-#include "View.h"
 #include "IndexRange.h"
+#include "View.h"
 
 namespace lugizmo {
 
-    template<typename T, typename I>
-    class DFViewIndexed
-    {
-        // Data Types
-        using View = DFView<T, I>;
+    namespace internal {
 
-        template<typename Layout>
-        using MDSpanDF = View::template MDSpanDF<Layout>;
+        template<typename Reference>
+        using DFIndexedMember = std::conditional_t<std::is_lvalue_reference_v<Reference>, Reference, std::remove_cvref_t<Reference>>;
 
-        // Index Types
-        using KeyType       = I::ConstKeyType;
-        using Indices       = std::conditional_t<DFRngIndex<std::remove_const_t<I>>, DFRangeIndexBounds<std::remove_const_t<KeyType>>, std::span<KeyType>>;
-        using IndexIterator = Indices::iterator;
-
-        static_assert(not std::is_pointer_v<T>   && not std::is_pointer_v<KeyType>);
-        static_assert(not std::is_reference_v<T> && not std::is_reference_v<KeyType>);
-        static_assert(std::is_const_v<KeyType>, "The index should not be able to be mutated by this view.");
-
-        static_assert(std::random_access_iterator<typename View::Iterator>);
-        static_assert(std::random_access_iterator<typename Indices::iterator>);
-
-        View    dataView;
-        Indices indexSpan;
-
-        explicit DFViewIndexed(View&& view, Indices const indices) noexcept :
-            dataView(std::move(view)),
-            indexSpan(indices)
+        template<typename Entry, typename ZippedEntry>
+        [[nodiscard]] constexpr auto MakeDFIndexedEntry(ZippedEntry&& zippedEntry) noexcept -> Entry
         {
+            return Entry{std::get<0>(std::forward<ZippedEntry>(zippedEntry)),
+                         std::get<1>(std::forward<ZippedEntry>(zippedEntry))};
         }
 
-    public:
-
         /**
-         * @brief Read-only reference-like access to an index key.
-         * @details The index iterator is stored by value. For unique indices it refers to
-         *          the stored key; for range indices it owns the generated key position.
-         */
-        class IndexReference
-        {
-            IndexIterator position;
-
-        public:
-            constexpr explicit IndexReference(IndexIterator indexPosition) noexcept :
-                position(indexPosition)
-            {
-            }
-
-            [[nodiscard]] constexpr auto HasValue() const noexcept -> bool { return true; }
-            [[nodiscard]] constexpr explicit operator bool() const noexcept { return true; }
-
-            [[nodiscard]] constexpr auto Pointer() const noexcept -> KeyType const*
-            {
-                return std::to_address(position);
-            }
-
-            [[nodiscard]] constexpr auto Get() const noexcept -> KeyType const& { return *Pointer(); }
-            [[nodiscard]] constexpr auto Value() const noexcept -> KeyType const& { return *Pointer(); }
-            [[nodiscard]] constexpr auto operator*() const noexcept -> KeyType const& { return *Pointer(); }
-            [[nodiscard]] constexpr auto operator->() const noexcept -> KeyType const* { return Pointer(); }
-        };
-
-        static_assert(std::is_trivially_copyable_v<IndexReference>, "Index reference should remain a lightweight iterator wrapper.");
-
-        /**
-         *  @brief Value returned by the Iterator when dereferenced.
-         *         Basically a pair of dataframe value and the associated
-         *         index (either the field or record).
+         * @brief Named-entry facade over a `zip_view` iterator.
          *
-         *  @attention This class makes use of a reference wrapper and therefor
-         *             the iterator and user is responsible to keep references
-         *             valid until the iterator is used. Otherwise, undefined behaviour!
+         * All positioning and synchronization remain delegated to the zip
+         * iterator. This facade only changes its dereference result.
          */
-        struct IteratorValue
+        template<typename ZippedIterator, typename Entry>
+        class DFIndexedIterator
         {
-            OptionalRef<T>       val;
-            IndexReference       idx;
+            template<typename, typename>
+            friend class DFIndexedIterator;
 
-            constexpr IteratorValue(T* value, IndexIterator indexPosition) noexcept :
-                val(value),
-                idx(indexPosition)
-            {
-                LUGIZMO_ASSERT_TRACE(value != nullptr, "IteratorValue requires a non-null value pointer.");
-            }
-
-            constexpr ~IteratorValue() noexcept = default;
-
-            constexpr IteratorValue(IteratorValue const& other) noexcept                    = default;
-            constexpr IteratorValue(IteratorValue && other) noexcept                        = default;
-            constexpr auto operator=(IteratorValue&& other) noexcept -> IteratorValue&      = default;
-            constexpr auto operator=(IteratorValue const& other) noexcept -> IteratorValue& = default;
-
-            // NOLINTBEGIN(readability-identifier-naming)
-            constexpr auto first()        noexcept -> T*             { return val.Pointer(); }
-            constexpr auto first()  const noexcept -> T const*       { return val.Pointer(); }
-            constexpr auto second() const noexcept -> KeyType const* { return idx.Pointer(); }
-            // NOLINTEND(readability-identifier-naming)
-
-            constexpr auto First()        noexcept -> T*             { return val.Pointer(); }
-            constexpr auto First()  const noexcept -> T const*       { return val.Pointer(); }
-            constexpr auto Second() const noexcept -> KeyType const* { return idx.Pointer(); }
-        };
-
-        static_assert(std::is_trivially_copyable_v<IteratorValue>, "Iterator value should just point/reference to the actual value.");
-
-        /**
-         *  @brief Implementation of an iterator for DFViewIndex.
-         */
-        class IteratorIdx
-        {
-            using DIt    = View::Iterator;                                                              // Referenced Data Iterator
-            using IIt    = Indices::iterator;                                                           // Referenced Index Iterator
-
-            using Val    = std::conditional_t<std::is_const_v<T>, IteratorValue const, IteratorValue>;  // Current value of the Iterator
-            using OptVal = std::optional<IteratorValue>;                                                // Current value of the Iterator as Optional
-
-            DIt    ptr;
-            IIt    indices;
-            mutable OptVal current;
-            mutable OptVal indexed;
-
-            auto RefreshCurrent() const noexcept -> Val&
-            {
-                current.emplace(ptr.operator->(), indices);
-                return *current;
-            }
-
-            void InvalidateCaches() noexcept
-            {
-                current.reset();
-                indexed.reset();
-            }
+            ZippedIterator current;
 
         public:
 
             // NOLINTBEGIN(readability-identifier-naming)
             using iterator_category = std::random_access_iterator_tag;
-            using difference_type   = std::ptrdiff_t;
-            using value_type        = Val;
-            using pointer           = Val*;
-            using reference         = Val&;
+            using iterator_concept  = std::random_access_iterator_tag;
+            using difference_type   = std::iter_difference_t<ZippedIterator>;
+            using reference         = Entry;
+            using value_type        = reference;
             // NOLINTEND(readability-identifier-naming)
 
-            static_assert(std::is_same_v<decltype(std::declval<DIt>().operator->()), T*>);
-            static_assert(std::is_same_v<decltype(std::declval<IIt>().operator->()), KeyType const*>);
-
-            IteratorIdx() noexcept :
-                ptr(),
-                indices(),
-                current(),
-                indexed()
+            class Pointer
             {
+                reference entry;
+
+            public:
+                constexpr explicit Pointer(reference value) noexcept : entry(std::move(value)) {}
+                [[nodiscard]] constexpr auto operator->() noexcept -> reference* { return &entry; }
+                [[nodiscard]] constexpr auto operator->() const noexcept -> reference const* { return &entry; }
+            };
+
+            constexpr DFIndexedIterator() noexcept = default;
+            constexpr explicit DFIndexedIterator(ZippedIterator iterator) noexcept : current(std::move(iterator)) {}
+
+            constexpr DFIndexedIterator(DFIndexedIterator const&) noexcept = default;
+            constexpr DFIndexedIterator(DFIndexedIterator&&) noexcept = default;
+            constexpr auto operator=(DFIndexedIterator const&) noexcept -> DFIndexedIterator& = default;
+            constexpr auto operator=(DFIndexedIterator&&) noexcept -> DFIndexedIterator& = default;
+            constexpr ~DFIndexedIterator() noexcept = default;
+
+            template<typename OtherIterator>
+                requires std::convertible_to<OtherIterator, ZippedIterator>
+            constexpr DFIndexedIterator(DFIndexedIterator<OtherIterator, Entry> other) noexcept : current(std::move(other.current))
+            {}
+
+            [[nodiscard]] constexpr auto operator*() const noexcept -> reference { return MakeDFIndexedEntry<Entry>(*current); }
+            [[nodiscard]] constexpr auto operator->() const noexcept -> Pointer { return Pointer(operator*()); }
+            [[nodiscard]] constexpr auto operator[](difference_type const n) const noexcept -> reference { return MakeDFIndexedEntry<Entry>(current[n]); }
+
+            constexpr auto operator++() noexcept -> DFIndexedIterator& { ++current; return *this; }
+            constexpr auto operator++(int) noexcept -> DFIndexedIterator { auto previous = *this; ++*this; return previous; }
+            constexpr auto operator--() noexcept -> DFIndexedIterator& { --current; return *this; }
+            constexpr auto operator--(int) noexcept -> DFIndexedIterator { auto previous = *this; --*this; return previous; }
+            constexpr auto operator+=(difference_type const n) noexcept -> DFIndexedIterator& { current += n; return *this; }
+            constexpr auto operator-=(difference_type const n) noexcept -> DFIndexedIterator& { current -= n; return *this; }
+
+            [[nodiscard]] constexpr auto operator+(difference_type const n) const noexcept -> DFIndexedIterator { return DFIndexedIterator(current + n); }
+            [[nodiscard]] constexpr auto operator-(difference_type const n) const noexcept -> DFIndexedIterator { return DFIndexedIterator(current - n); }
+            [[nodiscard]] constexpr auto operator-(DFIndexedIterator const& other) const noexcept -> difference_type { return current - other.current; }
+
+            [[nodiscard]] constexpr auto operator==(DFIndexedIterator const& other) const noexcept -> bool = default;
+            [[nodiscard]] constexpr auto operator<(DFIndexedIterator const& other) const noexcept -> bool { return current < other.current; }
+            [[nodiscard]] constexpr auto operator<=(DFIndexedIterator const& other) const noexcept -> bool { return current <= other.current; }
+            [[nodiscard]] constexpr auto operator>(DFIndexedIterator const& other) const noexcept -> bool { return current > other.current; }
+            [[nodiscard]] constexpr auto operator>=(DFIndexedIterator const& other) const noexcept -> bool { return current >= other.current; }
+
+            friend constexpr auto operator+(difference_type const n, DFIndexedIterator const& iterator) noexcept -> DFIndexedIterator
+            {
+                return iterator + n;
             }
 
-            IteratorIdx(DIt data, IIt indices) noexcept :
-                ptr(data),
-                indices(indices),
-                current(),
-                indexed()
-            {
-            }
-
-            IteratorIdx(IteratorIdx const& other) noexcept :
-                ptr(other.ptr),
-                indices(other.indices),
-                current(),
-                indexed()
-            {
-            }
-
-            IteratorIdx(IteratorIdx&& other) noexcept :
-                ptr(std::move(other.ptr)),
-                indices(std::move(other.indices)),
-                current(),
-                indexed()
-            {
-            }
-
-            auto operator=(IteratorIdx const& other) noexcept -> IteratorIdx&
-            {
-                if(this == &other) return *this;
-
-                ptr     = other.ptr;
-                indices = other.indices;
-                InvalidateCaches();
-                return *this;
-            }
-
-            auto operator=(IteratorIdx&& other) noexcept -> IteratorIdx&
-            {
-                if(this == &other) return *this;
-
-                ptr     = std::move(other.ptr);
-                indices = std::move(other.indices);
-                InvalidateCaches();
-                return *this;
-            }
-
-            ~IteratorIdx() noexcept = default;
-
-            auto operator*()  const noexcept -> reference
-            {
-                return RefreshCurrent();
-            }
-            auto operator->() const noexcept -> pointer
-            {
-                return &RefreshCurrent();
-            }
-
-            auto operator*()  noexcept -> reference
-            {
-                return RefreshCurrent();
-            }
-            auto operator->() noexcept -> pointer
-            {
-                return &RefreshCurrent();
-            }
-
-            auto operator++() -> IteratorIdx&
-            {
-                ptr.operator++();
-                indices.operator++();
-                InvalidateCaches();
-
-                return *this;
-            }
-
-            auto operator++(int) -> IteratorIdx
-            {
-                IteratorIdx tmp = *this;
-                ++(*this);
-                return tmp;
-            }
-
-            auto operator--() -> IteratorIdx&
-            {
-                ptr.operator--();
-                indices.operator--();
-                InvalidateCaches();
-
-                return *this;
-            }
-
-            auto operator--(int) -> IteratorIdx
-            {
-                IteratorIdx tmp = *this;
-                --(*this);
-                return tmp;
-            }
-
-            auto operator+(difference_type const n) const -> IteratorIdx
-            {
-                return IteratorIdx(ptr + n, indices + n);
-            }
-
-            auto operator+=(difference_type const n) -> IteratorIdx&
-            {
-                ptr.operator+=(n);
-                indices += n;
-                InvalidateCaches();
-
-                return *this;
-            }
-
-            auto operator-(difference_type const n) const -> IteratorIdx
-            {
-                return IteratorIdx(ptr - n, indices - n);
-            }
-
-            auto operator-(IteratorIdx const& other) const -> difference_type
-            {
-                auto const dataDistance  = ptr - other.ptr;
-                LUGIZMO_ASSERT_TRACE(dataDistance == (indices - other.indices), "DFViewIndexed iterator data and index positions diverged.");
-                return dataDistance;
-            }
-
-            auto operator-=(difference_type const n) -> IteratorIdx&
-            {
-                ptr.operator-=(n);
-                indices.operator-=(n);
-                InvalidateCaches();
-
-                return *this;
-            }
-
-            auto operator[](difference_type const n) const -> reference
-            {
-                indexed.emplace((ptr + n).operator->(), indices + n);
-                return *indexed;
-            }
-
-            friend auto operator+(difference_type n, const IteratorIdx& it) -> IteratorIdx
-            {
-                return it + n;
-            }
-
-            auto operator==(IteratorIdx const& other) const noexcept -> bool { return ptr == other.ptr; }
-            auto operator!=(IteratorIdx const& other) const noexcept -> bool { return ptr != other.ptr; }
-
-            auto operator<(IteratorIdx  const& other) const noexcept -> bool { return ptr < other.ptr; }
-            auto operator<=(IteratorIdx const& other) const noexcept -> bool { return ptr <= other.ptr; }
-            auto operator>(IteratorIdx  const& other) const noexcept -> bool { return ptr > other.ptr; }
-            auto operator>=(IteratorIdx const& other) const noexcept -> bool { return ptr >= other.ptr; }
         };
 
-        static_assert(std::random_access_iterator<IteratorIdx>, "Validation for iterator requirement failed.");
+    } // namespace internal
 
-        // empty view
-        DFViewIndexed() noexcept : dataView(), indexSpan() {}
+    template<typename T, typename I>
+    class DFViewIndexed : public std::ranges::view_interface<DFViewIndexed<T, I>>
+    {
+        using View    = DFView<T, I>;
+        using Index   = std::remove_const_t<I>;
+        using KeyType = Index::ConstKeyType;
+        using IndexView = Index::KeyView;
 
-        template <typename Layout>
-        [[nodiscard]]
-        static auto RecordView(MDSpanDF<Layout> original, I const* index, size_t const recIndex, Indices const fldIndices) noexcept -> DFViewIndexed
+        template<typename Layout>
+        using MDSpanDF = View::template MDSpanDF<Layout>;
+
+        using ZippedView      = decltype(std::views::zip(std::declval<View&>(), std::declval<IndexView&>()));
+        using ConstZippedView = decltype(std::views::zip(std::declval<View const&>(), std::declval<IndexView const&>()));
+
+        static_assert(not std::is_pointer_v<T>   && not std::is_pointer_v<KeyType>);
+        static_assert(not std::is_reference_v<T> && not std::is_reference_v<KeyType>);
+        static_assert(std::is_const_v<KeyType>, "The index should not be able to be mutated by this view.");
+        static_assert(std::ranges::random_access_range<ZippedView>);
+        static_assert(std::ranges::random_access_range<ConstZippedView>);
+
+        View    dataView;
+        IndexView indexView;
+
+        explicit DFViewIndexed(View view, IndexView indices) noexcept;
+
+        [[nodiscard]] auto Zipped() noexcept -> ZippedView;
+        [[nodiscard]] auto Zipped() const noexcept -> ConstZippedView;
+
+    public:
+
+        // ======== TYPES ==========================================================================================================================================================
+
+        using ValueReference = std::ranges::range_reference_t<View>;
+        using IndexReference = internal::DFIndexedMember<std::ranges::range_reference_t<IndexView>>;
+
+        /**
+         * @brief Named reference-like result produced by an indexed view.
+         *
+         * `value` refers to the dataframe element. `index` either refers to a
+         * stored unique-index key or owns a generated range-index key. Public
+         * members intentionally also enable structured binding as
+         * `auto [value, index]`.
+         */
+        struct Entry
         {
-            auto dfView = View::RecordView(original, index, recIndex);
-            return DFViewIndexed(std::move(dfView), fldIndices);
-        }
+            ValueReference value;
+            IndexReference index;
+        };
 
-        template <typename Layout>
-        [[nodiscard]]
-        static auto FieldView(MDSpanDF<Layout> original, I const* index, size_t const fldIndex, Indices const recIndices) noexcept -> DFViewIndexed
-        {
-            auto dfView = View::FieldView(original, index, fldIndex);
-            return DFViewIndexed(std::move(dfView), recIndices);
-        }
+        using ConstEntry    = Entry;
+        using Iterator      = internal::DFIndexedIterator<std::ranges::iterator_t<ZippedView>, Entry>;
+        using ConstIterator = internal::DFIndexedIterator<std::ranges::iterator_t<ConstZippedView>, Entry>;
 
-        [[nodiscard]] auto Size() const noexcept -> size_t { return dataView.view.extent(0) < 0 ? 0UZ : static_cast<size_t>(dataView.view.extent(0)); }
-        [[nodiscard]] auto Empty() const noexcept -> bool  { return dataView.Size() == 0; }
+        static_assert(sizeof(Iterator) == sizeof(std::ranges::iterator_t<ZippedView>),
+                      "The named-entry facade must not add iterator state.");
 
-        [[nodiscard]] auto operator[](size_t const i) noexcept -> IteratorValue
-        {
-            auto const offset = static_cast<std::ptrdiff_t>(i);
-            return IteratorValue((dataView.begin() + offset).operator->(), indexSpan.begin() + offset);
-        }
+        // ======== CONSTRUCTION ===================================================================================================================================================
 
-        [[nodiscard]] auto operator[](size_t const i) const noexcept -> IteratorValue
-        {
-            auto const offset = static_cast<std::ptrdiff_t>(i);
-            return IteratorValue((dataView.begin() + offset).operator->(), indexSpan.begin() + offset);
-        }
+        DFViewIndexed() noexcept;
 
-        [[nodiscard]] auto operator()(size_t const i) noexcept -> std::optional<IteratorValue>
-        {
-            if(i >= dataView.Size()) return std::nullopt;
-            return (*this)[i];
-        }
+        template<typename Layout>
+        [[nodiscard]] static auto RecordView(MDSpanDF<Layout> original, I const* index, size_t recIndex, IndexView fldIndices) noexcept -> DFViewIndexed;
 
-        [[nodiscard]] auto operator()(size_t const i) const noexcept -> std::optional<IteratorValue>
-        {
-            if(i >= dataView.Size()) return std::nullopt;
-            return (*this)[i];
-        }
+        template<typename Layout>
+        [[nodiscard]] static auto FieldView(MDSpanDF<Layout> original, I const* index, size_t fldIndex, IndexView recIndices) noexcept -> DFViewIndexed;
 
-        [[nodiscard]]
-        auto begin() noexcept -> IteratorIdx // NOLINT(readability-identifier-naming)
-        {
-            return IteratorIdx(dataView.begin(), indexSpan.begin());
-        }
+        // ======== CAPACITY =======================================================================================================================================================
 
-        [[nodiscard]]
-        auto end() noexcept -> IteratorIdx // NOLINT(readability-identifier-naming)
-        {
-            return IteratorIdx(dataView.end(), indexSpan.end());
-        }
+        [[nodiscard]] auto Size() const noexcept -> size_t;
+        [[nodiscard]] auto Empty() const noexcept -> bool;
 
-        [[nodiscard]]
-        auto begin() const noexcept -> IteratorIdx // NOLINT(readability-identifier-naming)
-        {
-            return IteratorIdx(dataView.cbegin(), indexSpan.begin());
-        }
+        // ======== COMPONENT VIEWS ================================================================================================================================================
 
-        [[nodiscard]]
-        auto end() const noexcept -> IteratorIdx // NOLINT(readability-identifier-naming)
-        {
-            return IteratorIdx(dataView.cend(), indexSpan.end());
-        }
+        /// @brief Returns the dataframe-value component as its original strided view.
+        [[nodiscard]] auto Values() const noexcept -> View;
 
-        [[nodiscard]]
-        auto cbegin() const& noexcept -> IteratorIdx // NOLINT(readability-identifier-naming)
-        {
-            return IteratorIdx(dataView.cbegin(), indexSpan.begin());
-        }
+        /// @brief Returns the read-only index component in the same logical order.
+        [[nodiscard]] auto Indices() const noexcept -> IndexView;
 
-        [[nodiscard]]
-        auto cend() const& noexcept -> IteratorIdx // NOLINT(readability-identifier-naming)
-        {
-            return IteratorIdx(dataView.cend(), indexSpan.end());
-        }
+        // ======== POSITIONAL ACCESS ==============================================================================================================================================
+
+        [[nodiscard]] auto operator[](size_t i) noexcept -> Entry;
+        [[nodiscard]] auto operator[](size_t i) const noexcept -> ConstEntry;
+        [[nodiscard]] auto operator()(size_t i) noexcept -> std::optional<Entry>;
+        [[nodiscard]] auto operator()(size_t i) const noexcept -> std::optional<ConstEntry>;
+
+        // ======== ITERATORS ======================================================================================================================================================
+
+        // NOLINTBEGIN(readability-identifier-naming)
+        [[nodiscard]] auto begin() noexcept -> Iterator;
+        [[nodiscard]] auto end() noexcept -> Iterator;
+        [[nodiscard]] auto begin() const noexcept -> ConstIterator;
+        [[nodiscard]] auto end() const noexcept -> ConstIterator;
+        [[nodiscard]] auto cbegin() const noexcept -> ConstIterator;
+        [[nodiscard]] auto cend() const noexcept -> ConstIterator;
+        // NOLINTEND(readability-identifier-naming)
+
+        // ======== KEY ACCESS =====================================================================================================================================================
 
         [[nodiscard]] auto Contains(KeyType const& key) noexcept -> bool;
-
         [[nodiscard]] auto At(KeyType const& key) noexcept -> T*;
         [[nodiscard]] auto At(KeyType const& key) const noexcept -> T const*;
-
-        template <typename RangeAdaptor>
-        [[nodiscard]]
-        friend auto operator|(DFViewIndexed& view, RangeAdaptor&& adaptor)
-        {
-            return std::forward<RangeAdaptor>(adaptor)(std::ranges::subrange(view.begin(), view.end()));
-        }
-
-        template <typename RangeAdaptor>
-        [[nodiscard]]
-        friend auto operator|(DFViewIndexed const& view, RangeAdaptor&& adaptor)
-        {
-            return std::forward<RangeAdaptor>(adaptor)(std::ranges::subrange(view.begin(), view.end()));
-        }
     };
 
-    static_assert(std::ranges::range<DFViewIndexed<int, DFUniqueIndex<int const>>>, "Validation for range requirement failed.");
-    static_assert(std::ranges::range<DFViewIndexed<int const, DFUniqueIndex<int const>>>, "Validation for range requirement failed.");
+    // ======== CONSTRUCTION =======================================================================================================================================================
 
-    template<typename T, typename  I>
+    template<typename T, typename I>
+    DFViewIndexed<T, I>::DFViewIndexed(View view, IndexView indices) noexcept :
+        dataView(std::move(view)),
+        indexView(std::move(indices))
+    {
+        LUGIZMO_ASSERT_TRACE(dataView.Size() == std::ranges::size(indexView),
+                            "DFViewIndexed requires the data and index views to have equal sizes.");
+    }
+
+    template<typename T, typename I>
+    DFViewIndexed<T, I>::DFViewIndexed() noexcept :
+        dataView(),
+        indexView()
+    {}
+
+    template<typename T, typename I>
+    template<typename Layout>
+    auto DFViewIndexed<T, I>::RecordView(MDSpanDF<Layout> original, I const* index, size_t const recIndex, IndexView fldIndices) noexcept -> DFViewIndexed
+    {
+        return DFViewIndexed(View::RecordView(original, index, recIndex), std::move(fldIndices));
+    }
+
+    template<typename T, typename I>
+    template<typename Layout>
+    auto DFViewIndexed<T, I>::FieldView(MDSpanDF<Layout> original, I const* index, size_t const fldIndex, IndexView recIndices) noexcept -> DFViewIndexed
+    {
+        return DFViewIndexed(View::FieldView(original, index, fldIndex), std::move(recIndices));
+    }
+
+    template<typename T, typename I>
+    auto DFViewIndexed<T, I>::Zipped() noexcept -> ZippedView
+    {
+        return std::views::zip(dataView, indexView);
+    }
+
+    template<typename T, typename I>
+    auto DFViewIndexed<T, I>::Zipped() const noexcept -> ConstZippedView
+    {
+        return std::views::zip(dataView, indexView);
+    }
+
+    // ======== CAPACITY ===========================================================================================================================================================
+
+    template<typename T, typename I>
+    auto DFViewIndexed<T, I>::Size() const noexcept -> size_t
+    {
+        return dataView.Size();
+    }
+
+    template<typename T, typename I>
+    auto DFViewIndexed<T, I>::Empty() const noexcept -> bool
+    {
+        return dataView.Empty();
+    }
+
+    // ======== COMPONENT VIEWS ====================================================================================================================================================
+
+    template<typename T, typename I>
+    auto DFViewIndexed<T, I>::Values() const noexcept -> View
+    {
+        return dataView;
+    }
+
+    template<typename T, typename I>
+    auto DFViewIndexed<T, I>::Indices() const noexcept -> IndexView
+    {
+        return indexView;
+    }
+
+    // ======== POSITIONAL ACCESS ==================================================================================================================================================
+
+    template<typename T, typename I>
+    auto DFViewIndexed<T, I>::operator[](size_t const i) noexcept -> Entry
+    {
+        return begin()[static_cast<std::ptrdiff_t>(i)];
+    }
+
+    template<typename T, typename I>
+    auto DFViewIndexed<T, I>::operator[](size_t const i) const noexcept -> ConstEntry
+    {
+        return begin()[static_cast<std::ptrdiff_t>(i)];
+    }
+
+    template<typename T, typename I>
+    auto DFViewIndexed<T, I>::operator()(size_t const i) noexcept -> std::optional<Entry>
+    {
+        if(i >= Size()) return std::nullopt;
+        return (*this)[i];
+    }
+
+    template<typename T, typename I>
+    auto DFViewIndexed<T, I>::operator()(size_t const i) const noexcept -> std::optional<ConstEntry>
+    {
+        if(i >= Size()) return std::nullopt;
+        return (*this)[i];
+    }
+
+    // ======== ITERATORS ==========================================================================================================================================================
+
+    // NOLINTBEGIN(readability-identifier-naming)
+
+    template<typename T, typename I>
+    auto DFViewIndexed<T, I>::begin() noexcept -> Iterator
+    {
+        return Iterator(Zipped().begin());
+    }
+
+    template<typename T, typename I>
+    auto DFViewIndexed<T, I>::end() noexcept -> Iterator
+    {
+        return Iterator(Zipped().end());
+    }
+
+    template<typename T, typename I>
+    auto DFViewIndexed<T, I>::begin() const noexcept -> ConstIterator
+    {
+        return ConstIterator(Zipped().begin());
+    }
+
+    template<typename T, typename I>
+    auto DFViewIndexed<T, I>::end() const noexcept -> ConstIterator
+    {
+        return ConstIterator(Zipped().end());
+    }
+
+    template<typename T, typename I>
+    auto DFViewIndexed<T, I>::cbegin() const noexcept -> ConstIterator
+    {
+        return begin();
+    }
+
+    template<typename T, typename I>
+    auto DFViewIndexed<T, I>::cend() const noexcept -> ConstIterator
+    {
+        return end();
+    }
+
+    // NOLINTEND(readability-identifier-naming)
+
+    // ======== KEY ACCESS =========================================================================================================================================================
+
+    template<typename T, typename I>
     auto DFViewIndexed<T, I>::Contains(KeyType const& key) noexcept -> bool
     {
         return dataView.Contains(key);
     }
 
-    template<typename T, typename  I>
+    template<typename T, typename I>
     auto DFViewIndexed<T, I>::At(KeyType const& key) noexcept -> T*
     {
         return dataView.At(key);
     }
 
-    template<typename T, typename  I>
+    template<typename T, typename I>
     auto DFViewIndexed<T, I>::At(KeyType const& key) const noexcept -> T const*
     {
         return dataView.At(key);
     }
 
 } // namespace lugizmo
+
+template<typename T, typename I>
+inline constexpr bool std::ranges::enable_borrowed_range<lugizmo::DFViewIndexed<T, I>> = true; // NOLINT(readability-identifier-naming)
+
+static_assert(std::ranges::random_access_range<lugizmo::DFViewIndexed<int, lugizmo::DFUniqueIndex<int> const>>, "DFViewIndexed must model random_access_range.");
+static_assert(std::ranges::random_access_range<lugizmo::DFViewIndexed<int const, lugizmo::DFUniqueIndex<int> const>>, "Read-only DFViewIndexed must model random_access_range.");
+static_assert(std::ranges::sized_range<lugizmo::DFViewIndexed<int, lugizmo::DFUniqueIndex<int> const>>, "DFViewIndexed must model sized_range.");
+static_assert(std::ranges::common_range<lugizmo::DFViewIndexed<int, lugizmo::DFUniqueIndex<int> const>>, "DFViewIndexed must model common_range.");
+static_assert(std::ranges::view<lugizmo::DFViewIndexed<int, lugizmo::DFUniqueIndex<int> const>>, "DFViewIndexed must model view.");
+static_assert(std::ranges::borrowed_range<lugizmo::DFViewIndexed<int, lugizmo::DFUniqueIndex<int> const>>, "DFViewIndexed must model borrowed_range.");
 
 #endif // LUGIZMO_DF_VIEW_INDEXED_H

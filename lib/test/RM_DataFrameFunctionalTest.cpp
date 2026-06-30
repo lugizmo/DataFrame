@@ -125,13 +125,15 @@ TEST(RM_DataFrameFunctional, RangesComposition)
     }
 
     {
-        // indexed views/selectors expose .val for composition
-        auto evenVal = [](auto const& entry) { return entry.val % 2 == 0; };
+        // indexed entries compose directly through their named members
+        auto entries = df.ViewFieldIndexed(1) | std::views::filter([&even](auto const entry) { return even(entry.value); });
+        EXPECT_TRUE(std::ranges::all_of(entries, [&even](auto const entry) { return even(entry.value); }));
 
-        auto v1 = df.ViewFieldIndexed(1) | std::views::filter(evenVal) | std::views::transform([](auto const& e) { return e.val; });
+        // named component views avoid projection lambdas when only one component is needed
+        auto v1 = df.ViewFieldIndexed(1).Values() | std::views::filter(even);
         EXPECT_TRUE(std::ranges::all_of(v1, even));
 
-        auto v2 = cdf | SelectRecordIndexed(0) | std::views::filter(evenVal) | std::views::transform([](auto const& e) { return e.val; });
+        auto v2 = (cdf | SelectRecordIndexed(0)).Values() | std::views::filter(even);
         EXPECT_TRUE(std::ranges::all_of(v2, even));
     }
 }
