@@ -14,7 +14,6 @@
 #include <span>
 
 #include "lugizmo/Assert.h"
-#include "lugizmo/container/Concepts.h"
 #include "lugizmo/container/OptionalRef.h"
 
 #include "View.h"
@@ -419,11 +418,6 @@ namespace lugizmo {
 
         [[nodiscard]] auto At(KeyType const& key) noexcept -> T*;
         [[nodiscard]] auto At(KeyType const& key) const noexcept -> T const*;
-        [[nodiscard]] auto TryAt(KeyType const& key) const noexcept -> std::optional<T>;
-
-        [[nodiscard]] auto Unwrap(KeyType const& key) noexcept -> RemovedOptional<T>* requires OptionalType<T>;
-        [[nodiscard]] auto Unwrap(KeyType const& key) const noexcept -> RemovedOptional<T> const* requires OptionalType<T>;
-        [[nodiscard]] auto TryUnwrap(KeyType const& key) const noexcept -> std::optional<RemovedOptional<T>> requires OptionalType<T>;
 
         //[[nodiscard]] auto Front() noexcept -> T*;
         //[[nodiscard]] auto Front() const noexcept -> T const*;
@@ -465,42 +459,6 @@ namespace lugizmo {
     {
         return dataView.At(key);
     }
-
-        template<typename T, typename  I>
-        auto DFViewIndexed<T, I>::TryAt(KeyType const& key) const noexcept -> std::optional<T>
-        {
-            auto* ref = At(key);
-            return std::optional<T>(ref != nullptr ? std::optional<T>(*ref) : std::optional<T>());
-        }
-
-        template<typename T, typename  I>
-        auto DFViewIndexed<T, I>::Unwrap(KeyType const& key) noexcept -> RemovedOptional<T>* requires OptionalType<T>
-        {
-            auto* ref = At(key);
-            if(ref == nullptr)       return nullptr;
-            if(not ref->has_value()) return nullptr;
-
-            return &(*ref).value();
-        }
-
-        template<typename T, typename  I>
-        auto DFViewIndexed<T, I>::Unwrap(KeyType const& key) const noexcept -> RemovedOptional<T> const* requires OptionalType<T>
-        {
-            auto* ref = At(key);
-            if(ref == nullptr)       return nullptr;
-            if(not ref->has_value()) return nullptr;
-
-            return &(*ref).value();
-        }
-
-        template<typename T, typename  I>
-        auto DFViewIndexed<T, I>::TryUnwrap(KeyType const& key) const noexcept -> std::optional<RemovedOptional<T>> requires OptionalType<T>
-        {
-            auto const* ref = Unwrap(key);
-            if(ref == nullptr) return std::nullopt;
-
-            return {*ref};
-        }
 
         //[[nodiscard]] auto Front() noexcept -> T*;
         //[[nodiscard]] auto Front() const noexcept -> T const*;
