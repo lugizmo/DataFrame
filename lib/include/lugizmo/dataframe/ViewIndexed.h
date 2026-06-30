@@ -1,4 +1,4 @@
-// Filename: View.h
+// Filename: ViewIndexed.h
 // Copyright 2024 Lukas Guz
 // Licensed under the Apache License, Version 2.0.
 // See the LICENSE file in the project root or at
@@ -21,11 +21,6 @@
 
 namespace lugizmo {
 
-    /*
-     * TODO doc
-     * TODO make view not eagerly create view so that it can be used
-     *      lazy with ranges.
-    */
     template<typename T, typename I>
     class DFViewIndexed
     {
@@ -419,11 +414,6 @@ namespace lugizmo {
         [[nodiscard]] auto At(KeyType const& key) noexcept -> T*;
         [[nodiscard]] auto At(KeyType const& key) const noexcept -> T const*;
 
-        //[[nodiscard]] auto Front() noexcept -> T*;
-        //[[nodiscard]] auto Front() const noexcept -> T const*;
-        //[[nodiscard]] auto Back() noexcept -> T*;
-        //[[nodiscard]] auto Back() const noexcept -> T const*;
-
         template <typename RangeAdaptor>
         [[nodiscard]]
         friend auto operator|(DFViewIndexed& view, RangeAdaptor&& adaptor)
@@ -459,11 +449,6 @@ namespace lugizmo {
     {
         return dataView.At(key);
     }
-
-        //[[nodiscard]] auto Front() noexcept -> T*;
-        //[[nodiscard]] auto Front() const noexcept -> T const*;
-        //[[nodiscard]] auto Back() noexcept -> T*;
-        //[[nodiscard]] auto Back() const noexcept -> T const*;
 
 } // namespace lugizmo
 
