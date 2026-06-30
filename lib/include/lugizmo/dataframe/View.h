@@ -132,12 +132,17 @@ namespace lugizmo {
      * same logical positions for the lifetime of the view. A null index disables
      * keyed lookup but does not affect positional access or iteration.
      *
+     * @par Standard range integration
+     * `DFView` is a random-access, sized, common view and a borrowed range. Standard
+     * adaptor closures can therefore be applied directly with `operator|`. Iterators
+     * may outlive the `DFView` wrapper, but never the underlying values.
+     *
      * @tparam T Element type, including its const qualification.
      * @tparam I Index type whose `KeyType` and `Position` operation provide keyed
      *           lookup along the viewed axis.
      */
     template<typename T, typename I>
-    class DFView
+    class DFView : public std::ranges::view_interface<DFView<T, I>>
     {
         template<typename Ti, typename Ii>
         friend class DFViewIndexed;
@@ -508,6 +513,8 @@ namespace lugizmo {
         indexOffset(0)
     {
         static_assert(std::is_same_v<Layout, std::layout_right> || std::is_same_v<Layout, std::layout_left>);
+        LUGIZMO_ASSERT_TRACE(index < (isFieldView ? static_cast<size_t>(original.extent(1)) : static_cast<size_t>(original.extent(0))),
+                            "DFView constructor received an out-of-bounds field or record position.");
 
         using IIdx = Extents::index_type;
         auto const dataAt = [dataPtr = original.data_handle()](IIdx const offset) -> T* {
@@ -555,6 +562,8 @@ namespace lugizmo {
         dfIndex(originalIndex),
         indexOffset(begin)
     {
+        LUGIZMO_ASSERT_TRACE(index < (isFieldView ? static_cast<size_t>(original.extent(1)) : static_cast<size_t>(original.extent(0))),
+                            "DFView sub-range constructor received an out-of-bounds field or record position.");
         LUGIZMO_ASSERT_TRACE(begin <= end && end <= (isFieldView ? static_cast<std::size_t>(original.extent(0)) : static_cast<std::size_t>(original.extent(1))),
                             "DFView sub-range constructor received invalid begin/end bounds.");
         std::size_t const newExtentSZ = end - begin;
@@ -820,45 +829,21 @@ namespace lugizmo {
     }
 
     // NOLINTEND(readability-identifier-naming)
-    // ======== RANGE ADAPTORS =====================================================================================================================================================
-
-    /**
-     * @brief Applies a range adaptor to a mutable lvalue `DFView`.
-     *
-     * The adaptor receives an ` std::ranges::subrange ` containing copies of the
-     * view's iterators. The resulting range does not depend on the `DFView` object
-     * itself but remains non-owning: the underlying values must remain alive, and
-     * structural dataframe mutations still invalidate it.
-     *
-     * @note This overload accepts mutable lvalue views. Broader standard-view and
-     *       borrowed-range compatibility is tracked separately.
-     */
-    template<typename T, typename I, typename RangeAdaptor>
-    [[nodiscard]] auto operator|(DFView<T, I>& view, RangeAdaptor&& adaptor)
-    {
-        return std::forward<RangeAdaptor>(adaptor)(std::ranges::subrange(view.begin(), view.end()));
-    }
-
-    /**
-     * @brief Applies a range adaptor to a const or temporary `DFView`.
-     *
-     * Constness of the referenced elements continues to follow `T`, not the
-     * constness of the `DFView` object. A temporary `DFView` may be destroyed after
-     * the adaptor result is created because the result stores an iterator state rather
-     * than a reference to that wrapper. The underlying values must nevertheless
-     * remain alive, and structural dataframe mutations invalidate the result.
-     *
-     * @note Broader standard-view and borrowed-range compatibility is tracked separately.
-     */
-    template<typename T, typename I, typename RangeAdaptor>
-    [[nodiscard]] auto operator|(DFView<T, I> const& view, RangeAdaptor&& adaptor)
-    {
-        return std::forward<RangeAdaptor>(adaptor)(std::ranges::subrange(view.cbegin(), view.cend()));
-    }
-
-    static_assert(std::ranges::range<DFView<int, DFUniqueIndex<int>>>, "Validation for range requirement failed.");
-    static_assert(std::ranges::range<DFView<int const, DFUniqueIndex<int>>>, "Validation for range requirement failed.");
 
 } // namespace lugizmo
+
+// ======== STANDARD RANGE CUSTOMIZATION ===========================================================================================================================================
+
+template<typename T, typename I>
+inline constexpr bool std::ranges::enable_borrowed_range<lugizmo::DFView<T, I>> = true; // NOLINT(readability-identifier-naming)
+
+static_assert(std::ranges::random_access_range<lugizmo::DFView<int, lugizmo::DFUniqueIndex<int>>>, "DFView must model random_access_range.");
+static_assert(std::ranges::random_access_range<lugizmo::DFView<int const, lugizmo::DFUniqueIndex<int>>>, "Read-only DFView must model random_access_range.");
+static_assert(std::ranges::sized_range<lugizmo::DFView<int, lugizmo::DFUniqueIndex<int>>>, "DFView must model sized_range.");
+static_assert(std::ranges::common_range<lugizmo::DFView<int, lugizmo::DFUniqueIndex<int>>>, "DFView must model common_range.");
+static_assert(std::ranges::view<lugizmo::DFView<int, lugizmo::DFUniqueIndex<int>>>, "DFView must model view.");
+static_assert(std::ranges::borrowed_range<lugizmo::DFView<int, lugizmo::DFUniqueIndex<int>>>, "DFView must model borrowed_range.");
+static_assert(std::ranges::viewable_range<lugizmo::DFView<int, lugizmo::DFUniqueIndex<int>>&>, "DFView lvalues must model viewable_range.");
+static_assert(std::ranges::viewable_range<lugizmo::DFView<int, lugizmo::DFUniqueIndex<int>>>, "Temporary DFView objects must model viewable_range.");
 
 #endif // LUGIZMO_DF_VIEW_H
