@@ -51,12 +51,15 @@ namespace lugizmo {
 
         public:
 
+            class Pointer;
+
             // NOLINTBEGIN(readability-identifier-naming)
             using iterator_category = std::random_access_iterator_tag;
             using iterator_concept  = std::random_access_iterator_tag;
             using difference_type   = std::iter_difference_t<ZippedIterator>;
             using reference         = Entry;
             using value_type        = reference;
+            using pointer           = Pointer;
             // NOLINTEND(readability-identifier-naming)
 
             class Pointer
@@ -165,6 +168,8 @@ namespace lugizmo {
         using ConstEntry    = Entry;
         using Iterator      = internal::DFIndexedIterator<std::ranges::iterator_t<ZippedView>, Entry>;
         using ConstIterator = internal::DFIndexedIterator<std::ranges::iterator_t<ConstZippedView>, Entry>;
+        using ReverseIterator      = std::reverse_iterator<Iterator>;
+        using ConstReverseIterator = std::reverse_iterator<ConstIterator>;
 
         static_assert(sizeof(Iterator) == sizeof(std::ranges::iterator_t<ZippedView>),
                       "The named-entry facade must not add iterator state.");
@@ -220,6 +225,12 @@ namespace lugizmo {
         [[nodiscard]] auto end() const noexcept -> ConstIterator;
         [[nodiscard]] auto cbegin() const noexcept -> ConstIterator;
         [[nodiscard]] auto cend() const noexcept -> ConstIterator;
+        [[nodiscard]] auto rbegin() noexcept -> ReverseIterator;
+        [[nodiscard]] auto rend() noexcept -> ReverseIterator;
+        [[nodiscard]] auto rbegin() const noexcept -> ConstReverseIterator;
+        [[nodiscard]] auto rend() const noexcept -> ConstReverseIterator;
+        [[nodiscard]] auto crbegin() const noexcept -> ConstReverseIterator;
+        [[nodiscard]] auto crend() const noexcept -> ConstReverseIterator;
         // NOLINTEND(readability-identifier-naming)
 
         // ======== KEY ACCESS =====================================================================================================================================================
@@ -396,6 +407,42 @@ namespace lugizmo {
         return end();
     }
 
+    template<typename T, typename I>
+    auto DFViewIndexed<T, I>::rbegin() noexcept -> ReverseIterator
+    {
+        return ReverseIterator(end());
+    }
+
+    template<typename T, typename I>
+    auto DFViewIndexed<T, I>::rend() noexcept -> ReverseIterator
+    {
+        return ReverseIterator(begin());
+    }
+
+    template<typename T, typename I>
+    auto DFViewIndexed<T, I>::rbegin() const noexcept -> ConstReverseIterator
+    {
+        return ConstReverseIterator(end());
+    }
+
+    template<typename T, typename I>
+    auto DFViewIndexed<T, I>::rend() const noexcept -> ConstReverseIterator
+    {
+        return ConstReverseIterator(begin());
+    }
+
+    template<typename T, typename I>
+    auto DFViewIndexed<T, I>::crbegin() const noexcept -> ConstReverseIterator
+    {
+        return ConstReverseIterator(cend());
+    }
+
+    template<typename T, typename I>
+    auto DFViewIndexed<T, I>::crend() const noexcept -> ConstReverseIterator
+    {
+        return ConstReverseIterator(cbegin());
+    }
+
     // NOLINTEND(readability-identifier-naming)
 
     // ======== KEY ACCESS =========================================================================================================================================================
@@ -429,5 +476,21 @@ static_assert(std::ranges::sized_range<lugizmo::DFViewIndexed<int, lugizmo::DFUn
 static_assert(std::ranges::common_range<lugizmo::DFViewIndexed<int, lugizmo::DFUniqueIndex<int> const>>, "DFViewIndexed must model common_range.");
 static_assert(std::ranges::view<lugizmo::DFViewIndexed<int, lugizmo::DFUniqueIndex<int> const>>, "DFViewIndexed must model view.");
 static_assert(std::ranges::borrowed_range<lugizmo::DFViewIndexed<int, lugizmo::DFUniqueIndex<int> const>>, "DFViewIndexed must model borrowed_range.");
+static_assert(std::ranges::viewable_range<lugizmo::DFViewIndexed<int, lugizmo::DFUniqueIndex<int> const>&>, "DFViewIndexed lvalues must model viewable_range.");
+static_assert(std::ranges::viewable_range<lugizmo::DFViewIndexed<int, lugizmo::DFUniqueIndex<int> const>>, "Temporary DFViewIndexed objects must model viewable_range.");
+static_assert(std::ranges::viewable_range<lugizmo::DFViewIndexed<int const, lugizmo::DFUniqueIndex<int> const>&>, "Read-only DFViewIndexed lvalues must model viewable_range.");
+static_assert(std::ranges::viewable_range<lugizmo::DFViewIndexed<int const, lugizmo::DFUniqueIndex<int> const>>, "Temporary read-only DFViewIndexed objects must model viewable_range.");
+
+static_assert(std::ranges::random_access_range<lugizmo::DFViewIndexed<int, lugizmo::DFRangeIndex<int> const>>, "DFViewIndexed must model random_access_range.");
+static_assert(std::ranges::random_access_range<lugizmo::DFViewIndexed<int const, lugizmo::DFRangeIndex<int> const>>, "Read-only DFViewIndexed must model random_access_range.");
+static_assert(std::ranges::sized_range<lugizmo::DFViewIndexed<int, lugizmo::DFRangeIndex<int> const>>, "DFViewIndexed must model sized_range.");
+static_assert(std::ranges::common_range<lugizmo::DFViewIndexed<int, lugizmo::DFRangeIndex<int> const>>, "DFViewIndexed must model common_range.");
+static_assert(std::ranges::view<lugizmo::DFViewIndexed<int, lugizmo::DFRangeIndex<int> const>>, "DFViewIndexed must model view.");
+static_assert(std::ranges::borrowed_range<lugizmo::DFViewIndexed<int, lugizmo::DFRangeIndex<int> const>>, "DFViewIndexed must model borrowed_range.");
+static_assert(std::ranges::viewable_range<lugizmo::DFViewIndexed<int, lugizmo::DFRangeIndex<int> const>&>, "DFViewIndexed lvalues must model viewable_range.");
+static_assert(std::ranges::viewable_range<lugizmo::DFViewIndexed<int, lugizmo::DFRangeIndex<int> const>>, "Temporary DFViewIndexed objects must model viewable_range.");
+static_assert(std::ranges::viewable_range<lugizmo::DFViewIndexed<int const, lugizmo::DFRangeIndex<int> const>&>, "Read-only DFViewIndexed lvalues must model viewable_range.");
+static_assert(std::ranges::viewable_range<lugizmo::DFViewIndexed<int const, lugizmo::DFRangeIndex<int> const>>, "Temporary read-only DFViewIndexed objects must model viewable_range.");
+
 
 #endif // LUGIZMO_DF_VIEW_INDEXED_H

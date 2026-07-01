@@ -25,6 +25,10 @@
 // ✅ End                   - DFViewIndexed::end
 // ✅ CBegin                - DFViewIndexed::cbegin
 // ✅ CEnd                  - DFViewIndexed::cend
+// ✅ RBegin                - DFViewIndexed::rbegin
+// ✅ REnd                  - DFViewIndexed::rend
+// ✅ CRBegin               - DFViewIndexed::crbegin
+// ✅ CREnd                 - DFViewIndexed::crend
 // ✅ Contains              - DFViewIndexed::Contains
 // ✅ At                    - DFViewIndexed::At
 // ✅ IteratorRandomAccess  - named-entry iterator arithmetic
@@ -330,6 +334,64 @@ TEST_F(ViewIndexedTest, CEnd)
     EXPECT_EQ(view.cend() - view.cbegin(), 4);
     EXPECT_EQ((view.cend() - 1)->val, 7);
     EXPECT_EQ((view.cend() - 1)->idx, 40);
+}
+
+/**
+ * @brief RBegin starts mutable reverse traversal at the final paired entry.
+ * @see   lugizmo::DFViewIndexed::rbegin
+ */
+TEST_F(ViewIndexedTest, RBegin)
+{
+    auto view = Field();
+    auto reverse = view.rbegin();
+
+    ASSERT_NE(reverse, view.rend());
+    EXPECT_EQ(reverse->val, 7);
+    EXPECT_EQ(reverse->idx, 40);
+    reverse->val = 70;
+    EXPECT_EQ(values[7], 70);
+}
+
+/**
+ * @brief REnd terminates reverse traversal before the first paired entry.
+ * @see   lugizmo::DFViewIndexed::rend
+ */
+TEST_F(ViewIndexedTest, REnd)
+{
+    auto view = Field();
+    EXPECT_EQ(view.rend() - view.rbegin(), 4);
+    EXPECT_EQ((view.rend() - 1)->val, 1);
+    EXPECT_EQ((view.rend() - 1)->idx, 10);
+
+    auto empty = View();
+    EXPECT_EQ(empty.rbegin(), empty.rend());
+}
+
+/**
+ * @brief CRBegin starts const reverse traversal at the final paired entry.
+ * @see   lugizmo::DFViewIndexed::crbegin
+ */
+TEST_F(ViewIndexedTest, CRBegin)
+{
+    auto const view = ConstField();
+    auto reverse = view.crbegin();
+
+    static_assert(std::is_const_v<std::remove_reference_t<decltype(reverse->val)>>);
+    ASSERT_NE(reverse, view.crend());
+    EXPECT_EQ(reverse->val, 7);
+    EXPECT_EQ(reverse->idx, 40);
+}
+
+/**
+ * @brief CREnd terminates const reverse traversal before the first paired entry.
+ * @see   lugizmo::DFViewIndexed::crend
+ */
+TEST_F(ViewIndexedTest, CREnd)
+{
+    auto const view = ConstField();
+    EXPECT_EQ(view.crend() - view.crbegin(), 4);
+    EXPECT_EQ((view.crend() - 1)->val, 1);
+    EXPECT_EQ((view.crend() - 1)->idx, 10);
 }
 
 /**
