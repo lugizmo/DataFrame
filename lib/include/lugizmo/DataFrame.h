@@ -479,7 +479,7 @@ namespace lugizmo {
          */
         auto operator|(this auto& self, SelectField<FldT> const& index) noexcept -> ValueView<decltype(self), RecI>
         {
-            return self.ViewField(index.val);
+            return self.ViewField(index.Value());
         }
 
         /**
@@ -488,7 +488,7 @@ namespace lugizmo {
          */
         auto operator|(this auto& self, SelectRecord<RecT> const& index) noexcept -> ValueView<decltype(self), FldI>
         {
-            return self.ViewRecord(index.val);
+            return self.ViewRecord(index.Value());
         }
 
         /**
@@ -497,7 +497,7 @@ namespace lugizmo {
          */
         auto operator|(this auto& self, SelectFieldIndexed<FldT> const& index) noexcept -> IndexedValueView<decltype(self), RecI>
         {
-            return self.ViewFieldIndexed(index.val);
+            return self.ViewFieldIndexed(index.Value());
         }
 
         /**
@@ -506,7 +506,7 @@ namespace lugizmo {
          */
         auto operator|(this auto& self, SelectRecordIndexed<RecT> const& index) noexcept -> IndexedValueView<decltype(self), FldI>
         {
-            return self.ViewRecordIndexed(index.val);
+            return self.ViewRecordIndexed(index.Value());
         }
 
         // ======== FUNCTIONAL =====================================================================================================================================================

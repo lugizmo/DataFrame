@@ -247,7 +247,9 @@ TYPED_TEST(RM_DataframeViews, SelectField)
         auto const& constDf = std::as_const(df);
         for (std::size_t f = 0; f < Cfg::FLD_COUNT; ++f)
         {
-            auto const view = constDf | SelectField(Cfg::FieldKey(f));
+            auto const fieldKey = Cfg::FieldKey(f);
+            auto const selector = SelectField{fieldKey};
+            auto const view = constDf | selector;
             ASSERT_EQ(view.Size(), Cfg::REC_COUNT);
 
             std::size_t r = 0;
