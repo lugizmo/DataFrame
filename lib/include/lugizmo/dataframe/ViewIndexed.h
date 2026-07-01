@@ -25,9 +25,17 @@ namespace lugizmo {
 
     namespace internal {
 
+        /**
+         * @brief Stores lvalue references as references and materializes generated values.
+         *
+         * Unique-index iterators yield references to stored keys. Range-index
+         * iterators generate keys by value; those values must be owned by the
+         * resulting entry rather than retained as dangling rvalue references.
+         */
         template<typename Reference>
         using DFIndexedMember = std::conditional_t<std::is_lvalue_reference_v<Reference>, Reference, std::remove_cvref_t<Reference>>;
 
+        /// @brief Converts a tuple-like zip result into the public named entry proxy.
         template<typename Entry, typename ZippedEntry>
         [[nodiscard]] constexpr auto MakeDFIndexedEntry(ZippedEntry&& zippedEntry) noexcept -> Entry
         {
@@ -39,7 +47,18 @@ namespace lugizmo {
          * @brief Named-entry facade over a `zip_view` iterator.
          *
          * All positioning and synchronization remain delegated to the zip
-         * iterator. This facade only changes its dereference result.
+         * iterator. This facade only changes its dereference result from a
+         * tuple-like proxy to the public named `Entry` proxy.
+         *
+         * Dereference and positional indexing return `Entry` by value. The
+         * entry's `val` member still refers to dataframe storage. Its `idx`
+         * member either refers to a stored key or owns a generated key.
+         * Dereference and `operator[]` require a valid entry position. Iterator
+         * difference and ordering require both operands to originate from the
+         * same indexed view.
+         *
+         * @tparam ZippedIterator Iterator supplied by the internal zip view.
+         * @tparam Entry Public proxy type returned by `DFViewIndexed`.
          */
         template<typename ZippedIterator, typename Entry>
         class DFIndexedIterator
@@ -62,17 +81,33 @@ namespace lugizmo {
             using pointer           = Pointer;
             // NOLINTEND(readability-identifier-naming)
 
+            /**
+             * @brief Temporary arrow proxy for an entry returned by value.
+             *
+             * The pointer produced by `operator->` refers to the `Entry` stored
+             * inside this proxy. It is valid only until the end of the full
+             * expression. References contained in that entry retain their normal
+             * underlying dataframe/index lifetimes.
+             */
             class Pointer
             {
                 reference entry;
 
             public:
+                /// @brief Owns the temporary entry used for arrow access.
                 constexpr explicit Pointer(reference value) noexcept : entry(std::move(value)) {}
+
+                /// @return Pointer valid only for the lifetime of this arrow proxy.
                 [[nodiscard]] constexpr auto operator->() noexcept -> reference* { return &entry; }
+
+                /// @copydoc operator->()
                 [[nodiscard]] constexpr auto operator->() const noexcept -> reference const* { return &entry; }
             };
 
+            /// @brief Constructs a singular iterator.
             constexpr DFIndexedIterator() noexcept = default;
+
+            /// @brief Wraps an iterator from the synchronized zip view.
             constexpr explicit DFIndexedIterator(ZippedIterator iterator) noexcept : current(std::move(iterator)) {}
 
             constexpr DFIndexedIterator(DFIndexedIterator const&) noexcept = default;
@@ -81,13 +116,19 @@ namespace lugizmo {
             constexpr auto operator=(DFIndexedIterator&&) noexcept -> DFIndexedIterator& = default;
             constexpr ~DFIndexedIterator() noexcept = default;
 
+            /// @brief Converts a compatible iterator, such as mutable to const traversal.
             template<typename OtherIterator>
                 requires std::convertible_to<OtherIterator, ZippedIterator>
             constexpr DFIndexedIterator(DFIndexedIterator<OtherIterator, Entry> other) noexcept : current(std::move(other.current))
             {}
 
+            /// @return Named proxy for the entry at the current position.
             [[nodiscard]] constexpr auto operator*() const noexcept -> reference { return MakeDFIndexedEntry<Entry>(*current); }
+
+            /// @return Temporary arrow proxy valid for the current full expression.
             [[nodiscard]] constexpr auto operator->() const noexcept -> Pointer { return Pointer(operator*()); }
+
+            /// @return Named proxy at offset `n` from the current position.
             [[nodiscard]] constexpr auto operator[](difference_type const n) const noexcept -> reference { return MakeDFIndexedEntry<Entry>(current[n]); }
 
             constexpr auto operator++() noexcept -> DFIndexedIterator& { ++current; return *this; }
@@ -116,6 +157,62 @@ namespace lugizmo {
 
     } // namespace internal
 
+    /**
+     * @brief Non-owning view pairing dataframe values with their logical index keys.
+     *
+     * `DFViewIndexed` presents one dataframe field or record as a synchronized
+     * random-access range. Each position produces an `Entry` containing the value
+     * in `val` and the corresponding record or field key in `idx`.
+     *
+     * @par Element constness
+     * Value mutability is determined by `T`, not by constness of the view wrapper.
+     * A const `DFViewIndexed<T, I>` still exposes mutable values when `T` is
+     * mutable. `DFViewIndexed<T const, I>` provides read-only values. Index keys
+     * cannot be used to mutate the underlying index. A generated key owned by an
+     * entry may be modified locally without affecting that index.
+     *
+     * @par Entry proxy contract
+     * Entries are lightweight proxy objects returned by value. `Entry::val`
+     * refers to dataframe storage. For a stored unique index, `Entry::idx` refers
+     * to the stored key; for a generated range index, it owns the generated key.
+     * Use `auto` or `auto&&` when naming a dereferenced entry; `auto&` cannot bind
+     * to the temporary proxy. Copying an entry copies its references and any
+     * generated key, but never copies the dataframe value.
+     *
+     * Iterator arrow access uses a temporary pointer proxy. Expressions such as
+     * `iterator->val` are valid, but the pointer returned by `operator->` must not
+     * be retained beyond the full expression.
+     *
+     * @par Ownership, lifetime, and invalidation
+     * The view owns neither dataframe values nor stored index keys. The dataframe
+     * storage and index must outlive the view and every iterator, pointer, or
+     * reference obtained from it. A generated range key owned by an `Entry`
+     * remains valid for the lifetime of that entry.
+     *
+     * Destruction or movement of the dataframe and structural operations that
+     * change storage, fields, records, indices, or ordering invalidate the view
+     * and its iterators. Updating existing values does not invalidate them.
+     * `Values()` and `Indices()` return non-owning component views with the same
+     * lifetime and invalidation requirements.
+     *
+     * @par Pairing invariant
+     * The value and index component views must have equal sizes and describe the
+     * same logical positions. Construction validates their sizes when trace
+     * assertions are enabled.
+     *
+     * @par Standard range integration
+     * `DFViewIndexed` is a random-access, sized, common view, borrowed range, and
+     * viewable range. Standard adaptor closures can be applied directly. Iterators
+     * may outlive the lightweight wrapper, but never the referenced dataframe
+     * storage or stored index.
+     *
+     * Inherited lowercase `front()` and `back()` follow the standard non-empty
+     * precondition. Uppercase `Front()` and `Back()` provide empty-safe optional
+     * access.
+     *
+     * @tparam T Dataframe element type, including const qualification.
+     * @tparam I Index type describing the keys paired with the selected values.
+     */
     template<typename T, typename I>
     class DFViewIndexed : public std::ranges::view_interface<DFViewIndexed<T, I>>
     {
@@ -139,36 +236,61 @@ namespace lugizmo {
         View      dataView;
         IndexView indexView;
 
+        /**
+         * @brief Constructs the paired view from equally sized component views.
+         * @pre `view.Size() == std::ranges::size(indices)`.
+         */
         explicit DFViewIndexed(View view, IndexView indices) noexcept;
 
+        /// @return Internal synchronized zip view over the two components.
         [[nodiscard]] auto Zipped() noexcept -> ZippedView;
+
+        /// @copydoc Zipped()
         [[nodiscard]] auto Zipped() const noexcept -> ConstZippedView;
 
     public:
 
         // ======== TYPES ==========================================================================================================================================================
 
+        /// @brief Reference type used by `Entry::val`; follows the const qualification of `T`.
         using ValueReference = std::ranges::range_reference_t<View>;
+
+        /// @brief Read-only stored-key reference or owned generated-key value used by `Entry::idx`.
         using IndexReference = internal::DFIndexedMember<std::ranges::range_reference_t<IndexView>>;
 
         /**
          * @brief Named reference-like result produced by an indexed view.
          *
-         * `value` refers to the dataframe element. `index` either refers to a
-         * stored unique-index key or owns a generated range-index key. Public
-         * members intentionally also enable structured binding as
-         * `auto [value, index]`.
+         * `val` refers to the dataframe element. `idx` either refers to a stored
+         * unique-index key or owns a generated range-index key. Public members
+         * intentionally also enable structured binding as `auto [val, idx]`.
+         *
+         * The entry itself is returned by value. Retaining `val`, or `idx` when
+         * it is a reference, requires the underlying dataframe/index to remain
+         * alive and unmodified structurally.
          */
         struct Entry
         {
+            /// @brief Reference to the dataframe value at this logical position.
             ValueReference val;
+
+            /// @brief Corresponding read-only stored key or owned generated key.
             IndexReference idx;
         };
 
+        /// @brief Entry returned through a const view wrapper; element constness still follows `T`.
         using ConstEntry    = Entry;
+
+        /// @brief Random-access iterator returning named entry proxies by value.
         using Iterator      = internal::DFIndexedIterator<std::ranges::iterator_t<ZippedView>, Entry>;
+
+        /// @brief Iterator used by const view wrappers; value constness still follows `T`.
         using ConstIterator = internal::DFIndexedIterator<std::ranges::iterator_t<ConstZippedView>, Entry>;
+
+        /// @brief Reverse iterator for mutable view wrappers.
         using ReverseIterator      = std::reverse_iterator<Iterator>;
+
+        /// @brief Reverse iterator for const view wrappers.
         using ConstReverseIterator = std::reverse_iterator<ConstIterator>;
 
         static_assert(sizeof(Iterator) == sizeof(std::ranges::iterator_t<ZippedView>),
@@ -176,41 +298,97 @@ namespace lugizmo {
 
         // ======== CONSTRUCTION ===================================================================================================================================================
 
+        /**
+         * @brief Constructs an empty view with no values or index entries.
+         * @post `Empty()` is true and `begin() == end()`.
+         */
         DFViewIndexed() noexcept;
 
+        /**
+         * @brief Creates an indexed view over all fields of one record.
+         *
+         * @param original   Matrix whose first extent is records and second extent is fields.
+         * @param index      Field index used for keyed value lookup.
+         * @param recIndex   Zero-based record position to view.
+         * @param fldIndices Field keys paired with the record values.
+         *
+         * @pre `recIndex < original.extent(0)`.
+         * @pre `std::ranges::size(fldIndices) == original.extent(1)`.
+         * @return Non-owning paired view containing `original.extent(1)` entries.
+         */
         template<typename Layout>
         [[nodiscard]] static auto RecordView(MDSpanDF<Layout> original, I const* index, size_t recIndex, IndexView fldIndices) noexcept -> DFViewIndexed;
 
+        /**
+         * @brief Creates an indexed view over all records of one field.
+         *
+         * @param original   Matrix whose first extent is records and second extent is fields.
+         * @param index      Record index used for keyed value lookup.
+         * @param fldIndex   Zero-based field position to view.
+         * @param recIndices Record keys paired with the field values.
+         *
+         * @pre `fldIndex < original.extent(1)`.
+         * @pre `std::ranges::size(recIndices) == original.extent(0)`.
+         * @return Non-owning paired view containing `original.extent(0)` entries.
+         */
         template<typename Layout>
         [[nodiscard]] static auto FieldView(MDSpanDF<Layout> original, I const* index, size_t fldIndex, IndexView recIndices) noexcept -> DFViewIndexed;
 
         // ======== CAPACITY =======================================================================================================================================================
 
+        /// @return Number of paired entries.
         [[nodiscard]] auto Size() const noexcept -> size_t;
+
+        /// @return True when the view contains no entries.
         [[nodiscard]] auto Empty() const noexcept -> bool;
 
         // ======== COMPONENT VIEWS ================================================================================================================================================
 
-        /// @brief Returns the dataframe-value component as its original strided view.
+        /**
+         * @brief Returns the dataframe-value component as its original strided view.
+         * @return Non-owning view with the same value order and mutability as this view.
+         */
         [[nodiscard]] auto Values() const noexcept -> View;
 
-        /// @brief Returns the read-only index component in the same logical order.
+        /**
+         * @brief Returns the read-only index component in the same logical order.
+         * @return Non-owning stored-key view or generated range-key view.
+         */
         [[nodiscard]] auto Indices() const noexcept -> IndexView;
 
         // ======== POSITIONAL ACCESS ==============================================================================================================================================
 
+        /**
+         * @brief Returns the entry at zero-based position `i` without bounds checking.
+         * @pre `i < Size()`.
+         */
         [[nodiscard]] auto operator[](size_t i) noexcept -> Entry;
+
+        /// @copydoc operator[](size_t)
         [[nodiscard]] auto operator[](size_t i) const noexcept -> ConstEntry;
+
+        /**
+         * @brief Performs checked zero-based positional access.
+         * @return Entry at `i`, or an empty optional when `i >= Size()`.
+         */
         [[nodiscard]] auto operator()(size_t i) noexcept -> std::optional<Entry>;
+
+        /// @copydoc operator()(size_t)
         [[nodiscard]] auto operator()(size_t i) const noexcept -> std::optional<ConstEntry>;
 
-        /// @return First entry, or an empty optional when the view is empty.
+        /**
+         * @brief Provides empty-safe access to the first entry.
+         * @return First entry, or an empty optional when the view is empty.
+         */
         [[nodiscard]] auto Front() noexcept -> std::optional<Entry>;
 
         /// @copydoc Front()
         [[nodiscard]] auto Front() const noexcept -> std::optional<ConstEntry>;
 
-        /// @return Final entry, or an empty optional when the view is empty.
+        /**
+         * @brief Provides empty-safe access to the final entry.
+         * @return Final entry, or an empty optional when the view is empty.
+         */
         [[nodiscard]] auto Back() noexcept -> std::optional<Entry>;
 
         /// @copydoc Back()
@@ -219,24 +397,58 @@ namespace lugizmo {
         // ======== ITERATORS ======================================================================================================================================================
 
         // NOLINTBEGIN(readability-identifier-naming)
+        /// @return Iterator to the first paired entry.
         [[nodiscard]] auto begin() noexcept -> Iterator;
+
+        /// @return Iterator one past the final paired entry.
         [[nodiscard]] auto end() noexcept -> Iterator;
+
+        /// @copydoc begin()
         [[nodiscard]] auto begin() const noexcept -> ConstIterator;
+
+        /// @copydoc end()
         [[nodiscard]] auto end() const noexcept -> ConstIterator;
+
+        /// @return Iterator to the first entry; value mutability still follows `T`.
         [[nodiscard]] auto cbegin() const noexcept -> ConstIterator;
+
+        /// @return Iterator one past the final entry; value mutability still follows `T`.
         [[nodiscard]] auto cend() const noexcept -> ConstIterator;
+
+        /// @return Reverse iterator to the final paired entry.
         [[nodiscard]] auto rbegin() noexcept -> ReverseIterator;
+
+        /// @return Reverse iterator one past the first paired entry.
         [[nodiscard]] auto rend() noexcept -> ReverseIterator;
+
+        /// @copydoc rbegin()
         [[nodiscard]] auto rbegin() const noexcept -> ConstReverseIterator;
+
+        /// @copydoc rend()
         [[nodiscard]] auto rend() const noexcept -> ConstReverseIterator;
+
+        /// @return Const reverse iterator to the final paired entry.
         [[nodiscard]] auto crbegin() const noexcept -> ConstReverseIterator;
+
+        /// @return Const reverse iterator one past the first paired entry.
         [[nodiscard]] auto crend() const noexcept -> ConstReverseIterator;
         // NOLINTEND(readability-identifier-naming)
 
         // ======== KEY ACCESS =====================================================================================================================================================
 
+        /**
+         * @brief Checks whether `key` belongs to the index represented by this view.
+         * @return True when keyed lookup resolves to a value in this view.
+         */
         [[nodiscard]] auto Contains(KeyType const& key) const noexcept -> bool;
+
+        /**
+         * @brief Looks up a dataframe value by its paired index key.
+         * @return Pointer to the value, or null when `key` is absent.
+         */
         [[nodiscard]] auto At(KeyType const& key) noexcept -> T*;
+
+        /// @copydoc At(KeyType const&)
         [[nodiscard]] auto At(KeyType const& key) const noexcept -> T*;
     };
 
