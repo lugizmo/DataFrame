@@ -126,8 +126,8 @@ TEST(RM_DataFrameFunctional, RangesComposition)
 
     {
         // indexed entries compose directly through their named members
-        auto entries = df.ViewFieldIndexed(1) | std::views::filter([&even](auto const entry) { return even(entry.value); });
-        EXPECT_TRUE(std::ranges::all_of(entries, [&even](auto const entry) { return even(entry.value); }));
+        auto entries = df.ViewFieldIndexed(1) | std::views::filter([&even](auto const entry) { return even(entry.val); });
+        EXPECT_TRUE(std::ranges::all_of(entries, [&even](auto const entry) { return even(entry.val); }));
 
         // named component views avoid projection lambdas when only one component is needed
         auto v1 = df.ViewFieldIndexed(1).Values() | std::views::filter(even);

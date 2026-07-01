@@ -569,48 +569,48 @@ TYPED_TEST(RM_DataframeViews, IndexedIterator)
 
     auto second = begin + 1;
     EXPECT_EQ(second - begin, 1);
-    EXPECT_EQ(second->value, static_cast<int>(Cfg::FLD_COUNT));
-    EXPECT_EQ(second->index, Cfg::RecordKey(1));
+    EXPECT_EQ(second->val, static_cast<int>(Cfg::FLD_COUNT));
+    EXPECT_EQ(second->idx, Cfg::RecordKey(1));
 
     auto first = second - 1;
-    EXPECT_EQ(first->value, 0);
-    EXPECT_EQ(first->index, Cfg::RecordKey(0));
+    EXPECT_EQ(first->val, 0);
+    EXPECT_EQ(first->idx, Cfg::RecordKey(0));
 
     auto symmetric = 2 + begin;
-    EXPECT_EQ(symmetric->value, static_cast<int>(2 * Cfg::FLD_COUNT));
-    EXPECT_EQ(symmetric->index, Cfg::RecordKey(2));
+    EXPECT_EQ(symmetric->val, static_cast<int>(2 * Cfg::FLD_COUNT));
+    EXPECT_EQ(symmetric->idx, Cfg::RecordKey(2));
 
     auto advanced = begin;
     advanced += 2;
-    EXPECT_EQ(advanced->value, static_cast<int>(2 * Cfg::FLD_COUNT));
-    EXPECT_EQ(advanced->index, Cfg::RecordKey(2));
+    EXPECT_EQ(advanced->val, static_cast<int>(2 * Cfg::FLD_COUNT));
+    EXPECT_EQ(advanced->idx, Cfg::RecordKey(2));
     advanced -= 1;
-    EXPECT_EQ(advanced->value, static_cast<int>(Cfg::FLD_COUNT));
-    EXPECT_EQ(advanced->index, Cfg::RecordKey(1));
+    EXPECT_EQ(advanced->val, static_cast<int>(Cfg::FLD_COUNT));
+    EXPECT_EQ(advanced->idx, Cfg::RecordKey(1));
 
     auto indexed = begin[2];
-    EXPECT_EQ(indexed.value, static_cast<int>(2 * Cfg::FLD_COUNT));
-    EXPECT_EQ(indexed.index, Cfg::RecordKey(2));
+    EXPECT_EQ(indexed.val, static_cast<int>(2 * Cfg::FLD_COUNT));
+    EXPECT_EQ(indexed.idx, Cfg::RecordKey(2));
 
     // Direct-access results retain their own index position, including generated range keys.
     auto const directFirst  = view[0];
     auto const directSecond = view[1];
-    EXPECT_EQ(directFirst.index, Cfg::RecordKey(0));
-    EXPECT_EQ(directSecond.index, Cfg::RecordKey(1));
+    EXPECT_EQ(directFirst.idx, Cfg::RecordKey(0));
+    EXPECT_EQ(directSecond.idx, Cfg::RecordKey(1));
 
     auto const checked = view(2);
     ASSERT_TRUE(checked.has_value());
-    EXPECT_EQ(checked->value, static_cast<int>(2 * Cfg::FLD_COUNT));
-    EXPECT_EQ(checked->index, Cfg::RecordKey(2));
+    EXPECT_EQ(checked->val, static_cast<int>(2 * Cfg::FLD_COUNT));
+    EXPECT_EQ(checked->idx, Cfg::RecordKey(2));
     EXPECT_FALSE(view(Cfg::REC_COUNT).has_value());
 
     auto incremented = begin;
     auto previous    = incremented++;
-    EXPECT_EQ(previous->index, Cfg::RecordKey(0));
-    EXPECT_EQ(incremented->index, Cfg::RecordKey(1));
+    EXPECT_EQ(previous->idx, Cfg::RecordKey(0));
+    EXPECT_EQ(incremented->idx, Cfg::RecordKey(1));
     previous = incremented--;
-    EXPECT_EQ(previous->index, Cfg::RecordKey(1));
-    EXPECT_EQ(incremented->index, Cfg::RecordKey(0));
+    EXPECT_EQ(previous->idx, Cfg::RecordKey(1));
+    EXPECT_EQ(incremented->idx, Cfg::RecordKey(0));
 
     EXPECT_LT(begin, end);
     EXPECT_LE(begin, end);
@@ -619,20 +619,20 @@ TYPED_TEST(RM_DataframeViews, IndexedIterator)
 
     Iterator copied = begin;
     Iterator moved  = std::move(copied);
-    EXPECT_EQ(moved->index, Cfg::RecordKey(0));
+    EXPECT_EQ(moved->idx, Cfg::RecordKey(0));
 
     Iterator copyAssigned;
     copyAssigned = begin;
     Iterator moveAssigned;
     moveAssigned = std::move(copyAssigned);
-    EXPECT_EQ(moveAssigned->index, Cfg::RecordKey(0));
+    EXPECT_EQ(moveAssigned->idx, Cfg::RecordKey(0));
 
     auto constView  = std::as_const(df).ViewFieldIndexed(Cfg::FieldKey(0));
     auto constBegin = constView.begin();
     auto constEntry = *constBegin;
-    static_assert(std::is_const_v<std::remove_reference_t<decltype(constEntry.value)>>);
-    EXPECT_EQ(constBegin[1].value, static_cast<int>(Cfg::FLD_COUNT));
-    EXPECT_EQ(constBegin[1].index, Cfg::RecordKey(1));
+    static_assert(std::is_const_v<std::remove_reference_t<decltype(constEntry.val)>>);
+    EXPECT_EQ(constBegin[1].val, static_cast<int>(Cfg::FLD_COUNT));
+    EXPECT_EQ(constBegin[1].idx, Cfg::RecordKey(1));
 }
 
 /**
@@ -743,7 +743,7 @@ TYPED_TEST(RM_DataframeViews, SelectFieldIndexed)
     {
         // mutable indexed selection writes through to the dataframe
         auto view = df | SelectFieldIndexed(Cfg::FieldKey(0));
-        view[0].value = 103;
+        view[0].val = 103;
         EXPECT_EQ(*std::as_const(df).GetValue(Cfg::FieldKey(0), Cfg::RecordKey(0)), 103);
     }
 }
@@ -779,7 +779,7 @@ TYPED_TEST(RM_DataframeViews, SelectRecordIndexed)
     {
         // mutable indexed selection writes through to the dataframe
         auto view = df | SelectRecordIndexed(Cfg::RecordKey(0));
-        view[0].value = 104;
+        view[0].val = 104;
         EXPECT_EQ(*std::as_const(df).GetValue(Cfg::FieldKey(0), Cfg::RecordKey(0)), 104);
     }
 }

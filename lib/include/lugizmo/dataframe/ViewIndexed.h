@@ -158,8 +158,8 @@ namespace lugizmo {
          */
         struct Entry
         {
-            ValueReference value;
-            IndexReference index;
+            ValueReference val;
+            IndexReference idx;
         };
 
         using ConstEntry    = Entry;
