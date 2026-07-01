@@ -116,9 +116,9 @@ namespace lugizmo {
     template<typename T, typename I>
     class DFViewIndexed : public std::ranges::view_interface<DFViewIndexed<T, I>>
     {
-        using View    = DFView<T, I>;
-        using Index   = std::remove_const_t<I>;
-        using KeyType = Index::ConstKeyType;
+        using View      = DFView<T, I>;
+        using Index     = std::remove_const_t<I>;
+        using KeyType   = Index::ConstKeyType;
         using IndexView = Index::KeyView;
 
         template<typename Layout>
@@ -212,9 +212,9 @@ namespace lugizmo {
 
         // ======== KEY ACCESS =====================================================================================================================================================
 
-        [[nodiscard]] auto Contains(KeyType const& key) noexcept -> bool;
+        [[nodiscard]] auto Contains(KeyType const& key) const noexcept -> bool;
         [[nodiscard]] auto At(KeyType const& key) noexcept -> T*;
-        [[nodiscard]] auto At(KeyType const& key) const noexcept -> T const*;
+        [[nodiscard]] auto At(KeyType const& key) const noexcept -> T*;
     };
 
     // ======== CONSTRUCTION =======================================================================================================================================================
@@ -361,7 +361,7 @@ namespace lugizmo {
     // ======== KEY ACCESS =========================================================================================================================================================
 
     template<typename T, typename I>
-    auto DFViewIndexed<T, I>::Contains(KeyType const& key) noexcept -> bool
+    auto DFViewIndexed<T, I>::Contains(KeyType const& key) const noexcept -> bool
     {
         return dataView.Contains(key);
     }
@@ -373,7 +373,7 @@ namespace lugizmo {
     }
 
     template<typename T, typename I>
-    auto DFViewIndexed<T, I>::At(KeyType const& key) const noexcept -> T const*
+    auto DFViewIndexed<T, I>::At(KeyType const& key) const noexcept -> T*
     {
         return dataView.At(key);
     }

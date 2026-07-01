@@ -9,9 +9,24 @@
 // The following functions are tested here (with names of tests):
 //
 // ✅ Construct                 - DFView() / Empty
-// ✅ IndexOperatorOptionalRef  - operator()(key) -> OptionalRef / At
 // ✅ FieldViewSubrange         - FieldView(..., begin, end) key translation
 // ✅ RecordViewSubrange        - RecordView(..., begin, end) key translation
+// ✅ Size                      - DFView::Size
+// ✅ Empty                     - DFView::Empty
+// ✅ Contains                  - DFView::Contains
+// ✅ IndexOperator             - DFView::operator[]
+// ✅ CheckedIndexOperator      - DFView::operator()
+// ✅ At                        - DFView::At
+// ✅ Begin                     - DFView::begin
+// ✅ End                       - DFView::end
+// ✅ CBegin                    - DFView::cbegin
+// ✅ CEnd                      - DFView::cend
+// ✅ Front                     - DFView::Front
+// ✅ Back                      - DFView::Back
+// ✅ RBegin                    - DFView::rbegin
+// ✅ REnd                      - DFView::rend
+// ✅ CRBegin                   - DFView::crbegin
+// ✅ CREnd                     - DFView::crend
 // ✅ IteratorRandomAccess      - random-access operations on strided and contiguous views
 // ✅ IteratorStride            - iterator movement follows the mdspan stride
 // ✅ EmptyIterator             - safe iterator arithmetic on empty views
@@ -37,6 +52,10 @@
 #include "lugizmo/dataframe/IndexUnique.h"
 #include "lugizmo/dataframe/View.h"
 
+/**
+ * @brief Default construction produces an empty view.
+ * @see   lugizmo::DFView::DFView
+ */
 TEST(DataframeView, Construct)
 {
     using namespace lugizmo;
@@ -45,25 +64,10 @@ TEST(DataframeView, Construct)
     ASSERT_TRUE(empty.Empty());
 }
 
-TEST(DataframeView, IndexOperatorOptionalRef)
-{
-    using namespace lugizmo;
-
-    auto empty = DFView<int, DFUniqueIndex<int>>();
-    auto miss  = empty(0);
-    ASSERT_FALSE(miss.HasValue());
-
-    auto df   = DataFrame<int, int, int>::FromFieldsAndRecords({0}, {0}, {{7}});
-    auto view = df.ViewField(0);
-    auto hit  = view(0);
-
-    ASSERT_TRUE(hit.HasValue());
-    ASSERT_EQ(hit.Value(), 7);
-
-    hit.Value() = 9;
-    ASSERT_EQ(*view.At(0), 9);
-}
-
+/**
+ * @brief FieldView creates a half-open field subrange with translated key lookup.
+ * @see   lugizmo::DFView::FieldView
+ */
 TEST(DataframeView, FieldViewSubrange)
 {
     using namespace lugizmo;
@@ -95,6 +99,10 @@ TEST(DataframeView, FieldViewSubrange)
     EXPECT_EQ(view.At(16), nullptr);
 }
 
+/**
+ * @brief RecordView creates a half-open record subrange with translated key lookup.
+ * @see   lugizmo::DFView::RecordView
+ */
 TEST(DataframeView, RecordViewSubrange)
 {
     using namespace lugizmo;
@@ -125,6 +133,10 @@ TEST(DataframeView, RecordViewSubrange)
     EXPECT_EQ(view.At(40), nullptr);
 }
 
+/**
+ * @brief View iterators support the complete random-access operation set.
+ * @see   lugizmo::DFView::Iterator
+ */
 TEST(DataframeView, IteratorRandomAccess)
 {
     using namespace lugizmo;
@@ -180,6 +192,10 @@ TEST(DataframeView, IteratorRandomAccess)
     EXPECT_EQ(record.begin()[1], 5);
 }
 
+/**
+ * @brief Iterator movement follows the logical view stride.
+ * @see   lugizmo::DFView::Iterator
+ */
 TEST(DataframeView, IteratorStride)
 {
     using namespace lugizmo;
@@ -210,6 +226,11 @@ TEST(DataframeView, IteratorStride)
     EXPECT_EQ(values[7], 7);
 }
 
+/**
+ * @brief Iterators of an empty view form a valid empty range.
+ * @see   lugizmo::DFView::begin
+ * @see   lugizmo::DFView::end
+ */
 TEST(DataframeView, EmptyIterator)
 {
     using namespace lugizmo;
@@ -231,6 +252,10 @@ TEST(DataframeView, EmptyIterator)
     EXPECT_EQ(std::ranges::distance(field), 0);
 }
 
+/**
+ * @brief An lvalue view composes with standard range adaptors.
+ * @see   lugizmo::DFView
+ */
 TEST(DataframeView, RangeAdaptorLValue)
 {
     using namespace lugizmo;
@@ -254,6 +279,10 @@ TEST(DataframeView, RangeAdaptorLValue)
     EXPECT_TRUE(std::ranges::equal(adapted, expected));
 }
 
+/**
+ * @brief Standard adaptors safely own a temporary view wrapper.
+ * @see   lugizmo::DFView
+ */
 TEST(DataframeView, RangeAdaptorTemporary)
 {
     using namespace lugizmo;
@@ -275,6 +304,10 @@ TEST(DataframeView, RangeAdaptorTemporary)
     EXPECT_TRUE(std::ranges::equal(adapted, expected));
 }
 
+/**
+ * @brief Range adaptors preserve const-element access.
+ * @see   lugizmo::DFView
+ */
 TEST(DataframeView, RangeAdaptorConstElements)
 {
     using namespace lugizmo;
@@ -296,6 +329,10 @@ TEST(DataframeView, RangeAdaptorConstElements)
     EXPECT_TRUE(std::ranges::equal(adapted, expected));
 }
 
+/**
+ * @brief A mutable view models output_range and writes through to storage.
+ * @see   lugizmo::DFView
+ */
 TEST(DataframeView, OutputRange)
 {
     using namespace lugizmo;
@@ -322,6 +359,10 @@ TEST(DataframeView, OutputRange)
     EXPECT_EQ(values, expected);
 }
 
+/**
+ * @brief Iterators returned from temporary view wrappers remain usable.
+ * @see   std::ranges::enable_borrowed_range
+ */
 TEST(DataframeView, BorrowedRange)
 {
     using namespace lugizmo;
@@ -341,4 +382,253 @@ TEST(DataframeView, BorrowedRange)
     static_assert(std::same_as<decltype(found), View::Iterator>);
 
     EXPECT_EQ(*found, 5);
+}
+
+namespace {
+
+    class DataframeViewFunctionTest: public testing::Test
+    {
+    protected:
+        using Index       = lugizmo::DFUniqueIndex<int>;
+        using View        = lugizmo::DFView<int, Index>;
+        using ConstView   = lugizmo::DFView<int const, Index>;
+        using Matrix      = std::mdspan<int, std::dextents<std::ptrdiff_t, 2>, std::layout_right>;
+        using ConstMatrix = std::mdspan<int const, std::dextents<std::ptrdiff_t, 2>, std::layout_right>;
+
+        std::array<int, 8> values{0, 1,
+                                  2, 3,
+                                  4, 5,
+                                  6, 7};
+        Index records;
+        Matrix matrix{values.data(), 4, 2};
+
+        DataframeViewFunctionTest()
+        {
+            records.AddMultiple(std::array{10, 20, 30, 40});
+        }
+
+        [[nodiscard]] auto Field() noexcept -> View
+        {
+            return View::FieldView(matrix, &records, 1);
+        }
+
+        [[nodiscard]] auto ConstField() const noexcept -> ConstView
+        {
+            auto constMatrix = ConstMatrix(values.data(), 4, 2);
+            return ConstView::FieldView(constMatrix, &records, 1);
+        }
+    };
+
+} // namespace
+
+/**
+ * @brief Contains performs read-only keyed lookup on a const view object.
+ * @see   lugizmo::DFView::Contains
+ */
+TEST_F(DataframeViewFunctionTest, Contains)
+{
+    auto const view = Field();
+    EXPECT_TRUE(view.Contains(10));
+    EXPECT_TRUE(view.Contains(40));
+    EXPECT_FALSE(view.Contains(50));
+}
+
+/**
+ * @brief Size reports the number of logical values in the view.
+ * @see   lugizmo::DFView::Size
+ */
+TEST_F(DataframeViewFunctionTest, Size)
+{
+    EXPECT_EQ(Field().Size(), 4);
+}
+
+/**
+ * @brief Empty distinguishes default-constructed and populated views.
+ * @see   lugizmo::DFView::Empty
+ */
+TEST_F(DataframeViewFunctionTest, Empty)
+{
+    EXPECT_TRUE(View().Empty());
+    EXPECT_FALSE(Field().Empty());
+}
+
+/**
+ * @brief Positional indexing preserves element-based constness and mutability.
+ * @see   lugizmo::DFView::operator[]
+ */
+TEST_F(DataframeViewFunctionTest, IndexOperator)
+{
+    auto const view = Field();
+    static_assert(not std::is_const_v<std::remove_reference_t<decltype(view[0])>>);
+
+    EXPECT_EQ(view[2], 5);
+    view[2] = 50;
+    EXPECT_EQ(values[5], 50);
+}
+
+/**
+ * @brief Checked positional access returns an optional reference and reports misses.
+ * @see   lugizmo::DFView::operator()
+ */
+TEST_F(DataframeViewFunctionTest, CheckedIndexOperator)
+{
+    auto const view = Field();
+    auto value = view(1);
+
+    ASSERT_TRUE(value.HasValue());
+    EXPECT_EQ(value.Value(), 3);
+    value.Value() = 30;
+    EXPECT_EQ(values[3], 30);
+    EXPECT_FALSE(view(4).HasValue());
+}
+
+/**
+ * @brief At returns a pointer whose constness follows the element type.
+ * @see   lugizmo::DFView::At
+ */
+TEST_F(DataframeViewFunctionTest, At)
+{
+    auto const view = Field();
+    auto* value = view.At(30);
+    static_assert(not std::is_const_v<std::remove_pointer_t<decltype(value)>>);
+
+    ASSERT_NE(value, nullptr);
+    EXPECT_EQ(*value, 5);
+    *value = 50;
+    EXPECT_EQ(values[5], 50);
+    EXPECT_EQ(view.At(50), nullptr);
+
+    auto const constView = ConstField();
+    static_assert(std::is_const_v<std::remove_pointer_t<decltype(constView.At(10))>>);
+}
+
+/**
+ * @brief Begin points to the first logical value and preserves mutability.
+ * @see   lugizmo::DFView::begin
+ */
+TEST_F(DataframeViewFunctionTest, Begin)
+{
+    auto const view = Field();
+    static_assert(not std::is_const_v<std::remove_reference_t<decltype(*view.begin())>>);
+
+    EXPECT_EQ(*view.begin(), 1);
+    *view.begin() = 10;
+    EXPECT_EQ(values[1], 10);
+}
+
+/**
+ * @brief End terminates traversal after every logical value.
+ * @see   lugizmo::DFView::end
+ */
+TEST_F(DataframeViewFunctionTest, End)
+{
+    auto const view = Field();
+    EXPECT_EQ(view.end() - view.begin(), 4);
+    EXPECT_EQ(*(view.end() - 1), 7);
+}
+
+/**
+ * @brief CBegin starts traversal of a const-element view.
+ * @see   lugizmo::DFView::cbegin
+ */
+TEST_F(DataframeViewFunctionTest, CBegin)
+{
+    auto const view = ConstField();
+    static_assert(std::is_const_v<std::remove_reference_t<decltype(*view.cbegin())>>);
+    EXPECT_EQ(*view.cbegin(), 1);
+}
+
+/**
+ * @brief CEnd terminates traversal of a const-element view.
+ * @see   lugizmo::DFView::cend
+ */
+TEST_F(DataframeViewFunctionTest, CEnd)
+{
+    auto const view = ConstField();
+    EXPECT_EQ(view.cend() - view.cbegin(), 4);
+    EXPECT_EQ(*(view.cend() - 1), 7);
+}
+
+/**
+ * @brief Front returns the first value or nullptr for an empty view.
+ * @see   lugizmo::DFView::Front
+ */
+TEST_F(DataframeViewFunctionTest, Front)
+{
+    auto const view = Field();
+    auto* front = view.Front();
+
+    ASSERT_NE(front, nullptr);
+    EXPECT_EQ(*front, 1);
+    *front = 10;
+    EXPECT_EQ(values[1], 10);
+    EXPECT_EQ(View().Front(), nullptr);
+}
+
+/**
+ * @brief Back returns the final value or nullptr for an empty view.
+ * @see   lugizmo::DFView::Back
+ */
+TEST_F(DataframeViewFunctionTest, Back)
+{
+    auto const view = Field();
+    auto* back = view.Back();
+
+    ASSERT_NE(back, nullptr);
+    EXPECT_EQ(*back, 7);
+    *back = 70;
+    EXPECT_EQ(values[7], 70);
+    EXPECT_EQ(View().Back(), nullptr);
+}
+
+/**
+ * @brief RBegin starts mutable reverse traversal at the final value.
+ * @see   lugizmo::DFView::rbegin
+ */
+TEST_F(DataframeViewFunctionTest, RBegin)
+{
+    auto const view = Field();
+    auto reverse = view.rbegin();
+
+    ASSERT_NE(reverse, view.rend());
+    EXPECT_EQ(*reverse, 7);
+    *reverse = 70;
+    EXPECT_EQ(values[7], 70);
+}
+
+/**
+ * @brief REnd terminates reverse traversal before the first value.
+ * @see   lugizmo::DFView::rend
+ */
+TEST_F(DataframeViewFunctionTest, REnd)
+{
+    auto const view = Field();
+    EXPECT_EQ(view.rend() - view.rbegin(), 4);
+    EXPECT_EQ(*(view.rend() - 1), 1);
+    EXPECT_EQ(View().rbegin(), View().rend());
+}
+
+/**
+ * @brief CRBegin starts const reverse traversal at the final value.
+ * @see   lugizmo::DFView::crbegin
+ */
+TEST_F(DataframeViewFunctionTest, CRBegin)
+{
+    auto const view = ConstField();
+    auto reverse = view.crbegin();
+
+    static_assert(std::is_const_v<std::remove_reference_t<decltype(*reverse)>>);
+    ASSERT_NE(reverse, view.crend());
+    EXPECT_EQ(*reverse, 7);
+}
+
+/**
+ * @brief CREnd terminates const reverse traversal before the first value.
+ * @see   lugizmo::DFView::crend
+ */
+TEST_F(DataframeViewFunctionTest, CREnd)
+{
+    auto const view = ConstField();
+    EXPECT_EQ(view.crend() - view.crbegin(), 4);
+    EXPECT_EQ(*(view.crend() - 1), 1);
 }
