@@ -133,7 +133,7 @@ namespace lugizmo {
         static_assert(std::ranges::random_access_range<ZippedView>);
         static_assert(std::ranges::random_access_range<ConstZippedView>);
 
-        View    dataView;
+        View      dataView;
         IndexView indexView;
 
         explicit DFViewIndexed(View view, IndexView indices) noexcept;
@@ -198,6 +198,18 @@ namespace lugizmo {
         [[nodiscard]] auto operator[](size_t i) const noexcept -> ConstEntry;
         [[nodiscard]] auto operator()(size_t i) noexcept -> std::optional<Entry>;
         [[nodiscard]] auto operator()(size_t i) const noexcept -> std::optional<ConstEntry>;
+
+        /// @return First entry, or an empty optional when the view is empty.
+        [[nodiscard]] auto Front() noexcept -> std::optional<Entry>;
+
+        /// @copydoc Front()
+        [[nodiscard]] auto Front() const noexcept -> std::optional<ConstEntry>;
+
+        /// @return Final entry, or an empty optional when the view is empty.
+        [[nodiscard]] auto Back() noexcept -> std::optional<Entry>;
+
+        /// @copydoc Back()
+        [[nodiscard]] auto Back() const noexcept -> std::optional<ConstEntry>;
 
         // ======== ITERATORS ======================================================================================================================================================
 
@@ -314,6 +326,34 @@ namespace lugizmo {
     {
         if(i >= Size()) return std::nullopt;
         return (*this)[i];
+    }
+
+    template<typename T, typename I>
+    auto DFViewIndexed<T, I>::Front() noexcept -> std::optional<Entry>
+    {
+        if(Empty()) return std::nullopt;
+        return (*this)[0];
+    }
+
+    template<typename T, typename I>
+    auto DFViewIndexed<T, I>::Front() const noexcept -> std::optional<ConstEntry>
+    {
+        if(Empty()) return std::nullopt;
+        return (*this)[0];
+    }
+
+    template<typename T, typename I>
+    auto DFViewIndexed<T, I>::Back() noexcept -> std::optional<Entry>
+    {
+        if(Empty()) return std::nullopt;
+        return (*this)[Size() - 1];
+    }
+
+    template<typename T, typename I>
+    auto DFViewIndexed<T, I>::Back() const noexcept -> std::optional<ConstEntry>
+    {
+        if(Empty()) return std::nullopt;
+        return (*this)[Size() - 1];
     }
 
     // ======== ITERATORS ==========================================================================================================================================================

@@ -17,6 +17,10 @@
 // ✅ Indices               - DFViewIndexed::Indices
 // ✅ IndexOperator         - DFViewIndexed::operator[]
 // ✅ CheckedIndexOperator  - DFViewIndexed::operator()
+// ✅ StandardFront         - view_interface::front
+// ✅ StandardBack          - view_interface::back
+// ✅ Front                 - DFViewIndexed::Front
+// ✅ Back                  - DFViewIndexed::Back
 // ✅ Begin                 - DFViewIndexed::begin
 // ✅ End                   - DFViewIndexed::end
 // ✅ CBegin                - DFViewIndexed::cbegin
@@ -211,6 +215,68 @@ TEST_F(ViewIndexedTest, CheckedIndexOperator)
     entry->val = 30;
     EXPECT_EQ(values[3], 30);
     EXPECT_FALSE(view(4).has_value());
+}
+
+/**
+ * @brief The inherited standard front function returns the first entry.
+ * @see   std::ranges::view_interface::front
+ */
+TEST_F(ViewIndexedTest, StandardFront)
+{
+    auto view = Field();
+    auto entry = view.front();
+
+    EXPECT_EQ(entry.val, 1);
+    EXPECT_EQ(entry.idx, 10);
+    entry.val = 10;
+    EXPECT_EQ(values[1], 10);
+}
+
+/**
+ * @brief The inherited standard back function returns the final entry.
+ * @see   std::ranges::view_interface::back
+ */
+TEST_F(ViewIndexedTest, StandardBack)
+{
+    auto view = Field();
+    auto entry = view.back();
+
+    EXPECT_EQ(entry.val, 7);
+    EXPECT_EQ(entry.idx, 40);
+    entry.val = 70;
+    EXPECT_EQ(values[7], 70);
+}
+
+/**
+ * @brief Front returns the first entry or an empty optional for an empty view.
+ * @see   lugizmo::DFViewIndexed::Front
+ */
+TEST_F(ViewIndexedTest, Front)
+{
+    auto entry = Field().Front();
+
+    ASSERT_TRUE(entry.has_value());
+    EXPECT_EQ(entry->val, 1);
+    EXPECT_EQ(entry->idx, 10);
+    entry->val = 10;
+    EXPECT_EQ(values[1], 10);
+    EXPECT_FALSE(View().Front().has_value());
+}
+
+/**
+ * @brief Back returns the final entry or an empty optional for an empty view.
+ * @see   lugizmo::DFViewIndexed::Back
+ */
+TEST_F(ViewIndexedTest, Back)
+{
+    auto entry = Field().Back();
+
+    ASSERT_TRUE(entry.has_value());
+    EXPECT_EQ(entry->val, 7);
+    EXPECT_EQ(entry->idx, 40);
+    entry->val = 70;
+    EXPECT_EQ(values[7], 70);
+    EXPECT_FALSE(View().Back().has_value());
 }
 
 /**
