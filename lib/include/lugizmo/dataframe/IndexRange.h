@@ -392,6 +392,10 @@ namespace lugizmo {
         /**
          * @brief Moves the lower bound, growing or shrinking the range from the front.
          *
+         * @details A populated range only accepts moves by complete steps, so existing keys retain
+         *          their positions. An empty range has no positions to preserve, so its lower
+         *          bound may establish a new grid anchor without alignment to the old bound.
+         *
          * @param[in] key New lower bound.
          * @return Signed change in element count (positive added, negative removed), or
          *         `std::nullopt` if the move is rejected (no change, or past the upper bound).
@@ -413,6 +417,10 @@ namespace lugizmo {
 
         /**
          * @brief Moves the upper bound, growing or shrinking the range from the back.
+         *
+         * @details A populated range only accepts moves by complete steps, so its element count
+         *          changes predictably. An empty range has no positions to preserve and accepts
+         *          any valid exclusive upper bound, including one not aligned with the old bound.
          *
          * @param[in] key New upper bound.
          * @return Signed change in element count (positive added, negative removed), or
@@ -459,7 +467,8 @@ namespace lugizmo {
          *
          * @details Deltas are in elements (not key span), so they apply directly to the row/column
          *          count for any step. Bound moves must stay on the step grid; an off-grid move is
-         *          rejected, so existing positions keep their keys.
+         *          rejected, so existing positions keep their keys. An empty range has no
+         *          positions to preserve, so new bounds may establish a new grid anchor.
          *
          * @param[in] lower Optional new lower bound (unchanged when `std::nullopt`).
          * @param[in] upper Optional new upper bound (unchanged when `std::nullopt`).

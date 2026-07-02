@@ -105,6 +105,20 @@ TEST(DataframeIndexRange, InBound)
 
 TEST(DataframeIndexRange, SetBounds)
 {
+    // Empty ranges may establish a new grid anchor through either one-bound setter.
+    {
+        auto lower = lugizmo::DFRangeIndex<int>();
+        ASSERT_TRUE(lower.SetStep(2));
+        EXPECT_EQ(lower.SetLowerBound(-1), 1);
+        EXPECT_EQ(lower.Key(0), -1);
+
+        auto upper = lugizmo::DFRangeIndex<int>();
+        ASSERT_TRUE(upper.SetStep(2));
+        EXPECT_EQ(upper.SetUpperBound(3), 2);
+        EXPECT_EQ(upper.Key(0), 0);
+        EXPECT_EQ(upper.Key(1), 2);
+    }
+
     // positive values index
     {
         auto index = lugizmo::DFRangeIndex(0, 10);
