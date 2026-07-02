@@ -14,20 +14,88 @@
 // ✅ FillWith*                   - FillRows / FillRowByRow
 //
 // DataframeLayoutRow (ResizeRows over a live buffer):
-// ✅ ExpandWithDefault / ShrinkingRecords        - ResizeRows(default value)
-// ✅ AdjustWith*                                 - ResizeRows(span / iterable / initializer)
+// ✅ ExpandWithDefault / ShrinkingRecords                 - ResizeRows(default value)
+// ✅ AdjustWith*                                          - ResizeRows(span / iterable / initializer)
 // ✅ ShrinkAfterExpand / ExpandAfterExpand / ShrinkToZero - repeated ResizeRows
+// ✅ ResizeColumns                                        - ResizeCols grow/shrink at both ends and shrink-to-zero
+// ✅ DropRow / DropColumn                                 - direct in-place removal and compaction
+// ✅ ReorderRows / ReorderColumns                         - direct permutations and large-buffer scratch paths
+// ✅ NonTrivialLifetimes                                  - construction/destruction balance across layout mutations
 //
 
 #include "gtest/gtest.h"
 
+#include <array>
 #include <memory>
 #include <memory_resource>
+#include <numeric>
 #include <vector>
 #include <span>
 #include <initializer_list>
 
 #include "lugizmo/dataframe/LayoutRowMajor.h"
+
+namespace {
+
+    template<typename T, std::size_t N>
+    void ExpectValues(T const* const data, std::array<T, N> const& expected)
+    {
+        for(std::size_t i = 0; i < N; ++i) EXPECT_EQ(data[i], expected[i]) << "Mismatch at position " << i;
+    }
+
+    struct LifetimeValue
+    {
+        inline static std::size_t alive       = 0;
+        inline static std::size_t constructed = 0;
+        inline static std::size_t destroyed   = 0;
+
+        int value = 0;
+
+        explicit LifetimeValue(int const initial = 0) noexcept : value(initial)
+        {
+            ++alive;
+            ++constructed;
+        }
+
+        LifetimeValue(LifetimeValue const& other) noexcept : value(other.value)
+        {
+            ++alive;
+            ++constructed;
+        }
+
+        LifetimeValue(LifetimeValue&& other) noexcept : value(other.value)
+        {
+            other.value = -1;
+            ++alive;
+            ++constructed;
+        }
+
+        auto operator=(LifetimeValue const& other) noexcept -> LifetimeValue&
+        {
+            value = other.value;
+            return *this;
+        }
+
+        auto operator=(LifetimeValue&& other) noexcept -> LifetimeValue&
+        {
+            value = other.value;
+            other.value = -1;
+            return *this;
+        }
+
+        ~LifetimeValue()
+        {
+            --alive;
+            ++destroyed;
+        }
+
+        static void Reset() noexcept
+        {
+            alive = constructed = destroyed = 0;
+        }
+    };
+
+} // namespace
 
 // ====== LAYOUT ALLOCATE TEST =============================================================================================================
 
@@ -398,10 +466,10 @@ TEST_F(DataframeLayoutRow, ShrinkingRecords)
     ASSERT_EQ(dataView.extent(0), 6);
     ASSERT_EQ(dataView.extent(1), colCount);
 
-    // set unique values
+    // set row-distinct values, so retaining the wrong rows is observable
     for (size_t row = 0; row < static_cast<size_t>(dataView.extent(0)); ++row)
         for (size_t col = 0; col < static_cast<size_t>(dataView.extent(1)); ++col)
-            data[row * colCount + col] = static_cast<T>(col);
+            data[row * colCount + col] = static_cast<T>(row * 10 + col);
 
     // shrink
     Layout::ResizeRows(data, capacity, *memory, dataView, -2, -1, defaultValue);
@@ -411,7 +479,7 @@ TEST_F(DataframeLayoutRow, ShrinkingRecords)
     // verify
     for (size_t row = 0; row < static_cast<size_t>(dataView.extent(0)); ++row)
         for (size_t col = 0; col < static_cast<size_t>(dataView.extent(1)); ++col)
-            EXPECT_EQ(data[row * colCount + col], static_cast<T>(col));
+            EXPECT_EQ(data[row * colCount + col], static_cast<T>((row + 2) * 10 + col));
 }
 
 TEST_F(DataframeLayoutRow, AdjustWithSpan)
@@ -489,6 +557,7 @@ TEST_F(DataframeLayoutRow, ShrinkAfterExpandInitializer)
     Layout::ResizeRows(data, capacity, *memory, dataView, -1, -1, InitializerList{{7, 8, 9}, {7, 8, 9}});
 
     EXPECT_EQ(dataView.extent(0), 2);
+    VerifyBuffer(data, 2, colCount, {{4, 5, 6}, {7, 8, 9}});
 }
 
 TEST_F(DataframeLayoutRow, ExpandAfterExpandInitializer)
@@ -523,8 +592,237 @@ TEST_F(DataframeLayoutRow, ShrinkToZero)
     Layout::ResizeRows(data, capacity, *memory, dataView, 1, 1, InitializerList{{7, 8, 9}, {7, 8, 9}});
     Layout::ResizeRows(data, capacity, *memory, dataView, -1, -1, InitializerList{{7, 8, 9}, {7, 8, 9}}); // TODO you should not have to give values when shrinking (in both directions)
 
-    // TODO data nullptr?
-    // TODO capacity 0?
+    EXPECT_EQ(data, nullptr);
+    EXPECT_EQ(capacity, 0);
     EXPECT_EQ(dataView.extent(0), 0);
     EXPECT_EQ(dataView.extent(1), 0);
+}
+
+/**
+ * @brief ResizeCols preserves overlap, fills both added sides, and releases storage when all columns are removed.
+ * @see   lugizmo::DFRowMajor::ResizeCols
+ */
+TEST_F(DataframeLayoutRow, ResizeColumns)
+{
+    auto const rows = std::array{std::array{1, 2, 3}, std::array{4, 5, 6}};
+    Layout::ResizeRows(data, capacity, *memory, dataView, 2, 0, rows);
+
+    Layout::ResizeCols(data, capacity, *memory, dataView, 1, 1, 9);
+    VerifyBuffer(data, 2, 5, {{9, 1, 2, 3, 9}, {9, 4, 5, 6, 9}});
+
+    Layout::ResizeCols(data, capacity, *memory, dataView, -1, -1, 0);
+    VerifyBuffer(data, 2, 3, {{1, 2, 3}, {4, 5, 6}});
+
+    Layout::ResizeCols(data, capacity, *memory, dataView, -1, -2, 0);
+    EXPECT_EQ(data, nullptr);
+    EXPECT_EQ(capacity, 0);
+    EXPECT_EQ(dataView.extent(0), 2);
+    EXPECT_EQ(dataView.extent(1), 0);
+}
+
+/**
+ * @brief DropRow compacts first, middle, last, and only-row removals without changing capacity.
+ * @see   lugizmo::DFRowMajor::DropRow
+ */
+TEST(DataframeLayoutRowMutation, DropRow)
+{
+    using Layout = lugizmo::DFRowMajor<int>;
+    auto* const memory = std::pmr::get_default_resource();
+    size_t capacity = 12;
+    auto* data = lugizmo::internal::AllocateAligned<int>(*memory, capacity);
+    auto const initial = std::array{0, 1, 2, 10, 11, 12, 20, 21, 22, 30, 31, 32};
+    std::uninitialized_copy(initial.begin(), initial.end(), data);
+    auto view = Layout::MDSpan{data, 4, 3};
+
+    Layout::DropRow(data, capacity, *memory, view, 1);
+    ExpectValues(data, std::array{0, 1, 2, 20, 21, 22, 30, 31, 32});
+
+    Layout::DropRow(data, capacity, *memory, view, 0);
+    ExpectValues(data, std::array{20, 21, 22, 30, 31, 32});
+
+    Layout::DropRow(data, capacity, *memory, view, 1);
+    ExpectValues(data, std::array{20, 21, 22});
+
+    Layout::DropRow(data, capacity, *memory, view, 0);
+    EXPECT_EQ(view.extent(0), 0);
+    EXPECT_EQ(capacity, 12);
+    Layout::Free(data, capacity, view, *memory);
+}
+
+/**
+ * @brief DropColumn compacts first, middle, last, and only-column removals across every row.
+ * @see   lugizmo::DFRowMajor::DropColumn
+ */
+TEST(DataframeLayoutRowMutation, DropColumn)
+{
+    using Layout = lugizmo::DFRowMajor<int>;
+    auto* const memory = std::pmr::get_default_resource();
+    size_t capacity = 8;
+    auto* data = lugizmo::internal::AllocateAligned<int>(*memory, capacity);
+    auto const initial = std::array{0, 1, 2, 3, 10, 11, 12, 13};
+    std::uninitialized_copy(initial.begin(), initial.end(), data);
+    auto view = Layout::MDSpan{data, 2, 4};
+
+    Layout::DropColumn(data, capacity, *memory, view, 1);
+    ExpectValues(data, std::array{0, 2, 3, 10, 12, 13});
+
+    Layout::DropColumn(data, capacity, *memory, view, 0);
+    ExpectValues(data, std::array{2, 3, 12, 13});
+
+    Layout::DropColumn(data, capacity, *memory, view, 1);
+    ExpectValues(data, std::array{2, 12});
+
+    Layout::DropColumn(data, capacity, *memory, view, 0);
+    EXPECT_EQ(view.extent(1), 0);
+    EXPECT_EQ(capacity, 8);
+    Layout::Free(data, capacity, view, *memory);
+}
+
+/**
+ * @brief ReorderRows applies identity and multi-cycle new-to-old permutations.
+ * @see   lugizmo::DFRowMajor::ReorderRows
+ */
+TEST(DataframeLayoutRowMutation, ReorderRows)
+{
+    using Layout = lugizmo::DFRowMajor<int>;
+    auto* const memory = std::pmr::get_default_resource();
+    size_t capacity = 6;
+    auto* data = lugizmo::internal::AllocateAligned<int>(*memory, capacity);
+    std::uninitialized_copy_n(std::array{0, 1, 10, 11, 20, 21}.begin(), capacity, data);
+    auto view = Layout::MDSpan{data, 3, 2};
+
+    Layout::ReorderRows(data, capacity, *memory, view, std::array<size_t, 3>{2, 0, 1});
+    ExpectValues(data, std::array{20, 21, 0, 1, 10, 11});
+
+    Layout::ReorderRows(data, capacity, *memory, view, std::array<size_t, 3>{0, 1, 2});
+    ExpectValues(data, std::array{20, 21, 0, 1, 10, 11});
+    Layout::Free(data, capacity, view, *memory);
+}
+
+/**
+ * @brief ReorderColumns applies identity and multi-cycle new-to-old permutations to every row.
+ * @see   lugizmo::DFRowMajor::ReorderColumns
+ */
+TEST(DataframeLayoutRowMutation, ReorderColumns)
+{
+    using Layout = lugizmo::DFRowMajor<int>;
+    auto* const memory = std::pmr::get_default_resource();
+    size_t capacity = 6;
+    auto* data = lugizmo::internal::AllocateAligned<int>(*memory, capacity);
+    std::uninitialized_copy_n(std::array{0, 1, 2, 10, 11, 12}.begin(), capacity, data);
+    auto view = Layout::MDSpan{data, 2, 3};
+
+    Layout::ReorderColumns(data, capacity, *memory, view, std::array<size_t, 3>{2, 0, 1});
+    ExpectValues(data, std::array{2, 0, 1, 12, 10, 11});
+
+    Layout::ReorderColumns(data, capacity, *memory, view, std::array<size_t, 3>{0, 1, 2});
+    ExpectValues(data, std::array{2, 0, 1, 12, 10, 11});
+    Layout::Free(data, capacity, view, *memory);
+}
+
+/**
+ * @brief Large row reordering uses the in-place scratch path and preserves the backing allocation.
+ * @see   lugizmo::DFRowMajor::ReorderRows
+ */
+TEST(DataframeLayoutRowMutation, ReorderRowsLargeBuffer)
+{
+    using T = std::uint64_t;
+    using Layout = lugizmo::DFRowMajor<T>;
+    auto* const memory = std::pmr::get_default_resource();
+    constexpr size_t rows = 2;
+    constexpr size_t cols = (64UZ * 1024UZ * 1024UZ) / (rows * sizeof(T)) + 1;
+    size_t capacity = rows * cols;
+    auto* data = lugizmo::internal::AllocateAligned<T>(*memory, capacity);
+    std::uninitialized_fill_n(data, cols, 1);
+    std::uninitialized_fill_n(data + cols, cols, 2);
+    auto view = Layout::MDSpan{data, rows, cols};
+    auto* const original = data;
+
+    Layout::ReorderRows(data, capacity, *memory, view, std::array<size_t, 2>{1, 0});
+
+    EXPECT_EQ(data, original);
+    EXPECT_EQ(data[0], 2);
+    EXPECT_EQ(data[cols - 1], 2);
+    EXPECT_EQ(data[cols], 1);
+    EXPECT_EQ(data[capacity - 1], 1);
+    Layout::Free(data, capacity, view, *memory);
+}
+
+/**
+ * @brief Large column reordering uses the per-row scratch path and preserves the backing allocation.
+ * @see   lugizmo::DFRowMajor::ReorderColumns
+ */
+TEST(DataframeLayoutRowMutation, ReorderColumnsLargeBuffer)
+{
+    using T = std::uint64_t;
+    using Layout = lugizmo::DFRowMajor<T>;
+    auto* const memory = std::pmr::get_default_resource();
+    constexpr size_t cols = 2;
+    constexpr size_t rows = (64UZ * 1024UZ * 1024UZ) / (cols * sizeof(T)) + 1;
+    size_t capacity = rows * cols;
+    auto* data = lugizmo::internal::AllocateAligned<T>(*memory, capacity);
+    for(size_t row = 0; row < rows; ++row)
+    {
+        std::construct_at(data + row * cols, 1);
+        std::construct_at(data + row * cols + 1, 2);
+    }
+    auto view = Layout::MDSpan{data, rows, cols};
+    auto* const original = data;
+
+    Layout::ReorderColumns(data, capacity, *memory, view, std::array<size_t, 2>{1, 0});
+
+    EXPECT_EQ(data, original);
+    EXPECT_EQ(data[0], 2);
+    EXPECT_EQ(data[1], 1);
+    EXPECT_EQ(data[capacity - 2], 2);
+    EXPECT_EQ(data[capacity - 1], 1);
+    Layout::Free(data, capacity, view, *memory);
+}
+
+/**
+ * @brief Non-trivial values remain balanced across resize, drop, reorder, and free operations.
+ * @see   lugizmo::DFRowMajor
+ */
+TEST(DataframeLayoutRowMutation, NonTrivialLifetimes)
+{
+    using Layout = lugizmo::DFRowMajor<LifetimeValue>;
+    auto* const memory = std::pmr::get_default_resource();
+    LifetimeValue::Reset();
+
+    {
+        auto defaultValue = LifetimeValue(9);
+        size_t capacity = 0;
+        LifetimeValue* data = nullptr;
+        auto view = Layout::MDSpan{data, 0, 3};
+
+        Layout::ResizeRows(data, capacity, *memory, view, 2, 0, defaultValue);
+        ASSERT_EQ(LifetimeValue::alive, 7);
+        for(size_t i = 0; i < 6; ++i) data[i].value = static_cast<int>(i + 1);
+
+        Layout::ResizeCols(data, capacity, *memory, view, 1, 0, defaultValue);
+        EXPECT_EQ(LifetimeValue::alive, 9);
+        EXPECT_EQ(data[0].value, 9);
+        EXPECT_EQ(data[1].value, 1);
+
+        Layout::DropColumn(data, capacity, *memory, view, 1);
+        EXPECT_EQ(LifetimeValue::alive, 7);
+        EXPECT_EQ(data[0].value, 9);
+        EXPECT_EQ(data[1].value, 2);
+
+        Layout::ReorderRows(data, capacity, *memory, view, std::array<size_t, 2>{1, 0});
+        EXPECT_EQ(LifetimeValue::alive, 7);
+        EXPECT_EQ(data[0].value, 9);
+        EXPECT_EQ(data[1].value, 5);
+
+        Layout::DropRow(data, capacity, *memory, view, 0);
+        EXPECT_EQ(LifetimeValue::alive, 4);
+        EXPECT_EQ(data[0].value, 9);
+        EXPECT_EQ(data[1].value, 2);
+
+        Layout::Free(data, capacity, view, *memory);
+        EXPECT_EQ(LifetimeValue::alive, 1);
+    }
+
+    EXPECT_EQ(LifetimeValue::alive, 0);
+    EXPECT_EQ(LifetimeValue::constructed, LifetimeValue::destroyed);
 }
