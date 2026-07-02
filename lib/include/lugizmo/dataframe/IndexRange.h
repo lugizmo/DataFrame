@@ -273,7 +273,7 @@ namespace lugizmo {
         {
             static_assert(ComparableType<C, T>, "DFRangeIndex::Has requires a key comparable with the index key type.");
 
-            // TODO put compare logic somewhere else
+            // Mixed arithmetic comparisons avoid signed/unsigned conversion surprises.
             bool inBounds = false;
             if constexpr(std::is_integral_v<C> && std::is_integral_v<T>)
             {
@@ -401,7 +401,7 @@ namespace lugizmo {
          *         `std::nullopt` if the move is rejected (no change, or past the upper bound).
          */
         [[maybe_unused]]
-        constexpr auto SetLowerBound(KeyType const key) noexcept -> std::optional<ssize_t>
+        constexpr auto SetLowerBound(KeyType const key) noexcept -> std::optional<std::ptrdiff_t>
         {
             if(key > bounds.upper || key == bounds.lower) return std::nullopt;
             if(!Empty())
@@ -410,9 +410,9 @@ namespace lugizmo {
                 if(distance % bounds.step != DiffType{0}) return std::nullopt;
             }
 
-            auto const oldSize = static_cast<ssize_t>(Size());
+            auto const oldSize = static_cast<std::ptrdiff_t>(Size());
             bounds.lower = key;
-            return static_cast<ssize_t>(Size()) - oldSize;
+            return static_cast<std::ptrdiff_t>(Size()) - oldSize;
         }
 
         /**
@@ -427,7 +427,7 @@ namespace lugizmo {
          *         `std::nullopt` if the move is rejected (no change, or past the lower bound).
          */
         [[maybe_unused]]
-        constexpr auto SetUpperBound(KeyType const key) noexcept -> std::optional<ssize_t>
+        constexpr auto SetUpperBound(KeyType const key) noexcept -> std::optional<std::ptrdiff_t>
         {
             if(key < bounds.lower || key == bounds.upper) return std::nullopt;
             if(!Empty())
@@ -436,10 +436,10 @@ namespace lugizmo {
                 if(distance % bounds.step != DiffType{0}) return std::nullopt;
             }
 
-            auto const oldSize = static_cast<ssize_t>(Size());
+            auto const oldSize = static_cast<std::ptrdiff_t>(Size());
             bounds.upper = key;
 
-            return static_cast<ssize_t>(Size()) - oldSize;
+            return static_cast<std::ptrdiff_t>(Size()) - oldSize;
         }
 
         /**
@@ -478,7 +478,7 @@ namespace lugizmo {
          */
         [[maybe_unused]]
         constexpr auto SetLowerUpperBound(std::optional<KeyType> const lower,
-                                          std::optional<KeyType> const upper) noexcept -> std::pair<std::optional<ssize_t>, std::optional<ssize_t>>
+                                          std::optional<KeyType> const upper) noexcept -> std::pair<std::optional<std::ptrdiff_t>, std::optional<std::ptrdiff_t>>
         {
             auto const newLower = lower.value_or(bounds.lower);
             auto const newUpper = upper.value_or(bounds.upper);
@@ -495,11 +495,11 @@ namespace lugizmo {
 
             // Element count of a `[lo, hi)` grid; never asserts (invalid/empty -> 0), so it is safe
             // to evaluate on configurations that are only intermediate (e.g. newLower > old upper).
-            auto const count = [&](KeyType const lo, KeyType const hi) -> ssize_t
+            auto const count = [&](KeyType const lo, KeyType const hi) -> std::ptrdiff_t
             {
                 if(hi <= lo) return 0;
                 auto const span = hi - lo;
-                return static_cast<ssize_t>((span + bounds.step - DiffType{1}) / bounds.step);
+                return static_cast<std::ptrdiff_t>((span + bounds.step - DiffType{1}) / bounds.step);
             };
 
             // Per-side element deltas: the front holds the old upper, the back holds the new lower.
@@ -507,7 +507,7 @@ namespace lugizmo {
             auto const midCount = count(newLower, bounds.upper);
             auto const newCount = count(newLower, newUpper);
 
-            std::optional<ssize_t> lowerDiff, upperDiff;
+            std::optional<std::ptrdiff_t> lowerDiff, upperDiff;
             if(newLower != bounds.lower) lowerDiff = midCount - oldCount;
             if(newUpper != bounds.upper) upperDiff = newCount - midCount;
 

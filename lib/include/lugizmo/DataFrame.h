@@ -964,7 +964,7 @@ namespace lugizmo {
         if(added == 0) return 0;
 
         // add fields to storage
-        Layout::ResizeCols(data, capacity, *backingRes.get(), recsData, 0, static_cast<ssize_t>(added), defaultValue);
+        Layout::ResizeCols(data, capacity, *backingRes.get(), recsData, 0, static_cast<std::ptrdiff_t>(added), defaultValue);
         return added;
     }
 
@@ -988,7 +988,7 @@ namespace lugizmo {
         if(added == 0) return 0;
 
         // add rows to storage
-        Layout::ResizeRows(data, capacity, *backingRes.get(), recsData, 0, static_cast<ssize_t>(added), defaultValue);
+        Layout::ResizeRows(data, capacity, *backingRes.get(), recsData, 0, static_cast<std::ptrdiff_t>(added), defaultValue);
         return added;
     }
 

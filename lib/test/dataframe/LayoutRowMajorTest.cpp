@@ -107,7 +107,7 @@ TEST(DataframeLayoutRowBase, Realloc)
     constexpr size_t  colCount      = 3;
     constexpr size_t  rowCount      = 2;
     constexpr size_t  newRowCount   = 4;
-    constexpr ssize_t adjCountByBeg = 1;
+    constexpr std::ptrdiff_t adjCountByBeg = 1;
 
     size_t capacity = 6;
 
@@ -138,7 +138,7 @@ TEST(DataframeLayoutRowBase, ReallocZeroCapacity)
     constexpr size_t colCount = 3;
     constexpr size_t rowCount = 0;
     constexpr size_t newRowCount = 4;
-    constexpr ssize_t adjCountByBeg = 1;
+    constexpr std::ptrdiff_t adjCountByBeg = 1;
 
     size_t capacity = 0;
     T* data = nullptr;
@@ -160,7 +160,7 @@ TEST(DataframeLayoutRowBase, ReallocLargeAllocation)
     constexpr size_t colCount = 5;
     constexpr size_t rowCount = 200;
     constexpr size_t newRowCount = 1000;
-    constexpr ssize_t adjCountByBeg = 10;
+    constexpr std::ptrdiff_t adjCountByBeg = 10;
 
     size_t capacity = 1024;
     auto* data = lugizmo::internal::AllocateAligned<T>(*memory, capacity);
@@ -182,7 +182,7 @@ TEST(DataframeLayoutRowBase, ReallocAndShift)
     constexpr size_t colCount = 3;
     constexpr size_t rowCount = 2;
     constexpr size_t newRowCount = 4;
-    constexpr ssize_t adjCountByBeg = 1;
+    constexpr std::ptrdiff_t adjCountByBeg = 1;
 
     size_t capacity = 6;
 

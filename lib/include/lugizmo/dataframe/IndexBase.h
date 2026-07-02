@@ -7,6 +7,7 @@
 #ifndef LUGIZMO_DF_INDEX_BASE_H
 #define LUGIZMO_DF_INDEX_BASE_H
 
+#include <cstddef>
 #include <type_traits>
 #include <span>
 #include <optional>
@@ -18,7 +19,8 @@ namespace lugizmo {
      * @brief   CRTP interface for value (label) indices that map unique keys to dense positions.
      * @details Forwards every operation to the concrete `Derived` index (e.g. `DFUniqueIndex`),
      *          so generic code can operate on any value index uniformly. Signatures mirror the
-     *          concrete implementation.
+     *          concrete implementation. This is a compile-time forwarding interface only: it
+     *          owns no state and is not intended for polymorphic use through a base pointer.
      *
      * @tparam Derived Concrete index type providing the implementation.
      * @tparam KeyType Key type stored in the index.
@@ -127,6 +129,8 @@ namespace lugizmo {
      * @details Forwards every operation to the concrete `Derived` index (e.g. `DFRangeIndex`),
      *          which stores only `[lower, upper)` bounds. Positions run `[0, Size())`, where
      *          position `0` is `LowerBound()`. Signatures mirror the concrete implementation.
+     *          This is a compile-time forwarding interface only: it owns no state and is not
+     *          intended for polymorphic use through a base pointer.
      *
      * @tparam Derived Concrete index type providing the implementation.
      * @tparam KeyType Key type spanned by the range.
@@ -221,7 +225,7 @@ namespace lugizmo {
          *         the upper bound).
          */
         [[maybe_unused]]
-        auto SetLowerBound(KeyType const key) noexcept -> std::optional<ssize_t>
+        auto SetLowerBound(KeyType const key) noexcept -> std::optional<std::ptrdiff_t>
         {
             return static_cast<Derived*>(this)->SetLowerBound(key);
         }
@@ -235,7 +239,7 @@ namespace lugizmo {
          *         the lower bound).
          */
         [[maybe_unused]]
-        auto SetUpperBound(KeyType const key) noexcept -> std::optional<ssize_t>
+        auto SetUpperBound(KeyType const key) noexcept -> std::optional<std::ptrdiff_t>
         {
             return static_cast<Derived*>(this)->SetUpperBound(key);
         }
@@ -260,29 +264,27 @@ namespace lugizmo {
     };
 
     /**
-     *  @brief   Concept of a Dataframe Value Index.
-     *  @details Only checks if contains a KeyType and inherits from DFBaseValueIndex.
+     *  @brief   Concept for a unique-key dataframe index.
+     *  @details Requires a `KeyType` and the matching `DFBaseUniqueIndex` CRTP base.
      */
     template<typename T>
     concept DFUnqIndex = requires { typename T::KeyType; } && std::is_base_of_v<DFBaseUniqueIndex<T, typename T::KeyType>, T>;
 
     /**
-     *  @brief   Concept of a Dataframe Value Index, where both type must be DFValIndex.
-     *  @details Only checks if contains a KeyType and inherits from DFBaseValueIndex.
+     *  @brief Concept requiring both types to be unique-key dataframe indices.
      */
     template<typename T1, typename T2>
     concept DFUnqIndices = DFUnqIndex<T1> && DFUnqIndex<T2>;
 
     /**
-     *  @brief   Concept of a Dataframe Range Index.
-     *  @details Only checks if contains a KeyType and inherits from DFBaseRangeIndex.
+     *  @brief   Concept for a computed range dataframe index.
+     *  @details Requires a `KeyType` and the matching `DFBaseRangeIndex` CRTP base.
      */
     template<typename T>
     concept DFRngIndex = requires { typename T::KeyType; } && std::is_base_of_v<DFBaseRangeIndex<T, typename T::KeyType>, T>;
 
     /**
-     *  @brief   Concept of a Dataframe Range Index, where both types must be DFRngIndex.
-     *  @details Only checks if contains a KeyType and inherits from DFBaseRangeIndex.
+     *  @brief Concept requiring both types to be computed range dataframe indices.
      */
     template<typename T1, typename T2>
     concept DFRngIndices = DFRngIndex<T1> && DFRngIndex<T2>;

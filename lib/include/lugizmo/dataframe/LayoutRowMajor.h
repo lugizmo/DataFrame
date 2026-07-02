@@ -384,7 +384,7 @@ namespace lugizmo {
          * @param[in]     defaultValue  Value used to initialize newly added columns.
          */
         static void ResizeCols(T*& data, size_t& capacity, Memory& res, MDSpan& dataView,
-                               ssize_t const adjCountByBeg, ssize_t const adjCountByEnd,
+                               std::ptrdiff_t const adjCountByBeg, std::ptrdiff_t const adjCountByEnd,
                                T const& defaultValue) noexcept
         {
             // Step 0: early-out for no-op requests
@@ -393,7 +393,7 @@ namespace lugizmo {
             // Step 1: read the current shape and validate the requested new column count
             auto const rowCount    = RowCount(dataView);
             auto const colCount    = ColCount(dataView);
-            auto const newColCount = static_cast<ssize_t>(colCount) + adjCountByBeg + adjCountByEnd;
+            auto const newColCount = static_cast<std::ptrdiff_t>(colCount) + adjCountByBeg + adjCountByEnd;
 
             if(newColCount < 0)
             {
@@ -426,9 +426,9 @@ namespace lugizmo {
 
             // Step 4: compute overlap mapping between old and new column ranges
             // Group A: source overlap [srcStartS, safeSrcEndS) in the old column space
-            auto const colCountS   = static_cast<ssize_t>(colCount);
-            auto const srcStartS   = std::max<ssize_t>(0, -adjCountByBeg);
-            auto const srcEndS     = std::min<ssize_t>(colCountS, newColCount - adjCountByBeg);
+            auto const colCountS   = static_cast<std::ptrdiff_t>(colCount);
+            auto const srcStartS   = std::max<std::ptrdiff_t>(0, -adjCountByBeg);
+            auto const srcEndS     = std::min<std::ptrdiff_t>(colCountS, newColCount - adjCountByBeg);
             auto const safeSrcEndS = std::max(srcStartS, srcEndS);
 
             // Group B: compact derived overlap lengths/offsets
@@ -437,8 +437,8 @@ namespace lugizmo {
 
             // Group C: destination prefix/suffix added regions
             auto const dstOldStartS = srcStartS + adjCountByBeg;
-            auto const addBeg       = static_cast<size_t>(std::clamp<ssize_t>(dstOldStartS, 0, newColCount));
-            auto const addEndS      = newColCount - static_cast<ssize_t>(addBeg) - static_cast<ssize_t>(movedColCount);
+            auto const addBeg       = static_cast<size_t>(std::clamp<std::ptrdiff_t>(dstOldStartS, 0, newColCount));
+            auto const addEndS      = newColCount - static_cast<std::ptrdiff_t>(addBeg) - static_cast<std::ptrdiff_t>(movedColCount);
             if(addEndS < 0)
             {
                 LUGIZMO_ASSERT_TRACE(addEndS >= 0, "ResizeCols produced an invalid trailing column count.");
@@ -499,7 +499,7 @@ namespace lugizmo {
          * @param[in]     defaultValue  Value used to initialize newly added rows.
          */
         static void ResizeRows(T*& data, size_t& capacity, Memory& res, MDSpan& dataView,
-                               ssize_t const adjCountByBeg, ssize_t const adjCountByEnd, T const& defaultValue) noexcept
+                               std::ptrdiff_t const adjCountByBeg, std::ptrdiff_t const adjCountByEnd, T const& defaultValue) noexcept
         {
             // Step 0: early-out for no-op requests
             if(adjCountByBeg == 0 && adjCountByEnd == 0) return;
@@ -507,7 +507,7 @@ namespace lugizmo {
             // Step 1: read the current shape and validate the requested new row count
             auto const colCount    = ColCount(dataView);
             auto const rowCount    = RowCount(dataView);
-            auto const newRowCount = static_cast<ssize_t>(rowCount) + adjCountByBeg + adjCountByEnd;
+            auto const newRowCount = static_cast<std::ptrdiff_t>(rowCount) + adjCountByBeg + adjCountByEnd;
 
             if(newRowCount == 0)
             {
@@ -528,9 +528,9 @@ namespace lugizmo {
 
             // Step 3: compute overlap mapping between old and new row ranges
             // Group A: source overlap [srcStartS, safeSrcEndS) in old row space
-            auto const rowCountS   = static_cast<ssize_t>(rowCount);
-            auto const srcStartS   = std::max<ssize_t>(0, -adjCountByBeg);
-            auto const srcEndS     = std::min<ssize_t>(rowCountS, newRowCount - adjCountByBeg);
+            auto const rowCountS   = static_cast<std::ptrdiff_t>(rowCount);
+            auto const srcStartS   = std::max<std::ptrdiff_t>(0, -adjCountByBeg);
+            auto const srcEndS     = std::min<std::ptrdiff_t>(rowCountS, newRowCount - adjCountByBeg);
             auto const safeSrcEndS = std::max(srcStartS, srcEndS);
 
             // Group B: compact derived overlap lengths/offsets
@@ -539,8 +539,8 @@ namespace lugizmo {
 
             // Group C: destination prefix/suffix added regions
             auto const dstOldStartS = srcStartS + adjCountByBeg;
-            auto const addBeg     = static_cast<size_t>(std::clamp<ssize_t>(dstOldStartS, 0, newRowCount));
-            auto const addEndS    = newRowCount - static_cast<ssize_t>(addBeg) - static_cast<ssize_t>(keptRows);
+            auto const addBeg     = static_cast<size_t>(std::clamp<std::ptrdiff_t>(dstOldStartS, 0, newRowCount));
+            auto const addEndS    = newRowCount - static_cast<std::ptrdiff_t>(addBeg) - static_cast<std::ptrdiff_t>(keptRows);
             if(addEndS < 0)
             {
                 LUGIZMO_ASSERT_TRACE(addEndS >= 0, "ResizeRows produced an invalid trailing row count.");
@@ -612,7 +612,7 @@ namespace lugizmo {
          */
         template <typename Values> requires MinimalIterable<Values>
         static void ResizeRows(T*& data, size_t& capacity, Memory& res, MDSpan& dataView,
-                               ssize_t const adjCountByBeg, ssize_t const adjCountByEnd, Values const& values) noexcept
+                               std::ptrdiff_t const adjCountByBeg, std::ptrdiff_t const adjCountByEnd, Values const& values) noexcept
         {
             constexpr bool isItOfIt = MinimalIterableOfIterable<Values>;
 
@@ -622,7 +622,7 @@ namespace lugizmo {
             // Step 1: read the current shape and validate the requested new row count
             auto const colCount      = ColCount(dataView);
             auto const rowCount      = RowCount(dataView);
-            auto const newRowCountS  = static_cast<ssize_t>(rowCount) + adjCountByBeg + adjCountByEnd;
+            auto const newRowCountS  = static_cast<std::ptrdiff_t>(rowCount) + adjCountByBeg + adjCountByEnd;
 
             if(newRowCountS == 0)
             {
@@ -639,9 +639,9 @@ namespace lugizmo {
             // Step 2: derive overlap/prefix/suffix ranges
             // Group A: source overlap [srcStartS, safeSrcEndS) in the old row space
             auto const newRowCountPos = static_cast<size_t>(newRowCountS);
-            auto const rowCountS      = static_cast<ssize_t>(rowCount);
-            auto const srcStartS      = std::max<ssize_t>(0, -adjCountByBeg);
-            auto const srcEndS        = std::min<ssize_t>(rowCountS, newRowCountS - adjCountByBeg);
+            auto const rowCountS      = static_cast<std::ptrdiff_t>(rowCount);
+            auto const srcStartS      = std::max<std::ptrdiff_t>(0, -adjCountByBeg);
+            auto const srcEndS        = std::min<std::ptrdiff_t>(rowCountS, newRowCountS - adjCountByBeg);
             auto const safeSrcEndS    = std::max(srcStartS, srcEndS);
 
             // Group B: compact derived overlap lengths/offsets
@@ -650,8 +650,8 @@ namespace lugizmo {
 
             // Group C: destination prefix/suffix added regions
             auto const dstOldStartS   = srcStartS + adjCountByBeg;
-            auto const addBeg         = static_cast<size_t>(std::clamp<ssize_t>(dstOldStartS, 0, newRowCountS));
-            auto const addEndS        = newRowCountS - static_cast<ssize_t>(addBeg) - static_cast<ssize_t>(keptRows);
+            auto const addBeg         = static_cast<size_t>(std::clamp<std::ptrdiff_t>(dstOldStartS, 0, newRowCountS));
+            auto const addEndS        = newRowCountS - static_cast<std::ptrdiff_t>(addBeg) - static_cast<std::ptrdiff_t>(keptRows);
             if(addEndS < 0)
             {
                 LUGIZMO_ASSERT_TRACE(addEndS >= 0, "ResizeRows(values) produced an invalid trailing row count.");
@@ -980,7 +980,7 @@ namespace lugizmo {
          * @param[in]     adjCountByBeg Signed begin-side row adjustment.
          */
         static void Realloc(T*& data, Memory& res, size_t& capacity, size_t const colCount, size_t const rowCount,
-                            size_t const newRowCount, ssize_t const adjCountByBeg) noexcept
+                            size_t const newRowCount, std::ptrdiff_t const adjCountByBeg) noexcept
         {
             // Step 1: compute old/new active sizes and target capacity
             auto const oldActiveCount = ActiveCount(rowCount, colCount);
@@ -996,7 +996,7 @@ namespace lugizmo {
             // Step 3: move/copy old active range into destination at begin-offset
             if(oldActiveCount > 0)
             {
-                auto const destOffset = static_cast<size_t>(std::max<ssize_t>(0, adjCountByBeg));
+                auto const destOffset = static_cast<size_t>(std::max<std::ptrdiff_t>(0, adjCountByBeg));
                 auto* const destBeg   = newData + destOffset * colCount;
 
                 LUGIZMO_ASSERT_TRACE((destBeg + oldActiveCount) <= (newData + newCapacity),
@@ -1037,7 +1037,7 @@ namespace lugizmo {
          */
         static void ReallocAndShift(T*& data, Memory& res, size_t& capacity,
                                     size_t const colCount, size_t const rowCount, size_t const newRowCount,
-                                    ssize_t const adjCountByBeg) noexcept
+                                    std::ptrdiff_t const adjCountByBeg) noexcept
         {
             // 1: allocate-and-move the path when active data no longer fits
             if(newRowCount * colCount > capacity || capacity == 0)
@@ -1064,7 +1064,7 @@ namespace lugizmo {
                 DestroyRange(data, shiftElements);
             }
             // 3: in-place shrink at the beginning (drop leading rows and compact)
-            else if(adjCountByBeg < 0 && static_cast<ssize_t>(rowCount) + adjCountByBeg > 0)
+            else if(adjCountByBeg < 0 && static_cast<std::ptrdiff_t>(rowCount) + adjCountByBeg > 0)
             {
                 auto const shrinkRows    = static_cast<size_t>(-adjCountByBeg);
                 auto const remainRows    = rowCount - shrinkRows;
