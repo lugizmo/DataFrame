@@ -350,7 +350,12 @@ TEST(DataframeIndexRange, HasStrided)
     // contiguous range: every in-bounds key is a member
     constexpr auto contiguous = lugizmo::DFRangeIndex(0, 5);
     ASSERT_TRUE(contiguous.Has(3));
+    ASSERT_TRUE(contiguous.Has(3.0));
+    ASSERT_FALSE(contiguous.Has(3.5));
     ASSERT_FALSE(contiguous.Has(5));
+
+    ASSERT_TRUE(index.Has(4.0));
+    ASSERT_FALSE(index.Has(4.5));
 }
 
 TEST(DataframeIndexRange, Bijection)

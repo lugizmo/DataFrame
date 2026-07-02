@@ -257,9 +257,10 @@ namespace lugizmo {
         /**
          * @brief Checks whether a key is a member of the range.
          *
-         * @details A member must be within `[lower, upper)` and land on the step grid. For the
-         *          contiguous case (`step == 1`) every in-bounds key is a member, so the alignment
-         *          check is skipped.
+         * @details A member must be exactly representable as the index key type, lie within
+         *          `[lower, upper)`, and land on the step grid. Exact representation prevents a
+         *          fractional lookup from being accepted by an integral range merely because it
+         *          lies between the bounds.
          *
          * @tparam C Key type comparable with `T`.
          *
@@ -292,10 +293,23 @@ namespace lugizmo {
             }
 
             if(!inBounds) return false;
-            if(bounds.step == DiffType{1}) return true; // contiguous: in-bounds imply member
 
-            // strided: the key must sit on the step grid
-            return (static_cast<T>(key) - bounds.lower) % bounds.step == DiffType{0};
+            // Membership requires an actual T key, not merely a value that compares inside the
+            // bounds. The equality check detects information lost by conversion (e.g. 1.5 -> 1).
+            if constexpr(std::same_as<std::remove_cvref_t<C>, T>)
+            {
+                return (key - bounds.lower) % bounds.step == DiffType{0};
+            }
+            else if constexpr(requires { static_cast<T>(key); key == static_cast<T>(key); })
+            {
+                auto const normalizedKey = static_cast<T>(key);
+                if(!(key == normalizedKey)) return false;
+                return (normalizedKey - bounds.lower) % bounds.step == DiffType{0};
+            }
+            else
+            {
+                return false;
+            }
         }
 
         /**
