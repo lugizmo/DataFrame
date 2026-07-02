@@ -79,7 +79,7 @@ namespace lugizmo {
          * @brief     Returns the current row count from mdspan extents.
          * @param[in] dataView Current data view.
          *
-         * TODO Is it actually possible that the row is negative? Maybe just do a static_cast.
+         * TODO Is it actually possible that the column is negative? Maybe just do a static_cast.
          * @return Non-negative row size as `size_t`.
          */
         static auto RowCount(MDSpan const& dataView) noexcept -> size_t
@@ -97,7 +97,7 @@ namespace lugizmo {
          */
         static auto ColCount(MDSpan const& dataView) noexcept -> size_t
         {
-            LUGIZMO_ASSERT_TRACE(dataView.extent(0) >= 0, "DFRowMajor should not have a negative column count.");
+            LUGIZMO_ASSERT_TRACE(dataView.extent(1) >= 0, "DFRowMajor should not have a negative column count.");
             return dataView.extent(1) < 0 ? 0UZ : static_cast<size_t>(dataView.extent(1));
         }
 
