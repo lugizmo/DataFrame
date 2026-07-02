@@ -18,6 +18,7 @@ set(LUGIZMO_DF_PUBLIC_HEADERS
         include/lugizmo/dataframe/LayoutColMajor.h
         include/lugizmo/dataframe/LayoutRowMajor.h
         include/lugizmo/dataframe/Selector.h
+        include/lugizmo/dataframe/Span.h
         include/lugizmo/dataframe/View.h
         include/lugizmo/dataframe/ViewIndexed.h
         include/lugizmo/memory/Memory.h

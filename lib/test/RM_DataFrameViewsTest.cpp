@@ -11,11 +11,11 @@
 // Typed across every index configuration (suite RM_DataframeViews):
 //
 // ✅ ViewField           - ViewField(field) [const]              -> DFView<T[ const], RecI>
-// ✅ ViewRecord          - ViewRecord(record) [const]            -> DFView<T[ const], FldI>
+// ✅ ViewRecord          - ViewRecord(record) [const]            -> DFSpan<T[ const], FldI>
 // ✅ ViewFieldIndexed    - ViewFieldIndexed(field) [const]       -> DFViewIndexed<T[ const], RecI const>
 // ✅ ViewRecordIndexed   - ViewRecordIndexed(record) [const]     -> DFViewIndexed<T[ const], FldI const>
 // ✅ SelectField         - operator|(SelectField<F>) [const]     -> DFView<T[ const], RecI>
-// ✅ SelectRecord        - operator|(SelectRecord<R>) [const]    -> DFView<T[ const], FldI>
+// ✅ SelectRecord        - operator|(SelectRecord<R>) [const]    -> DFSpan<T[ const], FldI>
 // ✅ SelectFieldIndexed  - operator|(SelectFieldIndexed<F>) [const]  -> DFViewIndexed<...>
 // ✅ SelectRecordIndexed - operator|(SelectRecordIndexed<R>) [const] -> DFViewIndexed<...>
 // ✅ Fields              - Fields() const -> Flds
@@ -73,6 +73,7 @@ TYPED_TEST(RM_DataframeViews, ViewField)
         for (std::size_t f = 0; f < Cfg::FLD_COUNT; ++f)
         {
             auto const view = std::as_const(df).ViewField(Cfg::FieldKey(f));
+            static_assert(!std::ranges::contiguous_range<decltype(view)>);
             ASSERT_EQ(view.Size(), Cfg::REC_COUNT);
             EXPECT_FALSE(view.Empty());
 
@@ -117,6 +118,7 @@ TYPED_TEST(RM_DataframeViews, ViewRecord)
         for (std::size_t r = 0; r < Cfg::REC_COUNT; ++r)
         {
             auto const view = std::as_const(df).ViewRecord(Cfg::RecordKey(r));
+            static_assert(std::ranges::contiguous_range<decltype(view)>);
             ASSERT_EQ(view.Size(), Cfg::FLD_COUNT);
             EXPECT_FALSE(view.Empty());
 
@@ -281,6 +283,7 @@ TYPED_TEST(RM_DataframeViews, SelectRecord)
         for (std::size_t r = 0; r < Cfg::REC_COUNT; ++r)
         {
             auto const view = constDf | SelectRecord(Cfg::RecordKey(r));
+            static_assert(std::ranges::contiguous_range<decltype(view)>);
             ASSERT_EQ(view.Size(), Cfg::FLD_COUNT);
 
             std::size_t f = 0;

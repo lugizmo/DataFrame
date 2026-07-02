@@ -35,6 +35,7 @@
 #include "dataframe/IndexUnique.h"
 #include "dataframe/IndexRange.h"
 #include "dataframe/Selector.h"
+#include "dataframe/Span.h"
 #include "dataframe/LayoutRowMajor.h"
 #include "dataframe/View.h"
 #include "dataframe/ViewIndexed.h"
@@ -101,9 +102,13 @@ namespace lugizmo {
         template<typename Self>
         using ValuePointer = Value<Self>*;
 
-        /// @brief View over values either on record or a field.
+        /// @brief Generic potentially strided view over dataframe values.
         template<typename Self, typename Index>
         using ValueView = DFView<Value<Self>, Index>;
+
+        /// @brief Contiguous view over one record in a row-major storage.
+        template<typename Self, typename Index>
+        using RecordValueView = DFSpan<Value<Self>, Index>;
 
         /// @brief View over values with their index value either on record or a field.
         ///        If viewing a field, you get record indices and vise versa.
@@ -461,7 +466,7 @@ namespace lugizmo {
         */
         template<typename RecordLookup>
         [[nodiscard]]
-        auto ViewRecord(this auto& self, RecordLookup const& index) noexcept -> ValueView<decltype(self), FldI>;
+        auto ViewRecord(this auto& self, RecordLookup const& index) noexcept -> RecordValueView<decltype(self), FldI>;
 
         /**
          * @return      View into a record (handling layout) if record found in dataframe.
@@ -487,7 +492,7 @@ namespace lugizmo {
          * @copydoc ViewRecord
          */
         template<typename Storage>
-        auto operator|(this auto& self, SelectRecord<RecT, Storage> const& index) noexcept -> ValueView<decltype(self), FldI>
+        auto operator|(this auto& self, SelectRecord<RecT, Storage> const& index) noexcept -> RecordValueView<decltype(self), FldI>
         {
             return self.ViewRecord(index.Value());
         }
@@ -534,7 +539,7 @@ namespace lugizmo {
          * @return For chaining the view the function was applied on.
          */
         template<typename Func>
-        auto ForEachOnRecord(this auto& self, RecT const& index, Func&& func) -> ValueView<decltype(self), FldI> requires DFUnqIndex<RecI>;
+        auto ForEachOnRecord(this auto& self, RecT const& index, Func&& func) -> RecordValueView<decltype(self), FldI> requires DFUnqIndex<RecI>;
 
         // ======== PRINT ==========================================================================================================================================================
 
@@ -1471,42 +1476,36 @@ namespace lugizmo {
 
     template<typename T, typename F, typename R, typename L>
     template<typename RecordLookup>
-    auto DataFrame<T, F, R, L>::ViewRecord(this auto& self, RecordLookup const& index) noexcept -> ValueView<decltype(self), FldI>
+    auto DataFrame<T, F, R, L>::ViewRecord(this auto& self, RecordLookup const& index) noexcept -> RecordValueView<decltype(self), FldI>
     {
+        using RecordView = RecordValueView<decltype(self), FldI>;
         static_assert(requires(RecI const& recordIndex, RecordLookup const& lookup) { recordIndex.Position(lookup); },
                       "DataFrame record lookup requires the exact key type or transparent hash/equality support.");
 
         auto const pos = self.recIndex.Position(index);
-        if(not pos.has_value()) return ValueView<decltype(self), FldI>{};
+        if (not pos.has_value()) return RecordView{};
 
-        if constexpr(DFUnqIndex<FldI>)
+        if constexpr (DFUnqIndex<FldI>)
         {
-            if constexpr(meta::IsConstThis<decltype(self)>())
+            if constexpr (meta::IsConstThis<decltype(self)>())
             {
-                return ValueView<decltype(self), FldI>::RecordView(static_cast<ConstDataMatrix>(self.recsData), &self.fldIndex, *pos);
+                return RecordView::RecordView(static_cast<ConstDataMatrix>(self.recsData), &self.fldIndex, *pos);
             }
             else
             {
-                return ValueView<decltype(self), FldI>::RecordView(self.recsData, &self.fldIndex, *pos);
+                return RecordView::RecordView(self.recsData, &self.fldIndex, *pos);
             }
         }
         else
         {
-            if constexpr(meta::IsConstThis<decltype(self)>())
+            auto& fldIndex = self.fldIndex;
+            if constexpr (meta::IsConstThis<decltype(self)>())
             {
-                return ValueView<decltype(self), FldI>::RecordView(static_cast<ConstDataMatrix>(self.recsData),
-                                                                   &self.fldIndex,
-                                                                   *pos,
-                                                                   self.fldIndex.LowerBoundPosition(),
-                                                                   self.fldIndex.UpperBoundPosition());
+                return RecordView::RecordView(static_cast<ConstDataMatrix>(self.recsData), &fldIndex, *pos, fldIndex.LowerBoundPosition(), fldIndex.UpperBoundPosition());
             }
             else
             {
-                return ValueView<decltype(self), FldI>::RecordView(self.recsData,
-                                                                   &self.fldIndex,
-                                                                   *pos,
-                                                                   self.fldIndex.LowerBoundPosition(),
-                                                                   self.fldIndex.UpperBoundPosition());
+                return RecordView::RecordView(self.recsData, &fldIndex, *pos, fldIndex.LowerBoundPosition(), fldIndex.UpperBoundPosition());
             }
         }
     }
@@ -1559,7 +1558,7 @@ namespace lugizmo {
 
     template <typename T, typename F, typename R, typename L>
     template <typename Func>
-    auto DataFrame<T, F, R, L>::ForEachOnRecord(this auto& self, RecT const& index, Func&& func) -> ValueView<decltype(self), FldI> requires DFUnqIndex<RecI>
+    auto DataFrame<T, F, R, L>::ForEachOnRecord(this auto& self, RecT const& index, Func&& func) -> RecordValueView<decltype(self), FldI> requires DFUnqIndex<RecI>
     {
         auto view = self.ViewRecord(index);
         std::ranges::for_each(view, std::forward<Func>(func));
