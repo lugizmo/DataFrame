@@ -10,53 +10,62 @@
 #include <functional>
 #include <type_traits>
 #include <utility>
-#include <variant>
 
 namespace lugizmo {
 
     namespace internal {
 
         /**
-         * @brief Stores a selector key by reference for lvalues and by value for rvalues.
-         *
-         * Borrowing avoids copying large existing keys. Owning an rvalue prevents
-         * selectors created from temporary keys from dangling. A borrowing
-         * selector requires its original key to outlive every use of the selector.
+         * @brief Stores a selector key according to its compile-time storage policy.
+         * @tparam Key     Selector key type.
+         * @tparam Storage Either `Key` or `std::reference_wrapper<Key const>`.
          */
+        template<typename Key, typename Storage>
+        class SelectorValue;
+
+        /** @brief Borrowed selector storage used for lvalue keys. */
         template<typename Key>
-        class SelectorValue
+        class SelectorValue<Key, std::reference_wrapper<Key const>>
         {
             using Reference = std::reference_wrapper<Key const>;
-            std::variant<Reference, Key> value;
-
-        protected:
-
-            constexpr explicit SelectorValue(Key const& key) noexcept :
-                value(std::in_place_type<Reference>, std::cref(key))
-            {
-            }
-
-            constexpr explicit SelectorValue(Key&& key) noexcept(std::is_nothrow_move_constructible_v<Key>) :
-                value(std::in_place_type<Key>, std::move(key))
-            {
-            }
+            Reference value;
 
         public:
 
-            constexpr SelectorValue(SelectorValue const&) = default;
-            constexpr SelectorValue(SelectorValue&&) = default;
-            constexpr auto operator=(SelectorValue const&) -> SelectorValue& = default;
-            constexpr auto operator=(SelectorValue&&) -> SelectorValue& = default;
-            constexpr ~SelectorValue() = default;
+            constexpr explicit SelectorValue(Key const& key) noexcept :
+                value(std::cref(key))
+            {
+            }
 
-            /**
-             * @brief Returns the selected key regardless of its storage policy.
-             * @return Reference to the borrowed key or to the selector's owned key.
-             */
+            /** @return Reference to the borrowed key. */
             [[nodiscard]] constexpr auto Value() const noexcept -> Key const&
             {
-                if(auto const* reference = std::get_if<Reference>(&value)) return reference->get();
-                return std::get<Key>(value);
+                return value.get();
+            }
+        };
+
+        /** @brief Owning selector storage used for rvalue keys. */
+        template<typename Key>
+        class SelectorValue<Key, Key>
+        {
+            Key value;
+
+        public:
+            constexpr explicit SelectorValue(Key&& key) noexcept(std::is_nothrow_move_constructible_v<Key>) :
+                value(std::move(key))
+            {
+            }
+
+            constexpr explicit SelectorValue(Key const&& key) noexcept(std::is_nothrow_copy_constructible_v<Key>)
+                requires std::is_copy_constructible_v<Key> :
+                value(key)
+            {
+            }
+
+            /** @return Reference to the owned key. */
+            [[nodiscard]] constexpr auto Value() const noexcept -> Key const&
+            {
+                return value;
             }
         };
 
@@ -65,22 +74,20 @@ namespace lugizmo {
     /**
      * @brief DataFrame pipeline adaptor selecting one field's values.
      *
-     * An lvalue key is borrowed without copying. An rvalue key is owned by the
-     * selector. A borrowing selector must not outlive its key.
+     * An lvalue key is borrowed without copying. The selector owns the rvalue key.
+     * A borrowing selector must not outlive its key.
      *
-     * @tparam F Field key type.
+     * @tparam F       Field key type.
+     * @tparam Storage Compile-time borrowed or owning storage policy.
      */
-    template<typename F>
-    struct SelectField : internal::SelectorValue<F>
+    template<typename F, typename Storage = F>
+    struct SelectField : internal::SelectorValue<F, Storage>
     {
-        using Base = internal::SelectorValue<F>;
-
-        constexpr explicit SelectField(F const& value) noexcept : Base(value) {}
-        constexpr explicit SelectField(F&& value) noexcept(std::is_nothrow_move_constructible_v<F>) : Base(std::move(value)) {}
+        using internal::SelectorValue<F, Storage>::SelectorValue;
     };
 
     template<typename F>
-    SelectField(F const&) -> SelectField<std::remove_cv_t<F>>;
+    SelectField(F&) -> SelectField<std::remove_cv_t<F>, std::reference_wrapper<std::remove_cv_t<F> const>>;
 
     template<typename F>
     SelectField(F&&) -> SelectField<std::remove_cvref_t<F>>;
@@ -91,19 +98,17 @@ namespace lugizmo {
      * Storage and lifetime semantics match `SelectField`.
      *
      * @see SelectField
-     * @tparam F Field key type.
+     * @tparam F       Field key type.
+     * @tparam Storage Compile-time borrowed or owning storage policy.
      */
-    template<typename F>
-    struct SelectFieldIndexed : internal::SelectorValue<F>
+    template<typename F, typename Storage = F>
+    struct SelectFieldIndexed : internal::SelectorValue<F, Storage>
     {
-        using Base = internal::SelectorValue<F>;
-
-        constexpr explicit SelectFieldIndexed(F const& value) noexcept : Base(value) {}
-        constexpr explicit SelectFieldIndexed(F&& value) noexcept(std::is_nothrow_move_constructible_v<F>) : Base(std::move(value)) {}
+        using internal::SelectorValue<F, Storage>::SelectorValue;
     };
 
     template<typename F>
-    SelectFieldIndexed(F const&) -> SelectFieldIndexed<std::remove_cv_t<F>>;
+    SelectFieldIndexed(F&) -> SelectFieldIndexed<std::remove_cv_t<F>, std::reference_wrapper<std::remove_cv_t<F> const>>;
 
     template<typename F>
     SelectFieldIndexed(F&&) -> SelectFieldIndexed<std::remove_cvref_t<F>>;
@@ -114,19 +119,17 @@ namespace lugizmo {
      * Storage and lifetime semantics match `SelectField`.
      *
      * @see SelectField
-     * @tparam R Record key type.
+     * @tparam R       Record key type.
+     * @tparam Storage Compile-time borrowed or owning storage policy.
      */
-    template<typename R>
-    struct SelectRecord : internal::SelectorValue<R>
+    template<typename R, typename Storage = R>
+    struct SelectRecord : internal::SelectorValue<R, Storage>
     {
-        using Base = internal::SelectorValue<R>;
-
-        constexpr explicit SelectRecord(R const& value) noexcept : Base(value) {}
-        constexpr explicit SelectRecord(R&& value) noexcept(std::is_nothrow_move_constructible_v<R>) : Base(std::move(value)) {}
+        using internal::SelectorValue<R, Storage>::SelectorValue;
     };
 
     template<typename R>
-    SelectRecord(R const&) -> SelectRecord<std::remove_cv_t<R>>;
+    SelectRecord(R&) -> SelectRecord<std::remove_cv_t<R>, std::reference_wrapper<std::remove_cv_t<R> const>>;
 
     template<typename R>
     SelectRecord(R&&) -> SelectRecord<std::remove_cvref_t<R>>;
@@ -137,19 +140,17 @@ namespace lugizmo {
      * Storage and lifetime semantics match `SelectField`.
      *
      * @see SelectRecord
-     * @tparam R Record key type.
+     * @tparam R       Record key type.
+     * @tparam Storage Compile-time borrowed or owning storage policy.
      */
-    template<typename R>
-    struct SelectRecordIndexed : internal::SelectorValue<R>
+    template<typename R, typename Storage = R>
+    struct SelectRecordIndexed : internal::SelectorValue<R, Storage>
     {
-        using Base = internal::SelectorValue<R>;
-
-        constexpr explicit SelectRecordIndexed(R const& value) noexcept : Base(value) {}
-        constexpr explicit SelectRecordIndexed(R&& value) noexcept(std::is_nothrow_move_constructible_v<R>) : Base(std::move(value)) {}
+        using internal::SelectorValue<R, Storage>::SelectorValue;
     };
 
     template<typename R>
-    SelectRecordIndexed(R const&) -> SelectRecordIndexed<std::remove_cv_t<R>>;
+    SelectRecordIndexed(R&) -> SelectRecordIndexed<std::remove_cv_t<R>, std::reference_wrapper<std::remove_cv_t<R> const>>;
 
     template<typename R>
     SelectRecordIndexed(R&&) -> SelectRecordIndexed<std::remove_cvref_t<R>>;

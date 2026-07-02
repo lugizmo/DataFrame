@@ -477,7 +477,8 @@ namespace lugizmo {
          *  @brief   Alternative syntax for ViewField().
          *  @copydoc ViewField
          */
-        auto operator|(this auto& self, SelectField<FldT> const& index) noexcept -> ValueView<decltype(self), RecI>
+        template<typename Storage>
+        auto operator|(this auto& self, SelectField<FldT, Storage> const& index) noexcept -> ValueView<decltype(self), RecI>
         {
             return self.ViewField(index.Value());
         }
@@ -486,7 +487,8 @@ namespace lugizmo {
          * @brief   Alternative syntax for ViewRecord()
          * @copydoc ViewRecord
          */
-        auto operator|(this auto& self, SelectRecord<RecT> const& index) noexcept -> ValueView<decltype(self), FldI>
+        template<typename Storage>
+        auto operator|(this auto& self, SelectRecord<RecT, Storage> const& index) noexcept -> ValueView<decltype(self), FldI>
         {
             return self.ViewRecord(index.Value());
         }
@@ -495,7 +497,8 @@ namespace lugizmo {
          * @brief   Alternative syntax for ViewFieldIndexed()
          * @copydoc ViewFieldIndexed
          */
-        auto operator|(this auto& self, SelectFieldIndexed<FldT> const& index) noexcept -> IndexedValueView<decltype(self), RecI>
+        template<typename Storage>
+        auto operator|(this auto& self, SelectFieldIndexed<FldT, Storage> const& index) noexcept -> IndexedValueView<decltype(self), RecI>
         {
             return self.ViewFieldIndexed(index.Value());
         }
@@ -504,7 +507,8 @@ namespace lugizmo {
          * @brief   Alternative syntax for GetRecordIndexed()
          * @copydoc ViewRecordIndexed
          */
-        auto operator|(this auto& self, SelectRecordIndexed<RecT> const& index) noexcept -> IndexedValueView<decltype(self), FldI>
+        template<typename Storage>
+        auto operator|(this auto& self, SelectRecordIndexed<RecT, Storage> const& index) noexcept -> IndexedValueView<decltype(self), FldI>
         {
             return self.ViewRecordIndexed(index.Value());
         }

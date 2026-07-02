@@ -18,6 +18,7 @@
 
 #include <array>
 #include <cstddef>
+#include <functional>
 #include <type_traits>
 #include <utility>
 
@@ -82,7 +83,8 @@ TEST(Selector, SelectFieldBorrowed)
     LargeKey::ResetCounts();
     auto selector = SelectField(key);
 
-    static_assert(std::is_same_v<decltype(selector), SelectField<LargeKey>>);
+    static_assert(std::is_same_v<decltype(selector), SelectField<LargeKey, std::reference_wrapper<LargeKey const>>>);
+    static_assert(sizeof(selector) == sizeof(std::reference_wrapper<LargeKey const>));
     EXPECT_EQ(&selector.Value(), &key);
     EXPECT_EQ(LargeKey::copies, 0);
     EXPECT_EQ(LargeKey::moves, 0);
