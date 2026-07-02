@@ -12,7 +12,6 @@ set(LUGIZMO_DF_PUBLIC_HEADERS
         include/lugizmo/container/Concepts.h
         include/lugizmo/container/DataFrameMap.h
         include/lugizmo/container/DataFrameMapSupport.h
-        include/lugizmo/container/OptionalRef.h
         include/lugizmo/dataframe/IndexBase.h
         include/lugizmo/dataframe/IndexRange.h
         include/lugizmo/dataframe/IndexUnique.h

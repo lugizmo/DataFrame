@@ -10,8 +10,8 @@
 // The following functions are tested here (with names of tests):
 //
 // ✅ GetValue
-// - GetValue(FldT const& field, RecT const& record) const -> OptionalRef<T const>
-// - GetValue(FldT const& field, RecT const& record) -> OptionalRef<T>
+// - GetValue(FldT const& field, RecT const& record) const -> T const*
+// - GetValue(FldT const& field, RecT const& record) -> T*
 //
 // ✅ IndexOperator
 // - operator[](FldT const& field, RecT const& record) -> T&
@@ -64,7 +64,7 @@ namespace {
 } // namespace
 
 /**
- *  @brief GetValue returns the stored value for every cell, nullopt for missing keys.
+ *  @brief GetValue returns a pointer to the stored value, or null for missing keys.
  *  @see   lugizmo::DataFrame.GetValue(...)
  */
 TYPED_TEST(RM_DataframeAccess, GetValue)
@@ -79,7 +79,7 @@ TYPED_TEST(RM_DataframeAccess, GetValue)
             for (std::size_t r = 0; r < Cfg::REC_COUNT; ++r)
             {
                 auto const val = std::as_const(df).GetValue(Cfg::FieldKey(f), Cfg::RecordKey(r));
-                ASSERT_TRUE(val.HasValue());
+                ASSERT_NE(val, nullptr);
                 EXPECT_EQ(*val, static_cast<int>(r * Cfg::FLD_COUNT + f));
             }
         }
@@ -87,17 +87,17 @@ TYPED_TEST(RM_DataframeAccess, GetValue)
 
     {
         // a missing field or record key resolves to nothing
-        EXPECT_FALSE(std::as_const(df).GetValue(Cfg::MissingField(), Cfg::RecordKey(0)).HasValue());
-        EXPECT_FALSE(std::as_const(df).GetValue(Cfg::FieldKey(0), Cfg::MissingRecord()).HasValue());
+        EXPECT_EQ(std::as_const(df).GetValue(Cfg::MissingField(), Cfg::RecordKey(0)), nullptr);
+        EXPECT_EQ(std::as_const(df).GetValue(Cfg::FieldKey(0), Cfg::MissingRecord()), nullptr);
     }
 
     {
         // the mutable overload yields a non-const reference and writes through
         auto val = df.GetValue(Cfg::FieldKey(0), Cfg::RecordKey(0));
-        static_assert(not std::is_const_v<std::remove_reference_t<decltype(val.Value())>>);
-        ASSERT_TRUE(val.HasValue());
+        static_assert(not std::is_const_v<std::remove_pointer_t<decltype(val)>>);
+        ASSERT_NE(val, nullptr);
 
-        val.Value() = 123;
+        *val = 123;
         EXPECT_EQ(*std::as_const(df).GetValue(Cfg::FieldKey(0), Cfg::RecordKey(0)), 123);
     }
 }

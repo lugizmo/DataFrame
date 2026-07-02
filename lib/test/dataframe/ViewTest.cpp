@@ -475,11 +475,11 @@ TEST_F(DataframeViewFunctionTest, CheckedIndexOperator)
     auto const view = Field();
     auto value = view(1);
 
-    ASSERT_TRUE(value.HasValue());
-    EXPECT_EQ(value.Value(), 3);
-    value.Value() = 30;
+    ASSERT_NE(value, nullptr);
+    EXPECT_EQ(*value, 3);
+    *value = 30;
     EXPECT_EQ(values[3], 30);
-    EXPECT_FALSE(view(4).HasValue());
+    EXPECT_EQ(view(4), nullptr);
 }
 
 /**

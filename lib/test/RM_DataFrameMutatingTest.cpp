@@ -68,7 +68,7 @@ TYPED_TEST(RM_DataframeMutating, AssignValue)
         ASSERT_TRUE(df.AssignValue(Cfg::FieldKey(1), Cfg::RecordKey(2), 42));
 
         auto const val = df.GetValue(Cfg::FieldKey(1), Cfg::RecordKey(2));
-        ASSERT_TRUE(val.HasValue());
+        ASSERT_NE(val, nullptr);
         EXPECT_EQ(*val, 42);
     }
 
@@ -100,7 +100,7 @@ TEST(RM_DataframeMutatingValue, UpsertValue)
         df.UpsertValue("field1", "record1", 1); // inserts field + record
         EXPECT_EQ(df.FieldSize(), 1);
         EXPECT_EQ(df.RecordSize(), 1);
-        ASSERT_TRUE(df.GetValue("field1", "record1").HasValue());
+        ASSERT_NE(df.GetValue("field1", "record1"), nullptr);
         EXPECT_EQ(*df.GetValue("field1", "record1"), 1);
 
         df.UpsertValue("field1", "record2", 2); // inserts record only
@@ -120,7 +120,7 @@ TEST(RM_DataframeMutatingValue, UpsertValue)
         auto df = DataFrame<ExplicitIntValue, std::string, std::string>();
 
         df.UpsertValue("field1", "record1", 5);
-        ASSERT_TRUE(df.GetValue("field1", "record1").HasValue());
+        ASSERT_NE(df.GetValue("field1", "record1"), nullptr);
         EXPECT_EQ(df.GetValue("field1", "record1")->value, 5);
 
         df.UpsertValue("field1", "record1", 11);

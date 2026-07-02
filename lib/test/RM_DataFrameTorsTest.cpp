@@ -95,7 +95,7 @@ namespace {
             for (std::size_t r = 0; r < Cfg::REC_COUNT; ++r)
             {
                 auto const val = df.GetValue(Cfg::FieldKey(f), Cfg::RecordKey(r));
-                ASSERT_TRUE(val.HasValue());
+                ASSERT_NE(val, nullptr);
                 EXPECT_EQ(*val, static_cast<int>(r * Cfg::FLD_COUNT + f));
             }
         }
@@ -202,7 +202,7 @@ TYPED_TEST(RM_DataframeTors, CopyConstruction)
         EXPECT_EQ((copy[Cfg::FieldKey(0), Cfg::RecordKey(0)]), 9999);
 
         auto const origVal = orig.GetValue(Cfg::FieldKey(0), Cfg::RecordKey(0));
-        ASSERT_TRUE(origVal.HasValue());
+        ASSERT_NE(origVal, nullptr);
         EXPECT_EQ(*origVal, 0);
     }
 }
@@ -230,7 +230,7 @@ TYPED_TEST(RM_DataframeTors, CopyAssignment)
         // independence after assignment
         dst[Cfg::FieldKey(1), Cfg::RecordKey(1)] = -1;
         auto const origVal = orig.GetValue(Cfg::FieldKey(1), Cfg::RecordKey(1));
-        ASSERT_TRUE(origVal.HasValue());
+        ASSERT_NE(origVal, nullptr);
         EXPECT_EQ(*origVal, static_cast<int>(1 * Cfg::FLD_COUNT + 1));
     }
 }

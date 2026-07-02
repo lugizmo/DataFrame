@@ -159,7 +159,7 @@ TEST(RM_DFExamples_RangeIndices, SetGetRecords)
     // get values with GetValue()
     for(auto col = fields.lower; col < fields.upper; ++col)
         for(auto row = records.lower; row < records.upper; ++row)
-            ASSERT_EQ(df.GetValue(col, row), 0);
+            ASSERT_EQ(*df.GetValue(col, row), 0);
 
     // get values with [] operator
     for(auto col = fields.lower; col < fields.upper; ++col)
@@ -233,7 +233,7 @@ TEST(RM_DFExamples_RangeIndices, StridedRecordRange)
         {
             ASSERT_TRUE(df.AssignValue(fld, rec, expected));
             auto const val = df.GetValue(fld, rec);
-            ASSERT_TRUE(val.HasValue());
+            ASSERT_NE(val, nullptr);
             ASSERT_EQ(*val, expected);
             ++expected;
         }
@@ -242,11 +242,11 @@ TEST(RM_DFExamples_RangeIndices, StridedRecordRange)
     // off-grid record keys are not members -> access fails
     ASSERT_FALSE(df.AssignValue(0, 1, 99));
     ASSERT_FALSE(df.AssignValue(0, 3, 99));
-    ASSERT_FALSE(df.GetValue(0, 5).HasValue());
-    ASSERT_FALSE(df.GetValue(0, 7).HasValue());
+    ASSERT_EQ(df.GetValue(0, 5), nullptr);
+    ASSERT_EQ(df.GetValue(0, 7), nullptr);
 
     // out-of-range record key fails as well
-    ASSERT_FALSE(df.GetValue(0, 10).HasValue());
+    ASSERT_EQ(df.GetValue(0, 10), nullptr);
 
     // the physical buffer is dense (5 x 3) and in position order
     ASSERT_NE(df.Data(), nullptr);

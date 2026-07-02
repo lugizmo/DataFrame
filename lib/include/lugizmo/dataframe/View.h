@@ -17,7 +17,6 @@
 #include <utility>
 
 #include "lugizmo/Assert.h"
-#include "lugizmo/container/OptionalRef.h"
 #include "IndexUnique.h"
 
 namespace lugizmo {
@@ -270,11 +269,11 @@ namespace lugizmo {
         /// @copydoc operator[](size_t)
         [[nodiscard]] constexpr auto operator[](size_t i) const noexcept -> T&;
 
-        /// @return Reference to the value at `i`, or an empty `OptionalRef` when `i >= Size()`.
-        [[nodiscard]] constexpr auto operator()(size_t i) noexcept -> OptionalRef<T>;
+        /// @return Pointer to the value at `i`, or null when `i >= Size()`.
+        [[nodiscard]] constexpr auto operator()(size_t i) noexcept -> T*;
 
         /// @copydoc operator()(size_t)
-        [[nodiscard]] constexpr auto operator()(size_t i) const noexcept -> OptionalRef<T>;
+        [[nodiscard]] constexpr auto operator()(size_t i) const noexcept -> T*;
 
         /// @return Pointer to the first value, or null when the view is empty.
         [[nodiscard]] auto Front() noexcept -> T*;
@@ -678,15 +677,15 @@ namespace lugizmo {
     }
 
     template<typename T, typename I>
-    constexpr auto DFView<T, I>::operator()(size_t const i) noexcept -> OptionalRef<T>
+    constexpr auto DFView<T, I>::operator()(size_t const i) noexcept -> T*
     {
-        return i < Size() ? OptionalRef<T>(view[i]) : OptionalRef<T>();
+        return i < Size() ? std::addressof(view[i]) : nullptr;
     }
 
     template<typename T, typename I>
-    constexpr auto DFView<T, I>::operator()(size_t const i) const noexcept -> OptionalRef<T>
+    constexpr auto DFView<T, I>::operator()(size_t const i) const noexcept -> T*
     {
-        return i < Size() ? OptionalRef<T>(view[i]) : OptionalRef<T>();
+        return i < Size() ? std::addressof(view[i]) : nullptr;
     }
 
     template<typename T, typename I>

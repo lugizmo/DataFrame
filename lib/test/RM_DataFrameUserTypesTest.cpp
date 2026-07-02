@@ -158,7 +158,7 @@ TEST(RM_DataframeUserTypes, MoveCopyAndDestroy)
                 EXPECT_GT(MoveCopyType::moveAssign, moveAssignBefore);
 
                 auto const value = df.GetValue(2, 11);
-                ASSERT_TRUE(value.HasValue());
+                ASSERT_NE(value, nullptr);
                 EXPECT_TRUE(value->HasValue());
                 EXPECT_EQ(value->Value(), 88);
             }
@@ -212,10 +212,10 @@ TEST(RM_DataframeUserTypes, StringKeys)
         EXPECT_EQ((df["alpha"sv, "row0"sv]), 1);
 
         auto const val = df.GetValue("beta"sv, "row1"sv);
-        ASSERT_TRUE(val.HasValue());
+        ASSERT_NE(val, nullptr);
         EXPECT_EQ(*val, 2);
 
         // a non-member heterogeneous key resolves to nothing
-        EXPECT_FALSE(df.GetValue("alpha"sv, "row9"sv).HasValue());
+        EXPECT_EQ(df.GetValue("alpha"sv, "row9"sv), nullptr);
     }
 }

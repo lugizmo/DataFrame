@@ -30,7 +30,6 @@
 #include "support/Compiler.h"
 #include "meta/DeducingThis.h"
 #include "container/Concepts.h"
-#include "container/OptionalRef.h"
 
 #include "dataframe/IndexBase.h"
 #include "dataframe/IndexUnique.h"
@@ -97,11 +96,10 @@ namespace lugizmo {
         template<typename Self>
         using Value = meta::ThisValueT<Self, T>;
 
-        /// @brief     Optional value type generated from self distinguish const category.
-        /// @attention The stored reference is required to be valid if the optional has a value,
-        ///            but mutating the dataframe shape will invalidate the reference!
+        /// @brief Pointer to a value, with pointee constness generated from self.
+        /// @attention Mutating the dataframe shape invalidates returned pointers.
         template<typename Self>
-        using OptValue = OptionalRef<Value<Self>>;
+        using ValuePointer = Value<Self>*;
 
         /// @brief View over values either on record or a field.
         template<typename Self, typename Index>
@@ -308,14 +306,15 @@ namespace lugizmo {
         // ======== GETTERS ========================================================================================================================================================
 
         /**
-         * TODO doc
-         * @param field
-         * @param record
-         * @return
+         * @brief Returns a pointer to a cell when both keys exist.
+         * @param field  Field key to look up.
+         * @param record Record key to look up.
+         * @return Pointer to the cell, or null when either key is absent.
+         * @attention Mutating the dataframe shape invalidates the returned pointer.
          */
         template<typename FieldLookup, typename RecordLookup>
         [[nodiscard]]
-        auto GetValue(this auto& self, FieldLookup const& field, RecordLookup const& record) -> OptValue<decltype(self)>;
+        auto GetValue(this auto& self, FieldLookup const& field, RecordLookup const& record) -> ValuePointer<decltype(self)>;
 
         /**
          * TODO doc
@@ -1183,7 +1182,7 @@ namespace lugizmo {
 
     template<typename T, typename F, typename R, typename L>
     template<typename FieldLookup, typename RecordLookup>
-    auto DataFrame<T, F, R, L>::GetValue(this auto& self, FieldLookup const& field, RecordLookup const& record) -> OptValue<decltype(self)>
+    auto DataFrame<T, F, R, L>::GetValue(this auto& self, FieldLookup const& field, RecordLookup const& record) -> ValuePointer<decltype(self)>
     {
         static_assert(requires(FldI const& index, FieldLookup const& lookup) { index.Position(lookup); },
                       "DataFrame field lookup requires the exact key type or transparent hash/equality support.");
@@ -1194,8 +1193,8 @@ namespace lugizmo {
         auto const fldPos = self.fldIndex.Position(field);
         auto const recPos = self.recIndex.Position(record);
 
-        if(not (fldPos && recPos)) return {};
-        return self.recsData[*recPos, *fldPos];
+        if(not (fldPos && recPos)) return nullptr;
+        return std::addressof(self.recsData[*recPos, *fldPos]);
     }
 
     template<typename T, typename F, typename R, typename L>

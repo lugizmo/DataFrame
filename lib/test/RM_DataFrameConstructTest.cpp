@@ -173,7 +173,7 @@ TEST(RM_DataFrameConstructValue, FromFieldsAndRecords)
             for (std::size_t f = 0; f < 3; ++f)
             {
                 auto const value = df.GetValue(flds.at(f), recs.at(r));
-                ASSERT_TRUE(value.HasValue());
+                ASSERT_NE(value, nullptr);
                 EXPECT_EQ(*value, data.at(r).at(f));
             }
         }
@@ -191,7 +191,7 @@ TEST(RM_DataFrameConstructValue, FromFieldsAndRecords)
             for (std::size_t f = 0; f < 3; ++f)
             {
                 auto const value = df.GetValue(flds.at(f), recs.at(r));
-                ASSERT_TRUE(value.HasValue());
+                ASSERT_NE(value, nullptr);
                 EXPECT_EQ(*value, data.at(r).at(f));
             }
         }

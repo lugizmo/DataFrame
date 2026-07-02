@@ -164,8 +164,8 @@ Test file: [RM_DataframeAccessTest.cpp](/lib/test/RM_DataframeAccessTest.cpp)
 
 | Done | Function Name                                           | Returns                | UU | R1 | Rs | Mix |
 |------|---------------------------------------------------------|------------------------|----|----|----|-----|
-| ✅    | GetValue(FldT const& field, RecT const& record) const   | OptionalRef<T const>   | ✔  | ✔  | ✔  | ✔   |
-| ✅    | GetValue(FldT const& field, RecT const& record)         | OptionalRef<T>         | ✔  | ✔  | ✔  | ✔   |
+| ✅    | GetValue(FldT const& field, RecT const& record) const   | T const*               | ✔  | ✔  | ✔  | ✔   |
+| ✅    | GetValue(FldT const& field, RecT const& record)         | T*                     | ✔  | ✔  | ✔  | ✔   |
 | ✅    | operator[](FldT const& field, RecT const& record)       | T&                     | ✔  | ✔  | ✔  | ✔   |
 | ✅    | operator[](FldT const& field, RecT const& record) const | T const&               | ✔  | ✔  | ✔  | ✔   |
 | ✅    | Data() const                                            | T const*               | ✔  | ✔  | ✔  | ✔   |
