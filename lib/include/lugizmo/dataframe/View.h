@@ -680,13 +680,13 @@ namespace lugizmo {
     template<typename T, typename I>
     constexpr auto DFView<T, I>::operator()(size_t const i) noexcept -> OptionalRef<T>
     {
-        return i < static_cast<size_t>(view.extent(0)) ? OptionalRef<T>(view[i]) : OptionalRef<T>();
+        return i < Size() ? OptionalRef<T>(view[i]) : OptionalRef<T>();
     }
 
     template<typename T, typename I>
     constexpr auto DFView<T, I>::operator()(size_t const i) const noexcept -> OptionalRef<T>
     {
-        return i < static_cast<size_t>(view.extent(0)) ? OptionalRef<T>(view[i]) : OptionalRef<T>();
+        return i < Size() ? OptionalRef<T>(view[i]) : OptionalRef<T>();
     }
 
     template<typename T, typename I>

@@ -12,7 +12,25 @@
 #include <new>
 #include <limits>
 
+#include "lugizmo/Assert.h"
+
 namespace lugizmo::internal {
+
+    /**
+     * @brief Converts an element count to bytes without unsigned multiplication overflow.
+     * @return Required byte count, or `size_t` maximum after reporting a contract violation.
+     */
+    template<typename T>
+    constexpr auto CheckedElementBytes(std::size_t const count) noexcept -> std::size_t
+    {
+        if(constexpr auto max = std::numeric_limits<std::size_t>::max(); count > max / sizeof(T))
+        {
+            LUGIZMO_ASSERT_TRACE(false, "Element count cannot be represented as an allocation size in bytes.");
+            return max;
+        }
+
+        return count * sizeof(T);
+    }
 
     /**
      *  @brief Creates the default backing resource provided by std::pmr::get_default_resource,
@@ -21,10 +39,8 @@ namespace lugizmo::internal {
     inline auto BackingResDefault() noexcept -> std::shared_ptr<std::pmr::memory_resource>
     {
         // create a non-owning reference to the global default resource
-        static auto defaultResource = std::shared_ptr<std::pmr::memory_resource>(
-            std::pmr::get_default_resource(), [](std::pmr::memory_resource*) {});
-
-        return defaultResource;
+        static auto DefaultResource = std::shared_ptr<std::pmr::memory_resource>(std::pmr::get_default_resource(), [](std::pmr::memory_resource*) {});
+        return DefaultResource;
     }
 
     /**
@@ -82,7 +98,7 @@ namespace lugizmo::internal {
     auto AllocateAligned(std::pmr::memory_resource& resource, std::size_t const count) noexcept -> T*
     {
         if(count == 0) return nullptr;
-        return static_cast<T*>(resource.allocate(count * sizeof(T), Alignment<T>()));
+        return static_cast<T*>(resource.allocate(CheckedElementBytes<T>(count), Alignment<T>()));
     }
 
     /**
@@ -98,7 +114,7 @@ namespace lugizmo::internal {
     void DeallocateAligned(std::pmr::memory_resource& resource, T* const data, std::size_t const count) noexcept
     {
         if(data == nullptr || count == 0) return;
-        resource.deallocate(data, count * sizeof(T), Alignment<T>());
+        resource.deallocate(data, CheckedElementBytes<T>(count), Alignment<T>());
     }
 
 

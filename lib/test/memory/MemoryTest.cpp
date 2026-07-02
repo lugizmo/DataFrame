@@ -14,6 +14,9 @@
 // ✅ AllocateAlignedIsAligned / AlignedHelpersHandleZeroCount
 // - AllocateAligned<T>(res, count) / DeallocateAligned(res, ptr, count)
 //
+// ✅ CheckedElementBytes
+// - CheckedElementBytes<T>(count)
+//
 // ✅ GrowthDefault*
 // - GrowthFactorDefault(count)
 //
@@ -114,6 +117,25 @@ TEST(MemoryMemoryAlign, AlignedHelpersHandleZeroCount)
     EXPECT_EQ(ptr, nullptr);
 
     DeallocateAligned(res, ptr, 0);
+}
+
+/**
+ *  @brief CheckedElementBytes converts valid counts and rejects byte-size overflow.
+ *  @see   lugizmo::internal::CheckedElementBytes<T>()
+ */
+TEST(MemoryMemoryAlign, CheckedElementBytes)
+{
+    EXPECT_EQ(CheckedElementBytes<std::uint32_t>(3), 12);
+
+    constexpr auto overflowingCount = std::numeric_limits<std::size_t>::max() / sizeof(std::uint32_t) + 1;
+    if constexpr(lugizmo::AssertTraceEnabled())
+    {
+        EXPECT_DEATH((void)CheckedElementBytes<std::uint32_t>(overflowingCount), "allocation size");
+    }
+    else
+    {
+        EXPECT_EQ(CheckedElementBytes<std::uint32_t>(overflowingCount), std::numeric_limits<std::size_t>::max());
+    }
 }
 
 /**

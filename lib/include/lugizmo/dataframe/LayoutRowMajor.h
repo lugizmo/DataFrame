@@ -11,6 +11,7 @@
 #include <memory>
 #include <memory_resource>
 #include <iterator>
+#include <limits>
 #include <mdspan>
 #include <span>
 #include <type_traits>
@@ -110,6 +111,12 @@ namespace lugizmo {
          */
         static auto ActiveCount(size_t const rowCount, size_t const colCount) noexcept -> size_t
         {
+            if(constexpr auto max = std::numeric_limits<size_t>::max(); colCount != 0 && rowCount > max / colCount)
+            {
+                LUGIZMO_ASSERT_TRACE(false, "DFRowMajor shape exceeds the representable element count.");
+                return max;
+            }
+
             return rowCount * colCount;
         }
 
@@ -133,7 +140,7 @@ namespace lugizmo {
          */
         static auto ActiveBytes(size_t const rowCount, size_t const colCount) noexcept -> size_t
         {
-            return ActiveCount(rowCount, colCount) * sizeof(T);
+            return internal::CheckedElementBytes<T>(ActiveCount(rowCount, colCount));
         }
 
         /**
@@ -188,7 +195,7 @@ namespace lugizmo {
         static void DestroyAndDeallocate(T*& data, size_t const activeCount, size_t const capacity, Memory& res) noexcept
         {
             DestroyRange(data, activeCount);
-            if(data != nullptr && capacity != 0) res.deallocate(data, capacity * sizeof(T), internal::Alignment<T>());
+            if(data != nullptr && capacity != 0) res.deallocate(data, internal::CheckedElementBytes<T>(capacity), internal::Alignment<T>());
         }
 
         // ======= HELPERS: ASSIGNMENT/MOVE ON CONSTRUCTED RANGES ==================================================================================================================
@@ -443,7 +450,7 @@ namespace lugizmo {
 
             // Step 5: allocate destination buffer
             auto const newCapacity = NextCapacity(capacity, newActiveCount);
-            auto* const newData    = static_cast<T*>(res.allocate(newCapacity * sizeof(T), internal::Alignment<T>()));
+            auto* const newData    = static_cast<T*>(res.allocate(internal::CheckedElementBytes<T>(newCapacity), internal::Alignment<T>()));
             LUGIZMO_ASSERT_TRACE(newData != nullptr, "ResizeCols failed to allocate destination buffer.");
 
             // Step 6: build each destination row (prefix defaults, overlap move/copy, suffix defaults)
@@ -552,7 +559,7 @@ namespace lugizmo {
 
             // Step 5: allocate destination buffer
             auto const newCapacity = NextCapacity(capacity, newActiveCount);
-            auto* const newData    = static_cast<T*>(res.allocate(newCapacity * sizeof(T), internal::Alignment<T>()));
+            auto* const newData    = static_cast<T*>(res.allocate(internal::CheckedElementBytes<T>(newCapacity), internal::Alignment<T>()));
             LUGIZMO_ASSERT_TRACE(newData != nullptr, "ResizeRows failed to allocate destination buffer.");
 
             // Step 6a: construct inserted leading rows
@@ -682,7 +689,7 @@ namespace lugizmo {
 
             // Step 6: allocate destination buffer
             auto const newCapacity = NextCapacity(capacity, newActiveCount);
-            auto* const newData    = static_cast<T*>(res.allocate(newCapacity * sizeof(T), internal::Alignment<T>()));
+            auto* const newData    = static_cast<T*>(res.allocate(internal::CheckedElementBytes<T>(newCapacity), internal::Alignment<T>()));
             LUGIZMO_ASSERT_TRACE(newData != nullptr, "ResizeRows(values) failed to allocate destination buffer.");
 
             // Step 7a: construct inserted rows from an input value source
@@ -824,7 +831,7 @@ namespace lugizmo {
 
             if(activeBytes <= REORDER_FULL_COPY_THRESHOLD_BYTES)
             {
-                auto* const newData = static_cast<T*>(res.allocate(capacity * sizeof(T), internal::Alignment<T>()));
+                auto* const newData = static_cast<T*>(res.allocate(internal::CheckedElementBytes<T>(capacity), internal::Alignment<T>()));
                 LUGIZMO_ASSERT_TRACE(newData != nullptr, "ReorderRows failed to allocate destination buffer.");
 
                 for(size_t newRow = 0; newRow < rowCount; ++newRow)
@@ -843,7 +850,7 @@ namespace lugizmo {
                 return;
             }
 
-            auto* const scratch = static_cast<T*>(res.allocate(colCount * sizeof(T), internal::Alignment<T>()));
+            auto* const scratch = static_cast<T*>(res.allocate(internal::CheckedElementBytes<T>(colCount), internal::Alignment<T>()));
             LUGIZMO_ASSERT_TRACE(scratch != nullptr, "ReorderRows failed to allocate scratch row.");
 
             auto visited = std::pmr::vector<unsigned char>(&res);
@@ -880,7 +887,7 @@ namespace lugizmo {
                 DestroyRange(scratch, colCount);
             }
 
-            res.deallocate(scratch, colCount * sizeof(T), internal::Alignment<T>());
+            res.deallocate(scratch, internal::CheckedElementBytes<T>(colCount), internal::Alignment<T>());
             dataView = MDSpan{data, rowCount, colCount};
         }
 
@@ -905,7 +912,7 @@ namespace lugizmo {
 
             if(activeBytes <= REORDER_FULL_COPY_THRESHOLD_BYTES)
             {
-                auto* const newData = static_cast<T*>(res.allocate(capacity * sizeof(T), internal::Alignment<T>()));
+                auto* const newData = static_cast<T*>(res.allocate(internal::CheckedElementBytes<T>(capacity), internal::Alignment<T>()));
                 LUGIZMO_ASSERT_TRACE(newData != nullptr, "ReorderColumns failed to allocate destination buffer.");
 
                 for(size_t row = 0; row < rowCount; ++row)
@@ -927,7 +934,7 @@ namespace lugizmo {
                 return;
             }
 
-            auto* const scratch = static_cast<T*>(res.allocate(colCount * sizeof(T), internal::Alignment<T>()));
+            auto* const scratch = static_cast<T*>(res.allocate(internal::CheckedElementBytes<T>(colCount), internal::Alignment<T>()));
             LUGIZMO_ASSERT_TRACE(scratch != nullptr, "ReorderColumns failed to allocate scratch row.");
 
             for(size_t row = 0; row < rowCount; ++row)
@@ -946,7 +953,7 @@ namespace lugizmo {
                 DestroyRange(scratch, colCount);
             }
 
-            res.deallocate(scratch, colCount * sizeof(T), internal::Alignment<T>());
+            res.deallocate(scratch, internal::CheckedElementBytes<T>(colCount), internal::Alignment<T>());
             dataView = MDSpan{data, rowCount, colCount};
         }
 
@@ -982,7 +989,7 @@ namespace lugizmo {
             if(newCapacity == 0) return;
 
             // Step 2: allocate destination buffer
-            auto* const newData = static_cast<T*>(res.allocate(newCapacity * sizeof(T), internal::Alignment<T>()));
+            auto* const newData = static_cast<T*>(res.allocate(internal::CheckedElementBytes<T>(newCapacity), internal::Alignment<T>()));
 
             LUGIZMO_ASSERT_TRACE(newData != nullptr, "Memory allocation returned nullptr in Realloc.");
 
