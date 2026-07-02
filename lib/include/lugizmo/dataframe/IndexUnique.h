@@ -81,7 +81,18 @@ namespace lugizmo {
             }
         }
 
-        DFUniqueIndex(DFUniqueIndex const&) = default;
+        /**
+         * @brief Disabled because PMR container copy construction silently selects
+         *        the default memory resource instead of preserving allocator intent.
+         *
+         * Use `DFUniqueIndex(other, memResource)` to choose the destination resource
+         * explicitly.
+         */
+        DFUniqueIndex(DFUniqueIndex const&) = delete;
+
+        /**
+         * @brief Copy-assigns keys and positions while retaining this index's memory resource.
+         */
         auto operator=(DFUniqueIndex const&) -> DFUniqueIndex& = default;
 
         DFUniqueIndex(DFUniqueIndex&&) noexcept = default;

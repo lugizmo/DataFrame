@@ -366,7 +366,7 @@ TEST(DataframeIndexUnique, Sort)
 }
 
 /**
- *  @brief Copy and move construction/assignment preserve the mapping independently.
+ *  @brief Resource-aware copy construction, copy assignment, and moves preserve the mapping independently.
  *  @see   lugizmo::DFUniqueIndex copy/move constructors and assignment operators
  *         lugizmo::DFUniqueIndex::DFUniqueIndex(DFUniqueIndex const&, std::pmr::memory_resource*)
  */
@@ -374,17 +374,7 @@ TEST(DataframeIndexUnique, Tors)
 {
     using namespace lugizmo;
 
-    {
-        // copy construction yields an equal, independent index
-        auto const index = CreateTestStringIndexUnique();
-        auto const copy  = DFUniqueIndex<std::string>(index);
-
-        EXPECT_EQ(copy.Size(), index.Size());
-        EXPECT_EQ(copy.MaxPosition(), index.MaxPosition());
-        EXPECT_EQ(copy.Key(0), "first");
-        EXPECT_EQ(copy.Key(2), "third");
-        EXPECT_EQ(copy.Position("second"), 1);
-    }
+    static_assert(!std::is_copy_constructible_v<DFUniqueIndex<std::string>>);
 
     {
         // copy assignment overwrites the destination
