@@ -14,6 +14,7 @@
 // ✅ Consecutive         - combined axis property
 // ✅ Contiguity          - static guarantee and runtime instance query
 // ✅ PositionalAccess    - flat storage-order and checked two-axis access
+// ✅ Subscript2D         - asserted two-axis C++23 subscript access
 // ✅ KeyAccess           - translated field/record lookup
 // ✅ LayoutOrder         - row-major and column-major iteration order
 // ✅ Constness           - mutable and read-only element access
@@ -223,6 +224,23 @@ TEST(DataframeSlice, PositionalAccess)
     EXPECT_EQ(*slice(2, 1), 10);
     EXPECT_EQ(slice(3, 0), nullptr);
     EXPECT_EQ(slice(0, 2), nullptr);
+}
+
+/**
+ * @brief The C++23 two-argument subscript accesses an asserted `(record, field)` position.
+ * @see   lugizmo::DFSlice::operator[]
+ */
+TEST(DataframeSlice, Subscript2D)
+{
+    auto values  = std::array{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+    auto fields  = Fields();
+    auto records = Records();
+    auto slice   = Slice<std::layout_right>::View(Matrix<std::layout_right>(values.data(), 3, 4), &fields, &records, 1, 3, 0, 3);
+
+    EXPECT_EQ((slice[0, 0]), 1);
+    EXPECT_EQ((slice[2, 1]), 10);
+    slice[1, 0] = 42;
+    EXPECT_EQ(values[5], 42);
 }
 
 /**

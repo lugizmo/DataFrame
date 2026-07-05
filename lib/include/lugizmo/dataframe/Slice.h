@@ -662,10 +662,25 @@ namespace lugizmo {
         // ======== POSITIONAL ACCESS ==============================================================================================================================================
 
         /**
-         * @brief Returns a value by its zero-based flattened storage-order position without bounds' checking.
-         * @pre `position < Size()`.
+         * @brief Returns a value by its zero-based flattened storage-order position.
+         * @pre `position < Size()`; checked only by `LUGIZMO_ASSERT`.
          */
-        [[nodiscard]] constexpr auto operator[](std::size_t const position) const noexcept -> T& { return data[FlatOffset(position)]; }
+        [[nodiscard]] constexpr auto operator[](std::size_t const position) const noexcept -> T&
+        {
+            LUGIZMO_ASSERT(position < Size(), "DFSlice flattened position is out of bounds.");
+            return data[FlatOffset(position)];
+        }
+
+        /**
+         * @brief Returns a value by its zero-based `(record, field)` position.
+         * @pre `record < RecordSize()` and `field < FieldSize()`; checked only by `LUGIZMO_ASSERT`.
+         */
+        [[nodiscard]] constexpr auto operator[](std::size_t const record, std::size_t const field) const noexcept -> T&
+        {
+            LUGIZMO_ASSERT(record < recordCount && field < fieldCount, "DFSlice record or field position is out of bounds.");
+            return data[static_cast<std::ptrdiff_t>(RecordPosition(record)) * recordStride +
+                        static_cast<std::ptrdiff_t>(FieldPosition(field)) * fieldStride];
+        }
 
         /// @return Pointer to `(record, field)`, or null when either local position is outside the slice.
         [[nodiscard]] constexpr auto operator()(std::size_t const record, std::size_t const field) const noexcept -> T*
