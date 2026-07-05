@@ -15,6 +15,7 @@
 // ✅ Contiguity          - static guarantee and runtime instance query
 // ✅ PositionalAccess    - flat storage-order and checked two-axis access
 // ✅ Subscript2D         - asserted two-axis C++23 subscript access
+// ✅ SliceComposition    - compose gathered and regular parent mappings
 // ✅ KeyAccess           - translated field/record lookup
 // ✅ LayoutOrder         - row-major and column-major iteration order
 // ✅ Constness           - mutable and read-only element access
@@ -241,6 +242,38 @@ TEST(DataframeSlice, Subscript2D)
     EXPECT_EQ((slice[2, 1]), 10);
     slice[1, 0] = 42;
     EXPECT_EQ(values[5], 42);
+}
+
+/**
+ * @brief Slice composes key selections with both gathered and regular parent mappings.
+ * @see   lugizmo::DFSlice::Slice
+ */
+TEST(DataframeSlice, SliceComposition)
+{
+    auto values  = std::array{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+    auto fields  = Fields();
+    auto records = Records();
+    auto matrix  = Matrix<std::layout_right>(values.data(), 3, 4);
+
+    auto gathered = Slice<std::layout_right>::Selected(matrix, &fields, &records, {0, 2, 3}, {0, 2});
+    auto nestedGathered = gathered.Slice({40, 10}, {300});
+    EXPECT_TRUE(std::ranges::equal(nestedGathered, std::array{8, 11}));
+    EXPECT_TRUE(nestedGathered.Contains(40, 300));
+    EXPECT_FALSE(nestedGathered.Contains(30, 300));
+
+    auto regular = Slice<std::layout_right>::Mapped(matrix, &fields, &records, 0, 2, 2, 0, 3, 1);
+    auto nestedRegular = regular.Slice(std::array{30}, std::array{300, 200});
+    EXPECT_TRUE(std::ranges::equal(nestedRegular, std::array{6, 10}));
+    EXPECT_TRUE(nestedRegular.Contains(30, 200));
+
+    using RangeIndex = lugizmo::DFRangeIndex<int>;
+    using RangeSlice = lugizmo::DFSlice<int, RangeIndex, RangeIndex, std::layout_right>;
+    auto rangeFields  = RangeIndex(0, 4);
+    auto rangeRecords = RangeIndex(0, 3);
+    auto rangeParent  = RangeSlice::View(matrix, &rangeFields, &rangeRecords, 0, 4, 0, 3);
+    auto rangeNested  = rangeParent.Slice(lugizmo::DFRangeIndexBounds{.lower = 1, .upper = 4, .step = 2},
+                                          lugizmo::DFRangeIndexBounds{.lower = 0, .upper = 3, .step = 2});
+    EXPECT_TRUE(std::ranges::equal(rangeNested, std::array{1, 3, 9, 11}));
 }
 
 /**

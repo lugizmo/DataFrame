@@ -1694,12 +1694,12 @@ namespace lugizmo {
         if constexpr(meta::IsConstThis<decltype(self)>())
         {
             return SliceView::View(static_cast<ConstDataMatrix>(self.recsData), &self.fldIndex, &self.recIndex,
-                                   0, self.fldIndex.Size(), 0, self.recIndex.Size());
+                                   0, self.fldIndex.Size(), 0, self.recIndex.Size(), self.backingRes.get());
         }
         else
         {
             return SliceView::View(self.recsData, &self.fldIndex, &self.recIndex,
-                                   0, self.fldIndex.Size(), 0, self.recIndex.Size());
+                                   0, self.fldIndex.Size(), 0, self.recIndex.Size(), self.backingRes.get());
         }
     }
 
@@ -1716,13 +1716,13 @@ namespace lugizmo {
         {
             return SliceView::Mapped(static_cast<ConstDataMatrix>(self.recsData), &self.fldIndex, &self.recIndex,
                                      mapping->first, mapping->count, mapping->step, 0, self.recIndex.Size(), 1,
-                                     std::move(mapping->positions));
+                                     std::move(mapping->positions), std::pmr::vector<std::size_t>(self.backingRes.get()));
         }
         else
         {
             return SliceView::Mapped(self.recsData, &self.fldIndex, &self.recIndex,
                                      mapping->first, mapping->count, mapping->step, 0, self.recIndex.Size(), 1,
-                                     std::move(mapping->positions));
+                                     std::move(mapping->positions), std::pmr::vector<std::size_t>(self.backingRes.get()));
         }
     }
 
@@ -1739,13 +1739,13 @@ namespace lugizmo {
         {
             return SliceView::Mapped(static_cast<ConstDataMatrix>(self.recsData), &self.fldIndex, &self.recIndex,
                                      0, self.fldIndex.Size(), 1, mapping->first, mapping->count, mapping->step,
-                                     {}, std::move(mapping->positions));
+                                     std::pmr::vector<std::size_t>(self.backingRes.get()), std::move(mapping->positions));
         }
         else
         {
             return SliceView::Mapped(self.recsData, &self.fldIndex, &self.recIndex,
                                      0, self.fldIndex.Size(), 1, mapping->first, mapping->count, mapping->step,
-                                     {}, std::move(mapping->positions));
+                                     std::pmr::vector<std::size_t>(self.backingRes.get()), std::move(mapping->positions));
         }
     }
 

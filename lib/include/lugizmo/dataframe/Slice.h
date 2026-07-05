@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <initializer_list>
 #include <iterator>
 #include <mdspan>
 #include <memory>
@@ -20,6 +21,7 @@
 #include <vector>
 
 #include "lugizmo/Assert.h"
+#include "SliceConcepts.h"
 #include "IndexUnique.h"
 
 namespace lugizmo {
@@ -220,7 +222,8 @@ namespace lugizmo {
      * between rows or columns. None of these operations copies or rearranges values.
      *
      * The values and both indices are borrowed; selected-position mappings are
-     * owned by the slice. Structural dataframe changes invalidate the slice and
+     * owned by the slice. Their memory resources are borrowed and must outlive the
+     * slice and its copies. Structural dataframe changes invalidate the slice and
      * everything obtained from it. A selected slice is not a borrowed range because
      * its iterators refer to that owned mapping. A type-guaranteed contiguous slice
      * uses pointer iterators and remains a borrowed range.
@@ -234,6 +237,9 @@ namespace lugizmo {
     template<typename T, typename F, typename R, typename Layout, bool C = false>
     class DFSlice: public std::ranges::view_interface<DFSlice<T, F, R, Layout, C>>
     {
+        template<typename, typename, typename, typename, bool>
+        friend class DFSlice;
+
         static_assert(std::is_same_v<Layout, std::layout_right> || std::is_same_v<Layout, std::layout_left>, "DFSlice supports layout_right and layout_left.");
 
         using FieldIndex  = F const*;
@@ -257,6 +263,46 @@ namespace lugizmo {
         std::size_t    recordPositionStep;
         Positions      selectedFields;
         Positions      selectedRecords;
+
+        /// @return Sorted local positions for a key selection, or no value when resolution fails.
+        template<typename Index, typename Selection, typename Resolver>
+        requires DFSliceSelectionFor<Selection, Index>
+        [[nodiscard]] static auto ResolveSelection(Selection&& selection, std::pmr::memory_resource* const resource,
+                                                   Resolver&& resolver) noexcept -> std::optional<Positions>
+        {
+            if constexpr(DFSliceRangeSelectionFor<Selection, Index>)
+            {
+                using Difference = typename Index::DiffType;
+                if(selection.lower > selection.upper || selection.step <= Difference{0}) return std::nullopt;
+            }
+
+            auto positions = Positions(resource);
+            if constexpr(std::ranges::sized_range<Selection>) positions.reserve(std::ranges::size(selection));
+            for(auto&& key : selection)
+            {
+                auto const position = resolver(key);
+                if(!position.has_value()) return std::nullopt;
+                positions.push_back(*position);
+            }
+
+            std::ranges::sort(positions);
+            auto const duplicate = std::ranges::adjacent_find(positions);
+            LUGIZMO_ASSERT(duplicate == positions.end(), "DFSlice selections must not contain duplicate keys.");
+            if(duplicate != positions.end()) return std::nullopt;
+            return positions;
+        }
+
+        /// @return Absolute position in the source field index for a local selected position.
+        [[nodiscard]] constexpr auto SourceFieldPosition(std::size_t const position) const noexcept -> std::size_t
+        {
+            return fieldOffset + (selectedFields.empty() ? position * fieldPositionStep : selectedFields[position]);
+        }
+
+        /// @return Absolute position in the source record index for a local selected position.
+        [[nodiscard]] constexpr auto SourceRecordPosition(std::size_t const position) const noexcept -> std::size_t
+        {
+            return recordOffset + (selectedRecords.empty() ? position * recordPositionStep : selectedRecords[position]);
+        }
 
         /// @return Field position relative to the slice base, resolving a gathered mapping when present.
         [[nodiscard]] constexpr auto FieldPosition(std::size_t const position) const noexcept -> std::size_t
@@ -434,14 +480,17 @@ namespace lugizmo {
          * @param fldEnd   One-past-last included field position.
          * @param recBegin First included record position.
          * @param recEnd   One-past-last included record position.
+         * @param resource Resource retained by the empty axis mappings and any derived slices.
          *
          * @pre `fldBegin <= fldEnd <= original.extent(1)`.
          * @pre `recBegin <= recEnd <= original.extent(0)`.
+         * @pre When `C` is true, the rectangle occupies one uninterrupted memory region.
          *
          * @return A non-owning slice over the requested rectangle, or an empty slice for invalid bounds when assertions are disabled.
          */
         [[nodiscard]] static constexpr auto View(Matrix original, FieldIndex const fields, RecordIndex const records, std::size_t const fldBegin, std::size_t const fldEnd,
-                                                 std::size_t const recBegin, std::size_t const recEnd) noexcept -> DFSlice
+                                                 std::size_t const recBegin, std::size_t const recEnd,
+                                                 std::pmr::memory_resource* const resource = std::pmr::get_default_resource()) noexcept -> DFSlice
         {
             auto const allRecords = static_cast<std::size_t>(original.extent(0));
             auto const allFields  = static_cast<std::size_t>(original.extent(1));
@@ -456,7 +505,9 @@ namespace lugizmo {
                 base += static_cast<std::ptrdiff_t>(recBegin) * original.mapping().stride(0) + static_cast<std::ptrdiff_t>(fldBegin) * original.mapping().stride(1);
             }
 
-            return DFSlice(base, fields, records, fldBegin, recBegin, fldEnd - fldBegin, recEnd - recBegin, original.mapping().stride(1), original.mapping().stride(0));
+            return DFSlice(base, fields, records, fldBegin, recBegin, fldEnd - fldBegin, recEnd - recBegin,
+                           original.mapping().stride(1), original.mapping().stride(0), 1, 1,
+                           Positions(resource), Positions(resource));
         }
 
         /**
@@ -488,8 +539,10 @@ namespace lugizmo {
             auto* base = original.data_handle();
             if(base != nullptr) base += static_cast<std::ptrdiff_t>(fieldOffset) * original.mapping().stride(1);
 
+            auto* const resource = positions.get_allocator().resource();
             return DFSlice(base, fields, records, fieldOffset, 0, positions.size(), allRecords,
-                           original.mapping().stride(1), original.mapping().stride(0), 1, 1, std::move(positions));
+                           original.mapping().stride(1), original.mapping().stride(0), 1, 1,
+                           std::move(positions), Positions(resource));
         }
 
         /**
@@ -521,8 +574,10 @@ namespace lugizmo {
             auto* base = original.data_handle();
             if(base != nullptr) base += static_cast<std::ptrdiff_t>(recordOffset) * original.mapping().stride(0);
 
+            auto* const resource = positions.get_allocator().resource();
             return DFSlice(base, fields, records, 0, recordOffset, allFields, positions.size(),
-                           original.mapping().stride(1), original.mapping().stride(0), 1, 1, {}, std::move(positions));
+                           original.mapping().stride(1), original.mapping().stride(0), 1, 1,
+                           Positions(resource), std::move(positions));
         }
 
         /**
@@ -612,6 +667,54 @@ namespace lugizmo {
             return DFSlice(base, fields, records, fldBegin, recBegin, fldCount, recCount,
                            physicalFieldStride, physicalRecordStride, fldStep, recStep,
                            std::move(fieldPositions), std::move(recordPositions));
+        }
+
+        // ======== SUBSLICES =====================================================================================================================================================
+
+        /**
+         * @brief Creates a smaller slice from field and record keys selected by this slice.
+         * @details Selection order is normalized to the source dataframe's physical order. The
+         *          composed position mappings use the same PMR resources as their parent axes.
+         * @return An empty slice when a selection is empty, contains duplicates, or requests a key
+         *         that is unavailable or not selected by this slice.
+         */
+        template<typename FieldSelection, typename RecordSelection>
+        requires DFSliceSelectionFor<FieldSelection, F> && DFSliceSelectionFor<RecordSelection, R>
+        [[nodiscard]] auto Slice(FieldSelection&& fields, RecordSelection&& records) const noexcept -> DFSlice<T, F, R, Layout, false>
+        {
+            using Result = DFSlice<T, F, R, Layout, false>;
+
+            auto fieldPositions  = ResolveSelection<F>(std::forward<FieldSelection>(fields), selectedFields.get_allocator().resource(), [this](auto const& key) { return LocalFieldPosition(key); });
+            auto recordPositions = ResolveSelection<R>(std::forward<RecordSelection>(records), selectedRecords.get_allocator().resource(), [this](auto const& key) { return LocalRecordPosition(key); });
+            if(!fieldPositions.has_value() || !recordPositions.has_value() || fieldPositions->empty() || recordPositions->empty()) return Result{};
+
+            auto const firstFieldLocal  = fieldPositions->front();
+            auto const firstRecordLocal = recordPositions->front();
+            auto const firstFieldSource  = SourceFieldPosition(firstFieldLocal);
+            auto const firstRecordSource = SourceRecordPosition(firstRecordLocal);
+
+            for(auto& position : *fieldPositions) position = SourceFieldPosition(position) - firstFieldSource;
+            for(auto& position : *recordPositions) position = SourceRecordPosition(position) - firstRecordSource;
+
+            auto* base = data;
+            if(base != nullptr)
+            {
+                base += static_cast<std::ptrdiff_t>(FieldPosition(firstFieldLocal)) * fieldStride +
+                        static_cast<std::ptrdiff_t>(RecordPosition(firstRecordLocal)) * recordStride;
+            }
+
+            auto const sourceFieldStride = selectedFields.empty() ? fieldStride / static_cast<std::ptrdiff_t>(fieldPositionStep) : fieldStride;
+            auto const sourceRecordStride = selectedRecords.empty() ? recordStride / static_cast<std::ptrdiff_t>(recordPositionStep) : recordStride;
+            return Result(base, fieldIndex, recordIndex, firstFieldSource, firstRecordSource,
+                          fieldPositions->size(), recordPositions->size(), sourceFieldStride, sourceRecordStride,
+                          1, 1, std::move(*fieldPositions), std::move(*recordPositions));
+        }
+
+        /// @copydoc Slice(FieldSelection&&, RecordSelection&&)
+        [[nodiscard]] auto Slice(std::initializer_list<FieldKey> const fields, std::initializer_list<RecordKey> const records) const noexcept
+                -> DFSlice<T, F, R, Layout, false>
+        {
+            return Slice<std::initializer_list<FieldKey> const&, std::initializer_list<RecordKey> const&>(fields, records);
         }
 
         // ======== SHAPE AND LAYOUT ===============================================================================================================================================
