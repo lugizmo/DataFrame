@@ -16,6 +16,8 @@
 // ✅ PositionalAccess    - flat storage-order and checked two-axis access
 // ✅ Subscript2D         - asserted two-axis C++23 subscript access
 // ✅ SliceComposition    - compose gathered and regular parent mappings
+// ✅ SliceFields         - compose fields while preserving parent records
+// ✅ SliceRecords        - compose records while preserving parent fields
 // ✅ SliceField          - preserve records while selecting one field
 // ✅ SliceRecord         - preserve fields while selecting one record
 // ✅ KeyAccess           - translated field/record lookup
@@ -276,6 +278,46 @@ TEST(DataframeSlice, SliceComposition)
     auto rangeNested  = rangeParent.Slice(lugizmo::DFRangeIndexBounds{.lower = 1, .upper = 4, .step = 2},
                                           lugizmo::DFRangeIndexBounds{.lower = 0, .upper = 3, .step = 2});
     EXPECT_TRUE(std::ranges::equal(rangeNested, std::array{1, 3, 9, 11}));
+}
+
+/**
+ * @brief SliceFields composes a field selection while preserving the parent records.
+ * @see   lugizmo::DFSlice::SliceFields
+ */
+TEST(DataframeSlice, SliceFields)
+{
+    auto values  = std::array{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+    auto fields  = Fields();
+    auto records = Records();
+    auto parent  = Slice<std::layout_right>::Selected(
+            Matrix<std::layout_right>(values.data(), 3, 4), &fields, &records, {0, 2, 3}, {0, 2});
+
+    auto selected = parent.SliceFields({40, 10});
+    EXPECT_EQ(selected.FieldSize(), 2);
+    EXPECT_EQ(selected.RecordSize(), 2);
+    EXPECT_TRUE(std::ranges::equal(selected, std::array{0, 3, 8, 11}));
+    EXPECT_TRUE(selected.Contains(40, 300));
+    EXPECT_TRUE(parent.SliceFields({20}).Empty());
+}
+
+/**
+ * @brief SliceRecords composes a record selection while preserving the parent fields.
+ * @see   lugizmo::DFSlice::SliceRecords
+ */
+TEST(DataframeSlice, SliceRecords)
+{
+    auto values  = std::array{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+    auto fields  = Fields();
+    auto records = Records();
+    auto parent  = Slice<std::layout_right>::Selected(
+            Matrix<std::layout_right>(values.data(), 3, 4), &fields, &records, {0, 2, 3}, {0, 2});
+
+    auto selected = parent.SliceRecords({300, 100});
+    EXPECT_EQ(selected.FieldSize(), 3);
+    EXPECT_EQ(selected.RecordSize(), 2);
+    EXPECT_TRUE(std::ranges::equal(selected, std::array{0, 2, 3, 8, 10, 11}));
+    EXPECT_TRUE(selected.Contains(40, 300));
+    EXPECT_TRUE(parent.SliceRecords({200}).Empty());
 }
 
 /**

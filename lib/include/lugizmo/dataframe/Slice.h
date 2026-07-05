@@ -718,6 +718,72 @@ namespace lugizmo {
         }
 
         /**
+         * @brief Selects field keys while preserving every currently selected record.
+         * @return A composed slice, or an empty slice when the selection is empty, invalid, or contains an unavailable key.
+         */
+        template<typename FieldSelection>
+        requires DFSliceSelectionFor<FieldSelection, F>
+        [[nodiscard]] auto SliceFields(FieldSelection&& fields) const noexcept -> DFSlice<T, F, R, Layout, false>
+        {
+            using Result = DFSlice<T, F, R, Layout, false>;
+            auto fieldPositions = ResolveSelection<F>(std::forward<FieldSelection>(fields), selectedFields.get_allocator().resource(),
+                                                       [this](auto const& key) { return LocalFieldPosition(key); });
+            if(!fieldPositions.has_value() || fieldPositions->empty() || recordCount == 0) return Result{};
+
+            auto const firstLocal  = fieldPositions->front();
+            auto const firstSource = SourceFieldPosition(firstLocal);
+            for(auto& position : *fieldPositions) position = SourceFieldPosition(position) - firstSource;
+
+            auto* base = data;
+            if(base != nullptr) base += static_cast<std::ptrdiff_t>(FieldPosition(firstLocal)) * fieldStride;
+
+            auto const sourceStride = selectedFields.empty() ? fieldStride / static_cast<std::ptrdiff_t>(fieldPositionStep) : fieldStride;
+            auto records = Positions(selectedRecords, selectedRecords.get_allocator());
+            return Result(base, fieldIndex, recordIndex, firstSource, recordOffset,
+                          fieldPositions->size(), recordCount, sourceStride, recordStride,
+                          1, recordPositionStep, std::move(*fieldPositions), std::move(records));
+        }
+
+        /// @copydoc SliceFields(FieldSelection&&)
+        [[nodiscard]] auto SliceFields(std::initializer_list<FieldKey> const fields) const noexcept -> DFSlice<T, F, R, Layout, false>
+        {
+            return SliceFields<std::initializer_list<FieldKey> const&>(fields);
+        }
+
+        /**
+         * @brief Selects record keys while preserving every currently selected field.
+         * @return A composed slice, or an empty slice when the selection is empty, invalid, or contains an unavailable key.
+         */
+        template<typename RecordSelection>
+        requires DFSliceSelectionFor<RecordSelection, R>
+        [[nodiscard]] auto SliceRecords(RecordSelection&& records) const noexcept -> DFSlice<T, F, R, Layout, false>
+        {
+            using Result = DFSlice<T, F, R, Layout, false>;
+            auto recordPositions = ResolveSelection<R>(std::forward<RecordSelection>(records), selectedRecords.get_allocator().resource(),
+                                                        [this](auto const& key) { return LocalRecordPosition(key); });
+            if(!recordPositions.has_value() || recordPositions->empty() || fieldCount == 0) return Result{};
+
+            auto const firstLocal  = recordPositions->front();
+            auto const firstSource = SourceRecordPosition(firstLocal);
+            for(auto& position : *recordPositions) position = SourceRecordPosition(position) - firstSource;
+
+            auto* base = data;
+            if(base != nullptr) base += static_cast<std::ptrdiff_t>(RecordPosition(firstLocal)) * recordStride;
+
+            auto const sourceStride = selectedRecords.empty() ? recordStride / static_cast<std::ptrdiff_t>(recordPositionStep) : recordStride;
+            auto fields = Positions(selectedFields, selectedFields.get_allocator());
+            return Result(base, fieldIndex, recordIndex, fieldOffset, firstSource,
+                          fieldCount, recordPositions->size(), fieldStride, sourceStride,
+                          fieldPositionStep, 1, std::move(fields), std::move(*recordPositions));
+        }
+
+        /// @copydoc SliceRecords(RecordSelection&&)
+        [[nodiscard]] auto SliceRecords(std::initializer_list<RecordKey> const records) const noexcept -> DFSlice<T, F, R, Layout, false>
+        {
+            return SliceRecords<std::initializer_list<RecordKey> const&>(records);
+        }
+
+        /**
          * @brief Selects one field while preserving every currently selected record.
          * @return A one-field slice, or an empty slice when `field` is not selected.
          */
