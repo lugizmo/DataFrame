@@ -143,7 +143,7 @@ namespace lugizmo {
     template<typename T, typename I>
     class DFView : public std::ranges::view_interface<DFView<T, I>>
     {
-        template<typename Ti, typename Ii>
+        template<typename Ti, typename Ii, typename Vi>
         friend class DFViewIndexed;
 
         using Extents = std::dextents<std::ptrdiff_t, 1>;

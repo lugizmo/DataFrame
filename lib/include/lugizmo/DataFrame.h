@@ -115,6 +115,10 @@ namespace lugizmo {
         template<typename Self, typename Index>
         using IndexedValueView = DFViewIndexed<Value<Self>, Index const>;
 
+        /// @brief Indexed record view whose value component is contiguous in row-major storage.
+        template<typename Self, typename Index>
+        using IndexedRecordValueView = DFViewIndexed<Value<Self>, Index const, DFSpan<Value<Self>, Index const>>;
+
         // ======== CONSTRUCTION ===================================================================================================================================================
 
         /**
@@ -475,7 +479,7 @@ namespace lugizmo {
          */
         template<typename RecordLookup>
         [[nodiscard]]
-        auto ViewRecordIndexed(this auto& self, RecordLookup const& index) noexcept -> IndexedValueView<decltype(self), FldI>;
+        auto ViewRecordIndexed(this auto& self, RecordLookup const& index) noexcept -> IndexedRecordValueView<decltype(self), FldI>;
 
         /**
          *  @brief   Alternative syntax for ViewField().
@@ -512,7 +516,7 @@ namespace lugizmo {
          * @copydoc ViewRecordIndexed
          */
         template<typename Storage>
-        auto operator|(this auto& self, SelectRecordIndexed<RecT, Storage> const& index) noexcept -> IndexedValueView<decltype(self), FldI>
+        auto operator|(this auto& self, SelectRecordIndexed<RecT, Storage> const& index) noexcept -> IndexedRecordValueView<decltype(self), FldI>
         {
             return self.ViewRecordIndexed(index.Value());
         }
@@ -1512,34 +1516,34 @@ namespace lugizmo {
 
     template<typename T, typename F, typename R, typename L>
     template<typename RecordLookup>
-    auto DataFrame<T, F, R, L>::ViewRecordIndexed(this auto& self, RecordLookup const& index) noexcept -> IndexedValueView<decltype(self), FldI>
+    auto DataFrame<T, F, R, L>::ViewRecordIndexed(this auto& self, RecordLookup const& index) noexcept -> IndexedRecordValueView<decltype(self), FldI>
     {
         static_assert(requires(RecI const& recordIndex, RecordLookup const& lookup) { recordIndex.Position(lookup); },
                       "DataFrame record lookup requires the exact key type or transparent hash/equality support.");
 
         auto const pos = self.recIndex.Position(index);
-        if(not pos.has_value()) return IndexedValueView<decltype(self), FldI>{};
+        if(not pos.has_value()) return IndexedRecordValueView<decltype(self), FldI>{};
 
         if constexpr (DFUnqIndex<FldI>)
         {
             if constexpr (meta::IsConstThis<decltype(self)>())
             {
-                return IndexedValueView<decltype(self), FldI>::template RecordView<>(static_cast<ConstDataMatrix>(self.recsData), &self.fldIndex, *pos, self.fldIndex.Keys());
+                return IndexedRecordValueView<decltype(self), FldI>::template RecordView<>(static_cast<ConstDataMatrix>(self.recsData), &self.fldIndex, *pos, self.fldIndex.Keys());
             }
             else
             {
-                return IndexedValueView<decltype(self), FldI>::template RecordView<>(self.recsData, &self.fldIndex, *pos, self.fldIndex.Keys());
+                return IndexedRecordValueView<decltype(self), FldI>::template RecordView<>(self.recsData, &self.fldIndex, *pos, self.fldIndex.Keys());
             }
         }
         else
         {
             if constexpr (meta::IsConstThis<decltype(self)>())
             {
-                return IndexedValueView<decltype(self), FldI>::RecordView(static_cast<ConstDataMatrix>(self.recsData), &self.fldIndex, *pos, self.fldIndex.Bounds());
+                return IndexedRecordValueView<decltype(self), FldI>::RecordView(static_cast<ConstDataMatrix>(self.recsData), &self.fldIndex, *pos, self.fldIndex.Bounds());
             }
             else
             {
-                return IndexedValueView<decltype(self), FldI>::RecordView(self.recsData, &self.fldIndex, *pos, self.fldIndex.Bounds());
+                return IndexedRecordValueView<decltype(self), FldI>::RecordView(self.recsData, &self.fldIndex, *pos, self.fldIndex.Bounds());
             }
         }
     }

@@ -117,10 +117,10 @@ TEST_F(ViewIndexedTest, FieldView)
     constexpr auto expectedIndices = std::array{10, 20, 30, 40};
 
     std::size_t position = 0;
-    for(auto [val, idx] : view)
+    for(auto [key, val] : view)
     {
         EXPECT_EQ(val, expectedValues[position]);
-        EXPECT_EQ(idx, expectedIndices[position]);
+        EXPECT_EQ(key, expectedIndices[position]);
         ++position;
     }
     EXPECT_EQ(position, expectedValues.size());
@@ -137,9 +137,9 @@ TEST_F(ViewIndexedTest, RecordView)
     auto second = view[1];
 
     EXPECT_EQ(first.val, 4);
-    EXPECT_EQ(first.idx, 100);
+    EXPECT_EQ(first.key, 100);
     EXPECT_EQ(second.val, 5);
-    EXPECT_EQ(second.idx, 200);
+    EXPECT_EQ(second.key, 200);
 }
 
 /**
@@ -199,7 +199,7 @@ TEST_F(ViewIndexedTest, IndexOperator)
 
     static_assert(not std::is_const_v<std::remove_reference_t<decltype(entry.val)>>);
     EXPECT_EQ(entry.val, 5);
-    EXPECT_EQ(entry.idx, 30);
+    EXPECT_EQ(entry.key, 30);
     entry.val = 50;
     EXPECT_EQ(values[5], 50);
 }
@@ -215,7 +215,7 @@ TEST_F(ViewIndexedTest, CheckedIndexOperator)
 
     ASSERT_TRUE(entry.has_value());
     EXPECT_EQ(entry->val, 3);
-    EXPECT_EQ(entry->idx, 20);
+    EXPECT_EQ(entry->key, 20);
     entry->val = 30;
     EXPECT_EQ(values[3], 30);
     EXPECT_FALSE(view(4).has_value());
@@ -231,7 +231,7 @@ TEST_F(ViewIndexedTest, StandardFront)
     auto entry = view.front();
 
     EXPECT_EQ(entry.val, 1);
-    EXPECT_EQ(entry.idx, 10);
+    EXPECT_EQ(entry.key, 10);
     entry.val = 10;
     EXPECT_EQ(values[1], 10);
 }
@@ -246,7 +246,7 @@ TEST_F(ViewIndexedTest, StandardBack)
     auto entry = view.back();
 
     EXPECT_EQ(entry.val, 7);
-    EXPECT_EQ(entry.idx, 40);
+    EXPECT_EQ(entry.key, 40);
     entry.val = 70;
     EXPECT_EQ(values[7], 70);
 }
@@ -261,7 +261,7 @@ TEST_F(ViewIndexedTest, Front)
 
     ASSERT_TRUE(entry.has_value());
     EXPECT_EQ(entry->val, 1);
-    EXPECT_EQ(entry->idx, 10);
+    EXPECT_EQ(entry->key, 10);
     entry->val = 10;
     EXPECT_EQ(values[1], 10);
     EXPECT_FALSE(View().Front().has_value());
@@ -277,7 +277,7 @@ TEST_F(ViewIndexedTest, Back)
 
     ASSERT_TRUE(entry.has_value());
     EXPECT_EQ(entry->val, 7);
-    EXPECT_EQ(entry->idx, 40);
+    EXPECT_EQ(entry->key, 40);
     entry->val = 70;
     EXPECT_EQ(values[7], 70);
     EXPECT_FALSE(View().Back().has_value());
@@ -293,7 +293,7 @@ TEST_F(ViewIndexedTest, Begin)
     auto first = *view.begin();
 
     EXPECT_EQ(first.val, 1);
-    EXPECT_EQ(first.idx, 10);
+    EXPECT_EQ(first.key, 10);
     first.val = 11;
     EXPECT_EQ(values[1], 11);
 }
@@ -307,7 +307,7 @@ TEST_F(ViewIndexedTest, End)
     auto const view = Field();
     EXPECT_EQ(view.end() - view.begin(), 4);
     EXPECT_EQ((view.end() - 1)->val, 7);
-    EXPECT_EQ((view.end() - 1)->idx, 40);
+    EXPECT_EQ((view.end() - 1)->key, 40);
 }
 
 /**
@@ -321,7 +321,7 @@ TEST_F(ViewIndexedTest, CBegin)
 
     static_assert(std::is_const_v<std::remove_reference_t<decltype(first.val)>>);
     EXPECT_EQ(first.val, 1);
-    EXPECT_EQ(first.idx, 10);
+    EXPECT_EQ(first.key, 10);
 }
 
 /**
@@ -333,7 +333,7 @@ TEST_F(ViewIndexedTest, CEnd)
     auto const view = ConstField();
     EXPECT_EQ(view.cend() - view.cbegin(), 4);
     EXPECT_EQ((view.cend() - 1)->val, 7);
-    EXPECT_EQ((view.cend() - 1)->idx, 40);
+    EXPECT_EQ((view.cend() - 1)->key, 40);
 }
 
 /**
@@ -347,7 +347,7 @@ TEST_F(ViewIndexedTest, RBegin)
 
     ASSERT_NE(reverse, view.rend());
     EXPECT_EQ(reverse->val, 7);
-    EXPECT_EQ(reverse->idx, 40);
+    EXPECT_EQ(reverse->key, 40);
     reverse->val = 70;
     EXPECT_EQ(values[7], 70);
 }
@@ -361,7 +361,7 @@ TEST_F(ViewIndexedTest, REnd)
     auto view = Field();
     EXPECT_EQ(view.rend() - view.rbegin(), 4);
     EXPECT_EQ((view.rend() - 1)->val, 1);
-    EXPECT_EQ((view.rend() - 1)->idx, 10);
+    EXPECT_EQ((view.rend() - 1)->key, 10);
 
     auto empty = View();
     EXPECT_EQ(empty.rbegin(), empty.rend());
@@ -379,7 +379,7 @@ TEST_F(ViewIndexedTest, CRBegin)
     static_assert(std::is_const_v<std::remove_reference_t<decltype(reverse->val)>>);
     ASSERT_NE(reverse, view.crend());
     EXPECT_EQ(reverse->val, 7);
-    EXPECT_EQ(reverse->idx, 40);
+    EXPECT_EQ(reverse->key, 40);
 }
 
 /**
@@ -391,7 +391,7 @@ TEST_F(ViewIndexedTest, CREnd)
     auto const view = ConstField();
     EXPECT_EQ(view.crend() - view.crbegin(), 4);
     EXPECT_EQ((view.crend() - 1)->val, 1);
-    EXPECT_EQ((view.crend() - 1)->idx, 10);
+    EXPECT_EQ((view.crend() - 1)->key, 10);
 }
 
 /**
@@ -424,7 +424,7 @@ TEST_F(ViewIndexedTest, At)
     EXPECT_EQ(values[5], 50);
     EXPECT_EQ(view.At(50), nullptr);
 
-    auto const constView = ConstField();
+    [[maybe_unused]] auto const constView = ConstField();
     static_assert(std::is_const_v<std::remove_pointer_t<decltype(constView.At(10))>>);
 }
 
@@ -444,7 +444,7 @@ TEST_F(ViewIndexedTest, IteratorRandomAccess)
     EXPECT_EQ(end - begin, 4);
     EXPECT_EQ(begin - end, -4);
     EXPECT_EQ((begin + 2)->val, 5);
-    EXPECT_EQ((2 + begin)->idx, 30);
+    EXPECT_EQ((2 + begin)->key, 30);
     EXPECT_EQ((end - 1)->val, 7);
     EXPECT_LT(begin, end);
     EXPECT_LE(begin, end);
@@ -452,16 +452,16 @@ TEST_F(ViewIndexedTest, IteratorRandomAccess)
     EXPECT_GE(end, begin);
 
     auto iterator = begin;
-    EXPECT_EQ((iterator++)->idx, 10);
-    EXPECT_EQ(iterator->idx, 20);
-    EXPECT_EQ((++iterator)->idx, 30);
-    EXPECT_EQ((iterator--)->idx, 30);
-    EXPECT_EQ((--iterator)->idx, 10);
+    EXPECT_EQ((iterator++)->key, 10);
+    EXPECT_EQ(iterator->key, 20);
+    EXPECT_EQ((++iterator)->key, 30);
+    EXPECT_EQ((iterator--)->key, 30);
+    EXPECT_EQ((--iterator)->key, 10);
     iterator += 3;
-    EXPECT_EQ(iterator->idx, 40);
+    EXPECT_EQ(iterator->key, 40);
     iterator -= 2;
-    EXPECT_EQ(iterator->idx, 20);
-    EXPECT_EQ(iterator[1].idx, 30);
+    EXPECT_EQ(iterator->key, 20);
+    EXPECT_EQ(iterator[1].key, 30);
 }
 
 /**
@@ -496,7 +496,7 @@ TEST(ViewIndexed, RangeIndexEntry)
 
     auto const first  = view[0];
     auto const second = view[1];
-    EXPECT_EQ(first.idx, 10);
-    EXPECT_EQ(second.idx, 12);
-    EXPECT_EQ(first.idx, 10);
+    EXPECT_EQ(first.key, 10);
+    EXPECT_EQ(second.key, 12);
+    EXPECT_EQ(first.key, 10);
 }

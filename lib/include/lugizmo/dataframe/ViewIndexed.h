@@ -39,8 +39,7 @@ namespace lugizmo {
         template<typename Entry, typename ZippedEntry>
         [[nodiscard]] constexpr auto MakeDFIndexedEntry(ZippedEntry&& zippedEntry) noexcept -> Entry
         {
-            return Entry{std::get<0>(std::forward<ZippedEntry>(zippedEntry)),
-                         std::get<1>(std::forward<ZippedEntry>(zippedEntry))};
+            return Entry{std::get<1>(std::forward<ZippedEntry>(zippedEntry)), std::get<0>(std::forward<ZippedEntry>(zippedEntry))};
         }
 
         /**
@@ -51,7 +50,7 @@ namespace lugizmo {
          * tuple-like proxy to the public named `Entry` proxy.
          *
          * Dereference and positional indexing return `Entry` by value. The
-         * entry's `val` member still refers to dataframe storage. Its `idx`
+         * entry's `val` member still refers to dataframe storage. Its `key`
          * member either refers to a stored key or owns a generated key.
          * Dereference and `operator[]` require a valid entry position. Iterator
          * difference and ordering require both operands to originate from the
@@ -162,7 +161,7 @@ namespace lugizmo {
      *
      * `DFViewIndexed` presents one dataframe field or record as a synchronized
      * random-access range. Each position produces an `Entry` containing the value
-     * in `val` and the corresponding record or field key in `idx`.
+     * in `val` and the corresponding record or field key in `key`.
      *
      * @par Element constness
      * Value mutability is determined by `T`, not by constness of the view wrapper.
@@ -173,7 +172,7 @@ namespace lugizmo {
      *
      * @par Entry proxy contract
      * Entries are lightweight proxy objects returned by value. `Entry::val`
-     * refers to dataframe storage. For a stored unique index, `Entry::idx` refers
+     * refers to dataframe storage. For a stored unique index, `Entry::key` refers
      * to the stored key; for a generated range index, it owns the generated key.
      * Use `auto` or `auto&&` when naming a dereferenced entry; `auto&` cannot bind
      * to the temporary proxy. Copying an entry copies its references and any
@@ -212,17 +211,19 @@ namespace lugizmo {
      *
      * @tparam T Dataframe element type, including const qualification.
      * @tparam I Index type describing the keys paired with the selected values.
+     * @tparam V Underlying value view; `DFView<T, I>` by default and `DFSpan<T, I>`
+     *           for a naturally contiguous axis.
      */
-    template<typename T, typename I>
-    class DFViewIndexed : public std::ranges::view_interface<DFViewIndexed<T, I>>
+    template<typename T, typename I, typename V = DFView<T, I>>
+    class DFViewIndexed : public std::ranges::view_interface<DFViewIndexed<T, I, V>>
     {
-        using View      = DFView<T, I>;
+        using View      = V;
         using Index     = std::remove_const_t<I>;
         using KeyType   = Index::ConstKeyType;
         using IndexView = Index::KeyView;
 
         template<typename Layout>
-        using MDSpanDF = View::template MDSpanDF<Layout>;
+        using MDSpanDF = std::mdspan<T, std::dextents<std::ptrdiff_t, 2>, Layout>;
 
         using ZippedView      = decltype(std::views::zip(std::declval<View&>(), std::declval<IndexView&>()));
         using ConstZippedView = decltype(std::views::zip(std::declval<View const&>(), std::declval<IndexView const&>()));
@@ -255,27 +256,27 @@ namespace lugizmo {
         /// @brief Reference type used by `Entry::val`; follows the const qualification of `T`.
         using ValueReference = std::ranges::range_reference_t<View>;
 
-        /// @brief Read-only stored-key reference or owned generated-key value used by `Entry::idx`.
+        /// @brief Read-only stored-key reference or owned generated-key value used by `Entry::key`.
         using IndexReference = internal::DFIndexedMember<std::ranges::range_reference_t<IndexView>>;
 
         /**
          * @brief Named reference-like result produced by an indexed view.
          *
-         * `val` refers to the dataframe element. `idx` either refers to a stored
-         * unique-index key or owns a generated range-index key. Public members
-         * intentionally also enable structured binding as `auto [val, idx]`.
+         * `key` either refers to a stored index key or owns a generated key.
+         * `val` refers to the dataframe element. Public members
+         * intentionally also enable structured binding as `auto [key, val]`.
          *
-         * The entry itself is returned by value. Retaining `val`, or `idx` when
+         * The entry itself is returned by value. Retaining `val`, or `key` when
          * it is a reference, requires the underlying dataframe/index to remain
          * alive and unmodified structurally.
          */
         struct Entry
         {
+            /// @brief Corresponding read-only stored key or owned generated key.
+            IndexReference key;
+
             /// @brief Reference to the dataframe value at this logical position.
             ValueReference val;
-
-            /// @brief Corresponding read-only stored key or owned generated key.
-            IndexReference idx;
         };
 
         /// @brief Entry returned through a const view wrapper; element constness still follows `T`.
@@ -345,7 +346,7 @@ namespace lugizmo {
         // ======== COMPONENT VIEWS ================================================================================================================================================
 
         /**
-         * @brief Returns the dataframe-value component as its original strided view.
+         * @brief Returns the dataframe-value component as its original view.
          * @return Non-owning view with the same value order and mutability as this view.
          */
         [[nodiscard]] auto Values() const noexcept -> View;
@@ -454,8 +455,8 @@ namespace lugizmo {
 
     // ======== CONSTRUCTION =======================================================================================================================================================
 
-    template<typename T, typename I>
-    DFViewIndexed<T, I>::DFViewIndexed(View view, IndexView indices) noexcept :
+    template<typename T, typename I, typename V>
+    DFViewIndexed<T, I, V>::DFViewIndexed(View view, IndexView indices) noexcept :
         dataView(std::move(view)),
         indexView(std::move(indices))
     {
@@ -463,117 +464,117 @@ namespace lugizmo {
                             "DFViewIndexed requires the data and index views to have equal sizes.");
     }
 
-    template<typename T, typename I>
-    DFViewIndexed<T, I>::DFViewIndexed() noexcept :
+    template<typename T, typename I, typename V>
+    DFViewIndexed<T, I, V>::DFViewIndexed() noexcept :
         dataView(),
         indexView()
     {}
 
-    template<typename T, typename I>
+    template<typename T, typename I, typename V>
     template<typename Layout>
-    auto DFViewIndexed<T, I>::RecordView(MDSpanDF<Layout> original, I const* index, size_t const recIndex, IndexView fldIndices) noexcept -> DFViewIndexed
+    auto DFViewIndexed<T, I, V>::RecordView(MDSpanDF<Layout> original, I const* index, size_t const recIndex, IndexView fldIndices) noexcept -> DFViewIndexed
     {
         return DFViewIndexed(View::RecordView(original, index, recIndex), std::move(fldIndices));
     }
 
-    template<typename T, typename I>
+    template<typename T, typename I, typename V>
     template<typename Layout>
-    auto DFViewIndexed<T, I>::FieldView(MDSpanDF<Layout> original, I const* index, size_t const fldIndex, IndexView recIndices) noexcept -> DFViewIndexed
+    auto DFViewIndexed<T, I, V>::FieldView(MDSpanDF<Layout> original, I const* index, size_t const fldIndex, IndexView recIndices) noexcept -> DFViewIndexed
     {
         return DFViewIndexed(View::FieldView(original, index, fldIndex), std::move(recIndices));
     }
 
-    template<typename T, typename I>
-    auto DFViewIndexed<T, I>::Zipped() noexcept -> ZippedView
+    template<typename T, typename I, typename V>
+    auto DFViewIndexed<T, I, V>::Zipped() noexcept -> ZippedView
     {
         return std::views::zip(dataView, indexView);
     }
 
-    template<typename T, typename I>
-    auto DFViewIndexed<T, I>::Zipped() const noexcept -> ConstZippedView
+    template<typename T, typename I, typename V>
+    auto DFViewIndexed<T, I, V>::Zipped() const noexcept -> ConstZippedView
     {
         return std::views::zip(dataView, indexView);
     }
 
     // ======== CAPACITY ===========================================================================================================================================================
 
-    template<typename T, typename I>
-    auto DFViewIndexed<T, I>::Size() const noexcept -> size_t
+    template<typename T, typename I, typename V>
+    auto DFViewIndexed<T, I, V>::Size() const noexcept -> size_t
     {
         return dataView.Size();
     }
 
-    template<typename T, typename I>
-    auto DFViewIndexed<T, I>::Empty() const noexcept -> bool
+    template<typename T, typename I, typename V>
+    auto DFViewIndexed<T, I, V>::Empty() const noexcept -> bool
     {
         return dataView.Empty();
     }
 
     // ======== COMPONENT VIEWS ====================================================================================================================================================
 
-    template<typename T, typename I>
-    auto DFViewIndexed<T, I>::Values() const noexcept -> View
+    template<typename T, typename I, typename V>
+    auto DFViewIndexed<T, I, V>::Values() const noexcept -> View
     {
         return dataView;
     }
 
-    template<typename T, typename I>
-    auto DFViewIndexed<T, I>::Indices() const noexcept -> IndexView
+    template<typename T, typename I, typename V>
+    auto DFViewIndexed<T, I, V>::Indices() const noexcept -> IndexView
     {
         return indexView;
     }
 
     // ======== POSITIONAL ACCESS ==================================================================================================================================================
 
-    template<typename T, typename I>
-    auto DFViewIndexed<T, I>::operator[](size_t const i) noexcept -> Entry
+    template<typename T, typename I, typename V>
+    auto DFViewIndexed<T, I, V>::operator[](size_t const i) noexcept -> Entry
     {
         return begin()[static_cast<std::ptrdiff_t>(i)];
     }
 
-    template<typename T, typename I>
-    auto DFViewIndexed<T, I>::operator[](size_t const i) const noexcept -> ConstEntry
+    template<typename T, typename I, typename V>
+    auto DFViewIndexed<T, I, V>::operator[](size_t const i) const noexcept -> ConstEntry
     {
         return begin()[static_cast<std::ptrdiff_t>(i)];
     }
 
-    template<typename T, typename I>
-    auto DFViewIndexed<T, I>::operator()(size_t const i) noexcept -> std::optional<Entry>
+    template<typename T, typename I, typename V>
+    auto DFViewIndexed<T, I, V>::operator()(size_t const i) noexcept -> std::optional<Entry>
     {
         if(i >= Size()) return std::nullopt;
         return (*this)[i];
     }
 
-    template<typename T, typename I>
-    auto DFViewIndexed<T, I>::operator()(size_t const i) const noexcept -> std::optional<ConstEntry>
+    template<typename T, typename I, typename V>
+    auto DFViewIndexed<T, I, V>::operator()(size_t const i) const noexcept -> std::optional<ConstEntry>
     {
         if(i >= Size()) return std::nullopt;
         return (*this)[i];
     }
 
-    template<typename T, typename I>
-    auto DFViewIndexed<T, I>::Front() noexcept -> std::optional<Entry>
+    template<typename T, typename I, typename V>
+    auto DFViewIndexed<T, I, V>::Front() noexcept -> std::optional<Entry>
     {
         if(Empty()) return std::nullopt;
         return (*this)[0];
     }
 
-    template<typename T, typename I>
-    auto DFViewIndexed<T, I>::Front() const noexcept -> std::optional<ConstEntry>
+    template<typename T, typename I, typename V>
+    auto DFViewIndexed<T, I, V>::Front() const noexcept -> std::optional<ConstEntry>
     {
         if(Empty()) return std::nullopt;
         return (*this)[0];
     }
 
-    template<typename T, typename I>
-    auto DFViewIndexed<T, I>::Back() noexcept -> std::optional<Entry>
+    template<typename T, typename I, typename V>
+    auto DFViewIndexed<T, I, V>::Back() noexcept -> std::optional<Entry>
     {
         if(Empty()) return std::nullopt;
         return (*this)[Size() - 1];
     }
 
-    template<typename T, typename I>
-    auto DFViewIndexed<T, I>::Back() const noexcept -> std::optional<ConstEntry>
+    template<typename T, typename I, typename V>
+    auto DFViewIndexed<T, I, V>::Back() const noexcept -> std::optional<ConstEntry>
     {
         if(Empty()) return std::nullopt;
         return (*this)[Size() - 1];
@@ -583,74 +584,74 @@ namespace lugizmo {
 
     // NOLINTBEGIN(readability-identifier-naming)
 
-    template<typename T, typename I>
-    auto DFViewIndexed<T, I>::begin() noexcept -> Iterator
+    template<typename T, typename I, typename V>
+    auto DFViewIndexed<T, I, V>::begin() noexcept -> Iterator
     {
         return Iterator(Zipped().begin());
     }
 
-    template<typename T, typename I>
-    auto DFViewIndexed<T, I>::end() noexcept -> Iterator
+    template<typename T, typename I, typename V>
+    auto DFViewIndexed<T, I, V>::end() noexcept -> Iterator
     {
         return Iterator(Zipped().end());
     }
 
-    template<typename T, typename I>
-    auto DFViewIndexed<T, I>::begin() const noexcept -> ConstIterator
+    template<typename T, typename I, typename V>
+    auto DFViewIndexed<T, I, V>::begin() const noexcept -> ConstIterator
     {
         return ConstIterator(Zipped().begin());
     }
 
-    template<typename T, typename I>
-    auto DFViewIndexed<T, I>::end() const noexcept -> ConstIterator
+    template<typename T, typename I, typename V>
+    auto DFViewIndexed<T, I, V>::end() const noexcept -> ConstIterator
     {
         return ConstIterator(Zipped().end());
     }
 
-    template<typename T, typename I>
-    auto DFViewIndexed<T, I>::cbegin() const noexcept -> ConstIterator
+    template<typename T, typename I, typename V>
+    auto DFViewIndexed<T, I, V>::cbegin() const noexcept -> ConstIterator
     {
         return begin();
     }
 
-    template<typename T, typename I>
-    auto DFViewIndexed<T, I>::cend() const noexcept -> ConstIterator
+    template<typename T, typename I, typename V>
+    auto DFViewIndexed<T, I, V>::cend() const noexcept -> ConstIterator
     {
         return end();
     }
 
-    template<typename T, typename I>
-    auto DFViewIndexed<T, I>::rbegin() noexcept -> ReverseIterator
+    template<typename T, typename I, typename V>
+    auto DFViewIndexed<T, I, V>::rbegin() noexcept -> ReverseIterator
     {
         return ReverseIterator(end());
     }
 
-    template<typename T, typename I>
-    auto DFViewIndexed<T, I>::rend() noexcept -> ReverseIterator
+    template<typename T, typename I, typename V>
+    auto DFViewIndexed<T, I, V>::rend() noexcept -> ReverseIterator
     {
         return ReverseIterator(begin());
     }
 
-    template<typename T, typename I>
-    auto DFViewIndexed<T, I>::rbegin() const noexcept -> ConstReverseIterator
+    template<typename T, typename I, typename V>
+    auto DFViewIndexed<T, I, V>::rbegin() const noexcept -> ConstReverseIterator
     {
         return ConstReverseIterator(end());
     }
 
-    template<typename T, typename I>
-    auto DFViewIndexed<T, I>::rend() const noexcept -> ConstReverseIterator
+    template<typename T, typename I, typename V>
+    auto DFViewIndexed<T, I, V>::rend() const noexcept -> ConstReverseIterator
     {
         return ConstReverseIterator(begin());
     }
 
-    template<typename T, typename I>
-    auto DFViewIndexed<T, I>::crbegin() const noexcept -> ConstReverseIterator
+    template<typename T, typename I, typename V>
+    auto DFViewIndexed<T, I, V>::crbegin() const noexcept -> ConstReverseIterator
     {
         return ConstReverseIterator(cend());
     }
 
-    template<typename T, typename I>
-    auto DFViewIndexed<T, I>::crend() const noexcept -> ConstReverseIterator
+    template<typename T, typename I, typename V>
+    auto DFViewIndexed<T, I, V>::crend() const noexcept -> ConstReverseIterator
     {
         return ConstReverseIterator(cbegin());
     }
@@ -659,28 +660,28 @@ namespace lugizmo {
 
     // ======== KEY ACCESS =========================================================================================================================================================
 
-    template<typename T, typename I>
-    auto DFViewIndexed<T, I>::Contains(KeyType const& key) const noexcept -> bool
+    template<typename T, typename I, typename V>
+    auto DFViewIndexed<T, I, V>::Contains(KeyType const& key) const noexcept -> bool
     {
         return dataView.Contains(key);
     }
 
-    template<typename T, typename I>
-    auto DFViewIndexed<T, I>::At(KeyType const& key) noexcept -> T*
+    template<typename T, typename I, typename V>
+    auto DFViewIndexed<T, I, V>::At(KeyType const& key) noexcept -> T*
     {
         return dataView.At(key);
     }
 
-    template<typename T, typename I>
-    auto DFViewIndexed<T, I>::At(KeyType const& key) const noexcept -> T*
+    template<typename T, typename I, typename V>
+    auto DFViewIndexed<T, I, V>::At(KeyType const& key) const noexcept -> T*
     {
         return dataView.At(key);
     }
 
 } // namespace lugizmo
 
-template<typename T, typename I>
-inline constexpr bool std::ranges::enable_borrowed_range<lugizmo::DFViewIndexed<T, I>> = true; // NOLINT(readability-identifier-naming)
+template<typename T, typename I, typename V>
+inline constexpr bool std::ranges::enable_borrowed_range<lugizmo::DFViewIndexed<T, I, V>> = true; // NOLINT(readability-identifier-naming)
 
 static_assert(std::ranges::random_access_range<lugizmo::DFViewIndexed<int, lugizmo::DFUniqueIndex<int> const>>, "DFViewIndexed must model random_access_range.");
 static_assert(std::ranges::random_access_range<lugizmo::DFViewIndexed<int const, lugizmo::DFUniqueIndex<int> const>>, "Read-only DFViewIndexed must model random_access_range.");

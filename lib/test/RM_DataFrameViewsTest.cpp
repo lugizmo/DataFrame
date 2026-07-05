@@ -150,7 +150,7 @@ TYPED_TEST(RM_DataframeViews, ViewRecord)
 }
 
 /**
- *  @brief ViewFieldIndexed yields (value, record index) per entry (const + mutable).
+ *  @brief ViewFieldIndexed yields (record key, value) per entry (const + mutable).
  *  @see   lugizmo::DataFrame.ViewFieldIndexed(field)
  */
 TYPED_TEST(RM_DataframeViews, ViewFieldIndexed)
@@ -159,17 +159,19 @@ TYPED_TEST(RM_DataframeViews, ViewFieldIndexed)
     auto df   = BuildFilled<Cfg>();
 
     {
-        // each entry pairs the column value with its record index
+        // each entry pairs the record key with its column value
         for (std::size_t f = 0; f < Cfg::FLD_COUNT; ++f)
         {
             auto const view = std::as_const(df).ViewFieldIndexed(Cfg::FieldKey(f));
+            static_assert(!std::ranges::contiguous_range<decltype(view)>);
+            static_assert(!std::ranges::contiguous_range<decltype(view.Values())>);
             ASSERT_EQ(view.Size(), Cfg::REC_COUNT);
 
             std::size_t r = 0;
-            for (auto [value, index] : view)
+            for (auto [key, value] : view)
             {
                 EXPECT_EQ(value, static_cast<int>(r * Cfg::FLD_COUNT + f));
-                EXPECT_EQ(index, Cfg::RecordKey(r));
+                EXPECT_EQ(key, Cfg::RecordKey(r));
                 ++r;
             }
             EXPECT_EQ(r, Cfg::REC_COUNT);
@@ -179,9 +181,9 @@ TYPED_TEST(RM_DataframeViews, ViewFieldIndexed)
     {
         // a mutable indexed view writes through
         auto view = df.ViewFieldIndexed(Cfg::FieldKey(0));
-        for (auto [value, index] : view)
+        for (auto [key, value] : view)
         {
-            static_cast<void>(index);
+            static_cast<void>(key);
             value = 7;
         }
 
@@ -193,7 +195,7 @@ TYPED_TEST(RM_DataframeViews, ViewFieldIndexed)
 }
 
 /**
- *  @brief ViewRecordIndexed yields (value, field index) per entry (const + mutable).
+ *  @brief ViewRecordIndexed yields (field key, value) per entry (const + mutable).
  *  @see   lugizmo::DataFrame.ViewRecordIndexed(record)
  */
 TYPED_TEST(RM_DataframeViews, ViewRecordIndexed)
@@ -202,17 +204,19 @@ TYPED_TEST(RM_DataframeViews, ViewRecordIndexed)
     auto df   = BuildFilled<Cfg>();
 
     {
-        // each entry pairs the row value with its field index
+        // each entry pairs the field key with its row value
         for (std::size_t r = 0; r < Cfg::REC_COUNT; ++r)
         {
             auto const view = std::as_const(df).ViewRecordIndexed(Cfg::RecordKey(r));
+            static_assert(!std::ranges::contiguous_range<decltype(view)>);
+            static_assert(std::ranges::contiguous_range<decltype(view.Values())>);
             ASSERT_EQ(view.Size(), Cfg::FLD_COUNT);
 
             std::size_t f = 0;
-            for (auto [value, index] : view)
+            for (auto [key, value] : view)
             {
                 EXPECT_EQ(value, static_cast<int>(r * Cfg::FLD_COUNT + f));
-                EXPECT_EQ(index, Cfg::FieldKey(f));
+                EXPECT_EQ(key, Cfg::FieldKey(f));
                 ++f;
             }
             EXPECT_EQ(f, Cfg::FLD_COUNT);
@@ -222,9 +226,9 @@ TYPED_TEST(RM_DataframeViews, ViewRecordIndexed)
     {
         // a mutable indexed view writes through
         auto view = df.ViewRecordIndexed(Cfg::RecordKey(0));
-        for (auto [value, index] : view)
+        for (auto [key, value] : view)
         {
-            static_cast<void>(index);
+            static_cast<void>(key);
             value = 7;
         }
 
@@ -318,10 +322,10 @@ TYPED_TEST(RM_DataframeViews, SelectFieldIndexed)
             ASSERT_EQ(view.Size(), Cfg::REC_COUNT);
 
             std::size_t r = 0;
-            for (auto [value, index] : view)
+            for (auto [key, value] : view)
             {
                 EXPECT_EQ(value, static_cast<int>(r * Cfg::FLD_COUNT + f));
-                EXPECT_EQ(index, Cfg::RecordKey(r));
+                EXPECT_EQ(key, Cfg::RecordKey(r));
                 ++r;
             }
             EXPECT_EQ(r, Cfg::REC_COUNT);
@@ -351,13 +355,14 @@ TYPED_TEST(RM_DataframeViews, SelectRecordIndexed)
         for (std::size_t r = 0; r < Cfg::REC_COUNT; ++r)
         {
             auto const view = constDf | SelectRecordIndexed(Cfg::RecordKey(r));
+            static_assert(std::ranges::contiguous_range<decltype(view.Values())>);
             ASSERT_EQ(view.Size(), Cfg::FLD_COUNT);
 
             std::size_t f = 0;
-            for (auto [value, index] : view)
+            for (auto [key, value] : view)
             {
                 EXPECT_EQ(value, static_cast<int>(r * Cfg::FLD_COUNT + f));
-                EXPECT_EQ(index, Cfg::FieldKey(f));
+                EXPECT_EQ(key, Cfg::FieldKey(f));
                 ++f;
             }
             EXPECT_EQ(f, Cfg::FLD_COUNT);
