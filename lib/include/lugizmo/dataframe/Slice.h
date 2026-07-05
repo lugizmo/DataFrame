@@ -717,6 +717,48 @@ namespace lugizmo {
             return Slice<std::initializer_list<FieldKey> const&, std::initializer_list<RecordKey> const&>(fields, records);
         }
 
+        /**
+         * @brief Selects one field while preserving every currently selected record.
+         * @return A one-field slice, or an empty slice when `field` is not selected.
+         */
+        [[nodiscard]] auto SliceField(FieldKey const& field) const noexcept -> DFSlice<T, F, R, Layout, false>
+        {
+            using Result = DFSlice<T, F, R, Layout, false>;
+            auto const localPosition = LocalFieldPosition(field);
+            if(!localPosition.has_value() || recordCount == 0) return Result{};
+
+            auto* base = data;
+            if(base != nullptr) base += static_cast<std::ptrdiff_t>(FieldPosition(*localPosition)) * fieldStride;
+
+            auto const sourcePosition = SourceFieldPosition(*localPosition);
+            auto fields = Positions(selectedFields.get_allocator().resource());
+            auto records = Positions(selectedRecords, selectedRecords.get_allocator());
+            return Result(base, fieldIndex, recordIndex, sourcePosition, recordOffset, 1, recordCount,
+                          fieldStride, recordStride, 1, recordPositionStep,
+                          std::move(fields), std::move(records));
+        }
+
+        /**
+         * @brief Selects one record while preserving every currently selected field.
+         * @return A one-record slice, or an empty slice when `record` is not selected.
+         */
+        [[nodiscard]] auto SliceRecord(RecordKey const& record) const noexcept -> DFSlice<T, F, R, Layout, false>
+        {
+            using Result = DFSlice<T, F, R, Layout, false>;
+            auto const localPosition = LocalRecordPosition(record);
+            if(!localPosition.has_value() || fieldCount == 0) return Result{};
+
+            auto* base = data;
+            if(base != nullptr) base += static_cast<std::ptrdiff_t>(RecordPosition(*localPosition)) * recordStride;
+
+            auto const sourcePosition = SourceRecordPosition(*localPosition);
+            auto fields = Positions(selectedFields, selectedFields.get_allocator());
+            auto records = Positions(selectedRecords.get_allocator().resource());
+            return Result(base, fieldIndex, recordIndex, fieldOffset, sourcePosition, fieldCount, 1,
+                          fieldStride, recordStride, fieldPositionStep, 1,
+                          std::move(fields), std::move(records));
+        }
+
         // ======== SHAPE AND LAYOUT ===============================================================================================================================================
 
         /// @return Number of selected fields.

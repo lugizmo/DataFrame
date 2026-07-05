@@ -16,6 +16,8 @@
 // ✅ PositionalAccess    - flat storage-order and checked two-axis access
 // ✅ Subscript2D         - asserted two-axis C++23 subscript access
 // ✅ SliceComposition    - compose gathered and regular parent mappings
+// ✅ SliceField          - preserve records while selecting one field
+// ✅ SliceRecord         - preserve fields while selecting one record
 // ✅ KeyAccess           - translated field/record lookup
 // ✅ LayoutOrder         - row-major and column-major iteration order
 // ✅ Constness           - mutable and read-only element access
@@ -274,6 +276,44 @@ TEST(DataframeSlice, SliceComposition)
     auto rangeNested  = rangeParent.Slice(lugizmo::DFRangeIndexBounds{.lower = 1, .upper = 4, .step = 2},
                                           lugizmo::DFRangeIndexBounds{.lower = 0, .upper = 3, .step = 2});
     EXPECT_TRUE(std::ranges::equal(rangeNested, std::array{1, 3, 9, 11}));
+}
+
+/**
+ * @brief SliceField preserves the parent record selection and selects one field key.
+ * @see   lugizmo::DFSlice::SliceField
+ */
+TEST(DataframeSlice, SliceField)
+{
+    auto values  = std::array{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+    auto fields  = Fields();
+    auto records = Records();
+    auto parent  = Slice<std::layout_right>::Selected(Matrix<std::layout_right>(values.data(), 3, 4), &fields, &records, {0, 2, 3}, {0, 2});
+
+    auto field = parent.SliceField(30);
+    EXPECT_EQ(field.FieldSize(), 1);
+    EXPECT_EQ(field.RecordSize(), 2);
+    EXPECT_TRUE(std::ranges::equal(field, std::array{2, 10}));
+    EXPECT_TRUE(field.Contains(30, 300));
+    EXPECT_TRUE(parent.SliceField(20).Empty());
+}
+
+/**
+ * @brief SliceRecord preserves the parent field selection and selects one record key.
+ * @see   lugizmo::DFSlice::SliceRecord
+ */
+TEST(DataframeSlice, SliceRecord)
+{
+    auto values  = std::array{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+    auto fields  = Fields();
+    auto records = Records();
+    auto parent  = Slice<std::layout_right>::Selected(Matrix<std::layout_right>(values.data(), 3, 4), &fields, &records, {0, 2, 3}, {0, 2});
+
+    auto record = parent.SliceRecord(300);
+    EXPECT_EQ(record.FieldSize(), 3);
+    EXPECT_EQ(record.RecordSize(), 1);
+    EXPECT_TRUE(std::ranges::equal(record, std::array{8, 10, 11}));
+    EXPECT_TRUE(record.Contains(40, 300));
+    EXPECT_TRUE(parent.SliceRecord(200).Empty());
 }
 
 /**
