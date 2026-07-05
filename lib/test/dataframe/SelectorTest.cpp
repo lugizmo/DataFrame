@@ -73,11 +73,11 @@ namespace {
 
 /**
  * @brief SelectField borrows an lvalue key without copying or moving it.
- * @see   lugizmo::SelectField
+ * @see   lgz::SelectField
  */
 TEST(Selector, SelectFieldBorrowed)
 {
-    using namespace lugizmo;
+    using namespace lgz;
 
     auto key = LargeKey(7);
     LargeKey::ResetCounts();
@@ -92,11 +92,11 @@ TEST(Selector, SelectFieldBorrowed)
 
 /**
  * @brief SelectFieldIndexed owns a temporary key moved into the selector.
- * @see   lugizmo::SelectFieldIndexed
+ * @see   lgz::SelectFieldIndexed
  */
 TEST(Selector, SelectFieldIndexedOwned)
 {
-    using namespace lugizmo;
+    using namespace lgz;
 
     LargeKey::ResetCounts();
     auto selector = SelectFieldIndexed(LargeKey(8));
@@ -109,11 +109,11 @@ TEST(Selector, SelectFieldIndexedOwned)
 
 /**
  * @brief Copying a borrowing SelectRecord keeps borrowing the original key.
- * @see   lugizmo::SelectRecord
+ * @see   lgz::SelectRecord
  */
 TEST(Selector, SelectRecordBorrowedCopy)
 {
-    using namespace lugizmo;
+    using namespace lgz;
 
     auto key = LargeKey(9);
     auto selector = SelectRecord(key);
@@ -127,11 +127,11 @@ TEST(Selector, SelectRecordBorrowedCopy)
 
 /**
  * @brief Copying an owning SelectRecordIndexed gives the copy its own key.
- * @see   lugizmo::SelectRecordIndexed
+ * @see   lgz::SelectRecordIndexed
  */
 TEST(Selector, SelectRecordIndexedOwned)
 {
-    using namespace lugizmo;
+    using namespace lgz;
 
     auto selector = SelectRecordIndexed(LargeKey(10));
     LargeKey::ResetCounts();
@@ -144,11 +144,11 @@ TEST(Selector, SelectRecordIndexedOwned)
 
 /**
  * @brief A const rvalue is copied into owned storage instead of being borrowed.
- * @see   lugizmo::SelectField
+ * @see   lgz::SelectField
  */
 TEST(Selector, ConstRvalueOwned)
 {
-    using namespace lugizmo;
+    using namespace lgz;
 
     auto const key = LargeKey(11);
     LargeKey::ResetCounts();

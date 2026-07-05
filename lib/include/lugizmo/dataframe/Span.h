@@ -17,7 +17,7 @@
 #include "lugizmo/Assert.h"
 #include "IndexUnique.h"
 
-namespace lugizmo {
+namespace lgz {
 
     /**
      * @brief Non-owning contiguous DataFrame view with keyed lookup.
@@ -178,18 +178,18 @@ namespace lugizmo {
         // NOLINTEND(readability-identifier-naming)
     };
 
-} // namespace lugizmo
+} // namespace lgz
 
 // ======== STANDARD RANGE CUSTOMIZATION ===========================================================================================================================================
 
 template<typename T, typename I>
-inline constexpr bool std::ranges::enable_borrowed_range<lugizmo::DFSpan<T, I>> = true; // NOLINT(readability-identifier-naming)
+inline constexpr bool std::ranges::enable_borrowed_range<lgz::DFSpan<T, I>> = true; // NOLINT(readability-identifier-naming)
 
-static_assert(std::ranges::contiguous_range<lugizmo::DFSpan<int, lugizmo::DFUniqueIndex<int>>>);
-static_assert(std::ranges::contiguous_range<lugizmo::DFSpan<int const, lugizmo::DFUniqueIndex<int>>>);
-static_assert(std::ranges::sized_range<lugizmo::DFSpan<int, lugizmo::DFUniqueIndex<int>>>);
-static_assert(std::ranges::common_range<lugizmo::DFSpan<int, lugizmo::DFUniqueIndex<int>>>);
-static_assert(std::ranges::view<lugizmo::DFSpan<int, lugizmo::DFUniqueIndex<int>>>);
-static_assert(std::ranges::borrowed_range<lugizmo::DFSpan<int, lugizmo::DFUniqueIndex<int>>>);
+static_assert(std::ranges::contiguous_range<lgz::DFSpan<int, lgz::DFUniqueIndex<int>>>);
+static_assert(std::ranges::contiguous_range<lgz::DFSpan<int const, lgz::DFUniqueIndex<int>>>);
+static_assert(std::ranges::sized_range<lgz::DFSpan<int, lgz::DFUniqueIndex<int>>>);
+static_assert(std::ranges::common_range<lgz::DFSpan<int, lgz::DFUniqueIndex<int>>>);
+static_assert(std::ranges::view<lgz::DFSpan<int, lgz::DFUniqueIndex<int>>>);
+static_assert(std::ranges::borrowed_range<lgz::DFSpan<int, lgz::DFUniqueIndex<int>>>);
 
 #endif // LUGIZMO_DF_SPAN_H

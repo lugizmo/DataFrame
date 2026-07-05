@@ -16,14 +16,14 @@
 
 TEST(RM_DFExamples_RangeIndices, LayoutDefaultIsRowMajor)
 {
-    using namespace lugizmo;
+    using namespace lgz;
     using DF = DataFrame<int, DFRangeIndex<int>, DFRangeIndex<int>>;
     static_assert(std::is_same_v<DF::Layout, DFRowMajor<int>>);
 }
 
 TEST(RM_DFExamples_RangeIndices, EmptyInitialization)
 {
-    using namespace lugizmo;
+    using namespace lgz;
 
     DataFrame<int, DFRangeIndex<int>, DFRangeIndex<int>> const df;
     ASSERT_TRUE(df.Empty());
@@ -31,7 +31,7 @@ TEST(RM_DFExamples_RangeIndices, EmptyInitialization)
 
 TEST(RM_DFExamples_RangeIndices, InitializationsRangeOnly)
 {
-    using namespace lugizmo;
+    using namespace lgz;
     using DF = DataFrame<float, DFRangeIndex<int>, DFRangeIndex<int>>;
 
     // initialize step by step
@@ -107,7 +107,7 @@ TEST(RM_DFExamples_RangeIndices, InitializationsRangeOnly)
 
 TEST(RM_DFExamples_RangeIndices, SetGetRecords)
 {
-    using namespace lugizmo;
+    using namespace lgz;
     using DF = DataFrame<int, DFRangeIndex<int>, DFRangeIndex<int>>;
 
     auto df = DF();
@@ -213,7 +213,7 @@ TEST(RM_DFExamples_RangeIndices, SetGetRecords)
 
 TEST(RM_DFExamples_RangeIndices, StridedRecordRange)
 {
-    using namespace lugizmo;
+    using namespace lgz;
     using DF = DataFrame<int, DFRangeIndex<int>, DFRangeIndex<int>>;
 
     auto df = DF();
@@ -255,7 +255,7 @@ TEST(RM_DFExamples_RangeIndices, StridedRecordRange)
 
 TEST(RM_DFExamples_RangeIndices, StridedMdspanMutation)
 {
-    using namespace lugizmo;
+    using namespace lgz;
     using DF = DataFrame<int, DFRangeIndex<int>, DFRangeIndex<int>>;
 
     auto df = DF();

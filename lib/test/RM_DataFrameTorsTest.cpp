@@ -35,8 +35,8 @@
 
 #include "RM_HelperDFTestConfigs.h"
 
-using namespace lugizmo;
-using namespace lugizmo::test;
+using namespace lgz;
+using namespace lgz::test;
 
 namespace {
 
@@ -127,7 +127,7 @@ TYPED_TEST_SUITE(RM_DataframeTors, IndexConfigs);
 
 /**
  *  @brief Moving a dataframe transfers ownership and leaves the source empty.
- *  @see   lugizmo::DataFrame::DataFrame(DataFrame&& other) noexcept
+ *  @see   lgz::DataFrame::DataFrame(DataFrame&& other) noexcept
  */
 TYPED_TEST(RM_DataframeTors, MoveConstruction)
 {
@@ -155,7 +155,7 @@ TYPED_TEST(RM_DataframeTors, MoveConstruction)
 
 /**
  *  @brief Move-assigning transfers ownership into the target and empties the source.
- *  @see   lugizmo::DataFrame::operator=(DataFrame&& other) noexcept -> DataFrame&
+ *  @see   lgz::DataFrame::operator=(DataFrame&& other) noexcept -> DataFrame&
  */
 TYPED_TEST(RM_DataframeTors, MoveAssignment)
 {
@@ -179,7 +179,7 @@ TYPED_TEST(RM_DataframeTors, MoveAssignment)
 
 /**
  *  @brief Copying yields an independent deep copy: same content, separate storage.
- *  @see   lugizmo::DataFrame::DataFrame(DataFrame const&) noexcept
+ *  @see   lgz::DataFrame::DataFrame(DataFrame const&) noexcept
  */
 TYPED_TEST(RM_DataframeTors, CopyConstruction)
 {
@@ -209,7 +209,7 @@ TYPED_TEST(RM_DataframeTors, CopyConstruction)
 
 /**
  *  @brief Copy-assigning produces an independent deep copy of the source.
- *  @see   lugizmo::DataFrame::operator=(DataFrame const&) noexcept -> DataFrame&
+ *  @see   lgz::DataFrame::operator=(DataFrame const&) noexcept -> DataFrame&
  */
 TYPED_TEST(RM_DataframeTors, CopyAssignment)
 {
@@ -237,7 +237,7 @@ TYPED_TEST(RM_DataframeTors, CopyAssignment)
 
 /**
  *  @brief Self-copy-assignment is a no-op and keeps the dataframe valid.
- *  @see   lugizmo::DataFrame::operator=(DataFrame const&) noexcept -> DataFrame&
+ *  @see   lgz::DataFrame::operator=(DataFrame const&) noexcept -> DataFrame&
  */
 TYPED_TEST(RM_DataframeTors, SelfCopyAssignment)
 {
@@ -258,7 +258,7 @@ TYPED_TEST(RM_DataframeTors, SelfCopyAssignment)
 
 /**
  *  @brief The destructor releases every byte the dataframe allocated.
- *  @see   lugizmo::DataFrame::~DataFrame() noexcept
+ *  @see   lgz::DataFrame::~DataFrame() noexcept
  */
 TEST(RM_DataframeTorsMemory, DestructorReleasesMemory)
 {
@@ -276,7 +276,7 @@ TEST(RM_DataframeTorsMemory, DestructorReleasesMemory)
 
 /**
  *  @brief Move-assignment releases the target's previous storage and leaks nothing.
- *  @see   lugizmo::DataFrame::operator=(DataFrame&& other) noexcept -> DataFrame&
+ *  @see   lgz::DataFrame::operator=(DataFrame&& other) noexcept -> DataFrame&
  */
 TEST(RM_DataframeTorsMemory, MoveAssignmentReleasesTargetMemory)
 {

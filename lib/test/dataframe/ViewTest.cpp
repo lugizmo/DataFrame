@@ -54,11 +54,11 @@
 
 /**
  * @brief Default construction produces an empty view.
- * @see   lugizmo::DFView::DFView
+ * @see   lgz::DFView::DFView
  */
 TEST(DataframeView, Construct)
 {
-    using namespace lugizmo;
+    using namespace lgz;
 
     auto const empty = DFView<int, DFUniqueIndex<int>>();
     ASSERT_TRUE(empty.Empty());
@@ -66,11 +66,11 @@ TEST(DataframeView, Construct)
 
 /**
  * @brief FieldView creates a half-open field subrange with translated key lookup.
- * @see   lugizmo::DFView::FieldView
+ * @see   lgz::DFView::FieldView
  */
 TEST(DataframeView, FieldViewSubrange)
 {
-    using namespace lugizmo;
+    using namespace lgz;
 
     auto values = std::array{0, 1,
                              2, 3,
@@ -101,11 +101,11 @@ TEST(DataframeView, FieldViewSubrange)
 
 /**
  * @brief RecordView creates a half-open record subrange with translated key lookup.
- * @see   lugizmo::DFView::RecordView
+ * @see   lgz::DFView::RecordView
  */
 TEST(DataframeView, RecordViewSubrange)
 {
-    using namespace lugizmo;
+    using namespace lgz;
 
     auto values = std::array{0, 1, 2, 3,
                              4, 5, 6, 7};
@@ -135,11 +135,11 @@ TEST(DataframeView, RecordViewSubrange)
 
 /**
  * @brief View iterators support the complete random-access operation set.
- * @see   lugizmo::DFView::Iterator
+ * @see   lgz::DFView::Iterator
  */
 TEST(DataframeView, IteratorRandomAccess)
 {
-    using namespace lugizmo;
+    using namespace lgz;
 
     auto values = std::array{0, 1,
                              2, 3,
@@ -194,11 +194,11 @@ TEST(DataframeView, IteratorRandomAccess)
 
 /**
  * @brief Iterator movement follows the logical view stride.
- * @see   lugizmo::DFView::Iterator
+ * @see   lgz::DFView::Iterator
  */
 TEST(DataframeView, IteratorStride)
 {
-    using namespace lugizmo;
+    using namespace lgz;
 
     auto values = std::array{0,  1,  2,  3,
                              4,  5,  6,  7,
@@ -228,12 +228,12 @@ TEST(DataframeView, IteratorStride)
 
 /**
  * @brief Iterators of an empty view form a valid empty range.
- * @see   lugizmo::DFView::begin
- * @see   lugizmo::DFView::end
+ * @see   lgz::DFView::begin
+ * @see   lgz::DFView::end
  */
 TEST(DataframeView, EmptyIterator)
 {
-    using namespace lugizmo;
+    using namespace lgz;
 
     auto const empty = DFView<int, DFUniqueIndex<int>>();
     EXPECT_EQ(empty.begin(), empty.end());
@@ -254,11 +254,11 @@ TEST(DataframeView, EmptyIterator)
 
 /**
  * @brief An lvalue view composes with standard range adaptors.
- * @see   lugizmo::DFView
+ * @see   lgz::DFView
  */
 TEST(DataframeView, RangeAdaptorLValue)
 {
-    using namespace lugizmo;
+    using namespace lgz;
 
     auto values = std::array{0, 1,
                              2, 3,
@@ -281,11 +281,11 @@ TEST(DataframeView, RangeAdaptorLValue)
 
 /**
  * @brief Standard adaptors safely own a temporary view wrapper.
- * @see   lugizmo::DFView
+ * @see   lgz::DFView
  */
 TEST(DataframeView, RangeAdaptorTemporary)
 {
-    using namespace lugizmo;
+    using namespace lgz;
 
     auto values = std::array{0, 1,
                              2, 3,
@@ -306,11 +306,11 @@ TEST(DataframeView, RangeAdaptorTemporary)
 
 /**
  * @brief Range adaptors preserve const-element access.
- * @see   lugizmo::DFView
+ * @see   lgz::DFView
  */
 TEST(DataframeView, RangeAdaptorConstElements)
 {
-    using namespace lugizmo;
+    using namespace lgz;
 
     auto values = std::array{0, 1,
                              2, 3,
@@ -331,11 +331,11 @@ TEST(DataframeView, RangeAdaptorConstElements)
 
 /**
  * @brief A mutable view models output_range and writes through to storage.
- * @see   lugizmo::DFView
+ * @see   lgz::DFView
  */
 TEST(DataframeView, OutputRange)
 {
-    using namespace lugizmo;
+    using namespace lgz;
 
     auto values = std::array{0, 1,
                              2, 3,
@@ -365,7 +365,7 @@ TEST(DataframeView, OutputRange)
  */
 TEST(DataframeView, BorrowedRange)
 {
-    using namespace lugizmo;
+    using namespace lgz;
 
     auto values = std::array{0, 1,
                              2, 3,
@@ -389,9 +389,9 @@ namespace {
     class DataframeViewFunctionTest: public testing::Test
     {
     protected:
-        using Index       = lugizmo::DFUniqueIndex<int>;
-        using View        = lugizmo::DFView<int, Index>;
-        using ConstView   = lugizmo::DFView<int const, Index>;
+        using Index       = lgz::DFUniqueIndex<int>;
+        using View        = lgz::DFView<int, Index>;
+        using ConstView   = lgz::DFView<int const, Index>;
         using Matrix      = std::mdspan<int, std::dextents<std::ptrdiff_t, 2>, std::layout_right>;
         using ConstMatrix = std::mdspan<int const, std::dextents<std::ptrdiff_t, 2>, std::layout_right>;
 
@@ -423,7 +423,7 @@ namespace {
 
 /**
  * @brief Contains performs read-only keyed lookup on a const view object.
- * @see   lugizmo::DFView::Contains
+ * @see   lgz::DFView::Contains
  */
 TEST_F(DataframeViewFunctionTest, Contains)
 {
@@ -435,7 +435,7 @@ TEST_F(DataframeViewFunctionTest, Contains)
 
 /**
  * @brief Size reports the number of logical values in the view.
- * @see   lugizmo::DFView::Size
+ * @see   lgz::DFView::Size
  */
 TEST_F(DataframeViewFunctionTest, Size)
 {
@@ -444,7 +444,7 @@ TEST_F(DataframeViewFunctionTest, Size)
 
 /**
  * @brief Empty distinguishes default-constructed and populated views.
- * @see   lugizmo::DFView::Empty
+ * @see   lgz::DFView::Empty
  */
 TEST_F(DataframeViewFunctionTest, Empty)
 {
@@ -454,7 +454,7 @@ TEST_F(DataframeViewFunctionTest, Empty)
 
 /**
  * @brief Positional indexing preserves element-based constness and mutability.
- * @see   lugizmo::DFView::operator[]
+ * @see   lgz::DFView::operator[]
  */
 TEST_F(DataframeViewFunctionTest, IndexOperator)
 {
@@ -468,7 +468,7 @@ TEST_F(DataframeViewFunctionTest, IndexOperator)
 
 /**
  * @brief Checked positional access returns an optional reference and reports misses.
- * @see   lugizmo::DFView::operator()
+ * @see   lgz::DFView::operator()
  */
 TEST_F(DataframeViewFunctionTest, CheckedIndexOperator)
 {
@@ -484,7 +484,7 @@ TEST_F(DataframeViewFunctionTest, CheckedIndexOperator)
 
 /**
  * @brief At returns a pointer whose constness follows the element type.
- * @see   lugizmo::DFView::At
+ * @see   lgz::DFView::At
  */
 TEST_F(DataframeViewFunctionTest, At)
 {
@@ -504,7 +504,7 @@ TEST_F(DataframeViewFunctionTest, At)
 
 /**
  * @brief Begin points to the first logical value and preserves mutability.
- * @see   lugizmo::DFView::begin
+ * @see   lgz::DFView::begin
  */
 TEST_F(DataframeViewFunctionTest, Begin)
 {
@@ -518,7 +518,7 @@ TEST_F(DataframeViewFunctionTest, Begin)
 
 /**
  * @brief End terminates traversal after every logical value.
- * @see   lugizmo::DFView::end
+ * @see   lgz::DFView::end
  */
 TEST_F(DataframeViewFunctionTest, End)
 {
@@ -529,7 +529,7 @@ TEST_F(DataframeViewFunctionTest, End)
 
 /**
  * @brief CBegin starts traversal of a const-element view.
- * @see   lugizmo::DFView::cbegin
+ * @see   lgz::DFView::cbegin
  */
 TEST_F(DataframeViewFunctionTest, CBegin)
 {
@@ -540,7 +540,7 @@ TEST_F(DataframeViewFunctionTest, CBegin)
 
 /**
  * @brief CEnd terminates traversal of a const-element view.
- * @see   lugizmo::DFView::cend
+ * @see   lgz::DFView::cend
  */
 TEST_F(DataframeViewFunctionTest, CEnd)
 {
@@ -551,7 +551,7 @@ TEST_F(DataframeViewFunctionTest, CEnd)
 
 /**
  * @brief Front returns the first value or nullptr for an empty view.
- * @see   lugizmo::DFView::Front
+ * @see   lgz::DFView::Front
  */
 TEST_F(DataframeViewFunctionTest, Front)
 {
@@ -567,7 +567,7 @@ TEST_F(DataframeViewFunctionTest, Front)
 
 /**
  * @brief Back returns the final value or nullptr for an empty view.
- * @see   lugizmo::DFView::Back
+ * @see   lgz::DFView::Back
  */
 TEST_F(DataframeViewFunctionTest, Back)
 {
@@ -583,7 +583,7 @@ TEST_F(DataframeViewFunctionTest, Back)
 
 /**
  * @brief RBegin starts mutable reverse traversal at the final value.
- * @see   lugizmo::DFView::rbegin
+ * @see   lgz::DFView::rbegin
  */
 TEST_F(DataframeViewFunctionTest, RBegin)
 {
@@ -598,7 +598,7 @@ TEST_F(DataframeViewFunctionTest, RBegin)
 
 /**
  * @brief REnd terminates reverse traversal before the first value.
- * @see   lugizmo::DFView::rend
+ * @see   lgz::DFView::rend
  */
 TEST_F(DataframeViewFunctionTest, REnd)
 {
@@ -610,7 +610,7 @@ TEST_F(DataframeViewFunctionTest, REnd)
 
 /**
  * @brief CRBegin starts const reverse traversal at the final value.
- * @see   lugizmo::DFView::crbegin
+ * @see   lgz::DFView::crbegin
  */
 TEST_F(DataframeViewFunctionTest, CRBegin)
 {
@@ -624,7 +624,7 @@ TEST_F(DataframeViewFunctionTest, CRBegin)
 
 /**
  * @brief CREnd terminates const reverse traversal before the first value.
- * @see   lugizmo::DFView::crend
+ * @see   lgz::DFView::crend
  */
 TEST_F(DataframeViewFunctionTest, CREnd)
 {

@@ -141,8 +141,8 @@ memory_resource can be passed to the dataframe on construction.
 Default construction of a dataframe. 
 ```c++
 // both with optionally passed memory_resource
-auto default  = lugizmo::DataFrame<int, int, int>{};
-auto reserved = lugizmo::DataFrame<int, int, int>{50}; 
+auto default  = lgz::DataFrame<int, int, int>{};
+auto reserved = lgz::DataFrame<int, int, int>{50}; 
 ```
 
 You can create a DataFrame from known fields and records using a span or initializer list of fields and records. 
@@ -150,11 +150,11 @@ Again, memory can also be reserved in advance and a memory_resource can be passe
 (TODO add example for FromRecords)
 ```c++
 // create empty dataframe with known fields:
-auto dfFromAr = lugizmo::DataFrame<int, int, int>::FromFields(std::array{1, 2, 3, 4});
-auto dfFromIn = lugizmo::DataFrame<int, int, int>::FromFields({1, 2, 3, 4});
+auto dfFromAr = lgz::DataFrame<int, int, int>::FromFields(std::array{1, 2, 3, 4});
+auto dfFromIn = lgz::DataFrame<int, int, int>::FromFields({1, 2, 3, 4});
 
 // also possible to pass values to fill records with:
-auto df = lugizmo::DataFrame<int, int, int>::FromFieldsAndRecord({1, 2, 3, 4}, {1, 2, 3, 4}, {10, 20, 30, 40});
+auto df = lgz::DataFrame<int, int, int>::FromFieldsAndRecord({1, 2, 3, 4}, {1, 2, 3, 4}, {10, 20, 30, 40});
 // Fields  :   1    2    3    4
 // Records :---------------------
 //     1   |   10   20   30   40
@@ -164,7 +164,7 @@ auto df = lugizmo::DataFrame<int, int, int>::FromFieldsAndRecord({1, 2, 3, 4}, {
 
 
 // you can also create a dataframe with explicitly setting all values:
-auto df = lugizmo::DataFrame<int, int, int>::FromFieldsAndRecords({1, 2, 3, 4}, {1, 2, 3, 4}, {
+auto df = lgz::DataFrame<int, int, int>::FromFieldsAndRecords({1, 2, 3, 4}, {1, 2, 3, 4}, {
                                                                   {1.0f, 2.0f, 3.0f, 4.0f}, 
                                                                   {1.0f, 2.0f, 3.0f, 4.0f},
                                                                   {1.0f, 2.0f, 3.0f, 4.0f}});
@@ -245,9 +245,9 @@ Functional:
 - more constexpr
 - add merge of two dataframes of the same type
 - add multi type version or specialization for single type
-- todo thing about using lugizmo::df to drop the DF names everywhere
-  - DFView -> lugizmo::df::View -> df::View
-  - DFHashIndex -> lugizmo::df::IndexHash -> df::IndexHash
+- todo thing about using lgz::df to drop the DF names everywhere
+  - DFView -> lgz::df::View -> df::View
+  - DFHashIndex -> lgz::df::IndexHash -> df::IndexHash
 - rethink the naming of DFView and DFViewIndexed
   - views are non owning lazy ranges without creating any copys
   - ranges are abstraction of anything having a begin() and end() and can be immediate or lazy

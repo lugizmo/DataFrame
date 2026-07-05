@@ -24,7 +24,7 @@
 #include "SliceConcepts.h"
 #include "IndexUnique.h"
 
-namespace lugizmo {
+namespace lgz {
 
     namespace internal {
 
@@ -958,14 +958,14 @@ namespace lugizmo {
         // NOLINTEND(readability-identifier-naming)
     };
 
-} // namespace lugizmo
+} // namespace lgz
 
 // ======== STANDARD RANGE CUSTOMIZATION ===========================================================================================================================================
 
 template<typename T, typename F, typename R, typename Layout, bool C>
-inline constexpr bool std::ranges::enable_borrowed_range<lugizmo::DFSlice<T, F, R, Layout, C>> = C; // NOLINT(readability-identifier-naming)
+inline constexpr bool std::ranges::enable_borrowed_range<lgz::DFSlice<T, F, R, Layout, C>> = C; // NOLINT(readability-identifier-naming)
 
-namespace lugizmo::internal {
+namespace lgz::internal {
 
     using DFSliceValidationIndex      = DFUniqueIndex<int>;
     using DFSliceValidation           = DFSlice<int, DFSliceValidationIndex, DFSliceValidationIndex, std::layout_right, false>;
@@ -980,6 +980,6 @@ namespace lugizmo::internal {
     static_assert(!std::ranges::borrowed_range<DFSliceValidation>);
     static_assert(std::ranges::borrowed_range<DFSliceContiguousValidation>);
 
-} // namespace lugizmo::internal
+} // namespace lgz::internal
 
 #endif // LUGIZMO_DF_SLICE_H

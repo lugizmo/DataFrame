@@ -112,11 +112,11 @@ TEST(DataframeLayoutRowBase, Realloc)
     size_t capacity = 6;
 
     // Allocate initial data and initialize
-    auto* data = lugizmo::internal::AllocateAligned<T>(*memory, capacity);
+    auto* data = lgz::internal::AllocateAligned<T>(*memory, capacity);
     for (size_t i = 0; i < rowCount * colCount; ++i) data[i] = static_cast<T>(i + 1);
 
     // Call Realloc
-    lugizmo::DFRowMajor<T>::Realloc(data, *memory, capacity, colCount, rowCount, newRowCount, adjCountByBeg);
+    lgz::DFRowMajor<T>::Realloc(data, *memory, capacity, colCount, rowCount, newRowCount, adjCountByBeg);
 
     EXPECT_GE(capacity, newRowCount * colCount) << "Capacity should expand to fit the new rows.";
     EXPECT_NE(data, nullptr) << "Reallocated data should not be null.";
@@ -127,7 +127,7 @@ TEST(DataframeLayoutRowBase, Realloc)
         EXPECT_EQ(data[startIndex + i], i + 1) << "Data mismatch at index " << i;
     }
 
-    lugizmo::internal::DeallocateAligned(*memory, data, capacity);
+    lgz::internal::DeallocateAligned(*memory, data, capacity);
 }
 
 TEST(DataframeLayoutRowBase, ReallocZeroCapacity)
@@ -144,12 +144,12 @@ TEST(DataframeLayoutRowBase, ReallocZeroCapacity)
     T* data = nullptr;
 
     // Call Realloc with zero capacity
-    lugizmo::DFRowMajor<T>::Realloc(data, *memory, capacity, colCount, rowCount, newRowCount, adjCountByBeg);
+    lgz::DFRowMajor<T>::Realloc(data, *memory, capacity, colCount, rowCount, newRowCount, adjCountByBeg);
 
     EXPECT_NE(data, nullptr) << "Reallocated data should not be null.";
     EXPECT_GE(capacity, newRowCount * colCount) << "Capacity should be allocated for new rows.";
 
-    lugizmo::internal::DeallocateAligned(*memory, data, capacity);
+    lgz::internal::DeallocateAligned(*memory, data, capacity);
 }
 
 TEST(DataframeLayoutRowBase, ReallocLargeAllocation)
@@ -163,15 +163,15 @@ TEST(DataframeLayoutRowBase, ReallocLargeAllocation)
     constexpr std::ptrdiff_t adjCountByBeg = 10;
 
     size_t capacity = 1024;
-    auto* data = lugizmo::internal::AllocateAligned<T>(*memory, capacity);
+    auto* data = lgz::internal::AllocateAligned<T>(*memory, capacity);
     for (size_t i = 0; i < rowCount * colCount; ++i) data[i] = static_cast<T>(i);
 
-    lugizmo::DFRowMajor<T>::Realloc(data, *memory, capacity, colCount, rowCount, newRowCount, adjCountByBeg);
+    lgz::DFRowMajor<T>::Realloc(data, *memory, capacity, colCount, rowCount, newRowCount, adjCountByBeg);
 
     EXPECT_NE(data, nullptr) << "Reallocated data should not be null.";
     EXPECT_GE(capacity, newRowCount * colCount) << "Capacity should be large enough for new rows.";
 
-    lugizmo::internal::DeallocateAligned(*memory, data, capacity);
+    lgz::internal::DeallocateAligned(*memory, data, capacity);
 }
 
 TEST(DataframeLayoutRowBase, ReallocAndShift)
@@ -187,11 +187,11 @@ TEST(DataframeLayoutRowBase, ReallocAndShift)
     size_t capacity = 6;
 
     // Allocate initial data and initialize
-    auto* data = lugizmo::internal::AllocateAligned<T>(*memory, capacity);
+    auto* data = lgz::internal::AllocateAligned<T>(*memory, capacity);
     for (size_t i = 0; i < rowCount * colCount; ++i) data[i] = static_cast<T>(i + 1);
 
     // Call ReallocAndShift
-    lugizmo::DFRowMajor<T>::ReallocAndShift(data, *memory, capacity, colCount, rowCount, newRowCount, adjCountByBeg);
+    lgz::DFRowMajor<T>::ReallocAndShift(data, *memory, capacity, colCount, rowCount, newRowCount, adjCountByBeg);
 
     EXPECT_GE(capacity, newRowCount * colCount) << "Capacity should expand if necessary.";
     EXPECT_NE(data, nullptr) << "Reallocated data should not be null.";
@@ -202,7 +202,7 @@ TEST(DataframeLayoutRowBase, ReallocAndShift)
         EXPECT_EQ(data[startIndex + i], i + 1) << "Data mismatch at index " << i;
     }
 
-    lugizmo::internal::DeallocateAligned(*memory, data, capacity);
+    lgz::internal::DeallocateAligned(*memory, data, capacity);
 }
 
 TEST(DataframeLayoutRowBase, Free)
@@ -216,14 +216,14 @@ TEST(DataframeLayoutRowBase, Free)
     size_t capacity = 6;
 
     // Allocate memory
-    auto* data = lugizmo::internal::AllocateAligned<T>(*memory, capacity);
+    auto* data = lgz::internal::AllocateAligned<T>(*memory, capacity);
     for (size_t i = 0; i < rowCount * colCount; ++i) data[i] = static_cast<T>(i + 1);
 
     // Create an mdspan to track the view
-    auto dataView = lugizmo::DFRowMajor<T>::MDSpan{data, rowCount, colCount};
+    auto dataView = lgz::DFRowMajor<T>::MDSpan{data, rowCount, colCount};
 
     // Call Free
-    lugizmo::DFRowMajor<T>::Free(data, capacity, dataView, *memory);
+    lgz::DFRowMajor<T>::Free(data, capacity, dataView, *memory);
 
     // Validate
     EXPECT_EQ(data, nullptr) << "Data pointer should be null after freeing.";
@@ -238,10 +238,10 @@ TEST(DataframeLayoutRowBase, FreeNoop)
     std::pmr::memory_resource* memory = std::pmr::get_default_resource();
 
     size_t capacity = 0;
-    lugizmo::DFRowMajor<T>::MDSpan dataView{nullptr, 0, 0};
+    lgz::DFRowMajor<T>::MDSpan dataView{nullptr, 0, 0};
     T* data = nullptr;
 
-    lugizmo::DFRowMajor<T>::Free(data, capacity, dataView, *memory);
+    lgz::DFRowMajor<T>::Free(data, capacity, dataView, *memory);
 
     EXPECT_EQ(data, nullptr) << "Data should still be null after free.";
     EXPECT_EQ(capacity, 0) << "Capacity should remain zero.";
@@ -261,11 +261,11 @@ TEST(DataframeLayoutRowBase, FillWithDefaultValue)
     constexpr size_t rowCount = 2;
     constexpr size_t capacity = colCount * rowCount;
 
-    auto* data = lugizmo::internal::AllocateAligned<T>(TestMemory, capacity);
-    lugizmo::DFRowMajor<T>::FillRows(data, 0, rowCount, colCount, 99);
+    auto* data = lgz::internal::AllocateAligned<T>(TestMemory, capacity);
+    lgz::DFRowMajor<T>::FillRows(data, 0, rowCount, colCount, 99);
 
     for (size_t i = 0; i < rowCount * colCount; ++i) EXPECT_EQ(data[i], 99);
-    lugizmo::internal::DeallocateAligned(TestMemory, data, capacity);
+    lgz::internal::DeallocateAligned(TestMemory, data, capacity);
 }
 
 TEST(DataframeLayoutRowBase, FillWithSpanValues)
@@ -278,12 +278,12 @@ TEST(DataframeLayoutRowBase, FillWithSpanValues)
     constexpr size_t rowCount = 2;
     constexpr size_t capacity = colCount * rowCount;
 
-    auto* data = lugizmo::internal::AllocateAligned<T>(TestMemory, capacity);
+    auto* data = lgz::internal::AllocateAligned<T>(TestMemory, capacity);
 
     std::vector<T> rowValues = {1, 2, 3, 4};
     std::span<T const> spanValues = rowValues;
 
-    lugizmo::DFRowMajor<T>::FillRows(data, 0, rowCount, colCount, spanValues.begin(), spanValues.end());
+    lgz::DFRowMajor<T>::FillRows(data, 0, rowCount, colCount, spanValues.begin(), spanValues.end());
 
     for (size_t row = 0; row < rowCount; ++row) {
         for (size_t col = 0; col < colCount; ++col) {
@@ -291,7 +291,7 @@ TEST(DataframeLayoutRowBase, FillWithSpanValues)
         }
     }
 
-    lugizmo::internal::DeallocateAligned(TestMemory, data, capacity);
+    lgz::internal::DeallocateAligned(TestMemory, data, capacity);
 }
 
 TEST(DataframeLayoutRowBase, FillWithIterableOfIterable)
@@ -304,12 +304,12 @@ TEST(DataframeLayoutRowBase, FillWithIterableOfIterable)
     constexpr size_t rowCount = 2;
     constexpr size_t capacity = colCount * rowCount;
 
-    auto* data = lugizmo::internal::AllocateAligned<T>(TestMemory, capacity);
+    auto* data = lgz::internal::AllocateAligned<T>(TestMemory, capacity);
 
     std::vector<std::vector<T>> matrix = {{1, 2, 3}, {4, 5, 6}};
     auto begin = matrix.begin();
 
-    lugizmo::DFRowMajor<T>::FillRowByRow(data, 0, rowCount, colCount, begin, matrix.end());
+    lgz::DFRowMajor<T>::FillRowByRow(data, 0, rowCount, colCount, begin, matrix.end());
 
     for (size_t row = 0; row < rowCount; ++row) {
         for (size_t col = 0; col < colCount; ++col) {
@@ -317,7 +317,7 @@ TEST(DataframeLayoutRowBase, FillWithIterableOfIterable)
         }
     }
 
-    lugizmo::internal::DeallocateAligned(TestMemory, data, capacity);
+    lgz::internal::DeallocateAligned(TestMemory, data, capacity);
 }
 
 TEST(DataframeLayoutRowBase, FillWithInitializerList)
@@ -330,11 +330,11 @@ TEST(DataframeLayoutRowBase, FillWithInitializerList)
     constexpr size_t rowCount = 2;
     constexpr size_t capacity = colCount * rowCount;
 
-    auto* data             = lugizmo::internal::AllocateAligned<T>(TestMemory, capacity);
+    auto* data             = lgz::internal::AllocateAligned<T>(TestMemory, capacity);
     auto const initializer = std::initializer_list<std::initializer_list<T>>{{10, 11, 12}, {13, 14, 15}};
     auto begin             = initializer.begin();
 
-    lugizmo::DFRowMajor<T>::FillRowByRow(data, 0, rowCount, colCount, begin, initializer.end());
+    lgz::DFRowMajor<T>::FillRowByRow(data, 0, rowCount, colCount, begin, initializer.end());
 
     EXPECT_EQ(data[0], 10);
     EXPECT_EQ(data[1], 11);
@@ -343,7 +343,7 @@ TEST(DataframeLayoutRowBase, FillWithInitializerList)
     EXPECT_EQ(data[4], 14);
     EXPECT_EQ(data[5], 15);
 
-    lugizmo::internal::DeallocateAligned(TestMemory, data, capacity);
+    lgz::internal::DeallocateAligned(TestMemory, data, capacity);
 }
 
 TEST(DataframeLayoutRowBase, FillWithPartialIterable)
@@ -356,12 +356,12 @@ TEST(DataframeLayoutRowBase, FillWithPartialIterable)
     constexpr size_t rowCount = 3;  // Request 3 rows, but provide only 2
     constexpr size_t capacity = colCount * rowCount;
 
-    auto* data = lugizmo::internal::AllocateAligned<T>(TestMemory, capacity);
+    auto* data = lgz::internal::AllocateAligned<T>(TestMemory, capacity);
 
     std::vector<std::vector<T>> matrix = {{1, 2, 3}, {4, 5, 6}};
     auto begin = matrix.begin();
 
-    lugizmo::DFRowMajor<T>::FillRowByRow(data, 0, rowCount, colCount, begin, matrix.end());
+    lgz::DFRowMajor<T>::FillRowByRow(data, 0, rowCount, colCount, begin, matrix.end());
 
     for (size_t row = 0; row < 2; ++row) {
         for (size_t col = 0; col < colCount; ++col) {
@@ -369,7 +369,7 @@ TEST(DataframeLayoutRowBase, FillWithPartialIterable)
         }
     }
 
-    lugizmo::internal::DeallocateAligned(TestMemory, data, capacity);
+    lgz::internal::DeallocateAligned(TestMemory, data, capacity);
 }
 
 // ====== EXPAND BY COUNTS TEST ============================================================================================================
@@ -379,7 +379,7 @@ struct DataframeLayoutRow : testing::Test
 protected:
 
     using T = int;
-    using Layout = lugizmo::DFRowMajor<T>;
+    using Layout = lgz::DFRowMajor<T>;
     using MDSpan = std::mdspan<T, std::dextents<std::ptrdiff_t, 2>>;
 
     std::pmr::memory_resource* memory = std::pmr::get_default_resource();
@@ -410,7 +410,7 @@ protected:
         if (newColC == colC) return;
         auto const newCapacity = rowC * newColC;
 
-        auto* newData = lugizmo::internal::AllocateAligned<T>(*memory, newCapacity);
+        auto* newData = lgz::internal::AllocateAligned<T>(*memory, newCapacity);
 
         for(size_t row = 0; row < rowC; ++row)
         {
@@ -418,7 +418,7 @@ protected:
             std::fill(newData + row * newColC + colC, newData + (row + 1) * newColC, defaultValue);
         }
 
-        lugizmo::internal::DeallocateAligned(*memory, data, capacity);
+        lgz::internal::DeallocateAligned(*memory, data, capacity);
 
         data     = newData;
         capacity = newCapacity;
@@ -433,7 +433,7 @@ protected:
     void TearDown() override
     {
         if (data) {
-            lugizmo::internal::DeallocateAligned(*memory, data, capacity);
+            lgz::internal::DeallocateAligned(*memory, data, capacity);
             data = nullptr;
             capacity = 0;
         }
@@ -600,7 +600,7 @@ TEST_F(DataframeLayoutRow, ShrinkToZero)
 
 /**
  * @brief ResizeCols preserves overlap, fills both added sides, and releases storage when all columns are removed.
- * @see   lugizmo::DFRowMajor::ResizeCols
+ * @see   lgz::DFRowMajor::ResizeCols
  */
 TEST_F(DataframeLayoutRow, ResizeColumns)
 {
@@ -622,14 +622,14 @@ TEST_F(DataframeLayoutRow, ResizeColumns)
 
 /**
  * @brief DropRow compacts first, middle, last, and only-row removals without changing capacity.
- * @see   lugizmo::DFRowMajor::DropRow
+ * @see   lgz::DFRowMajor::DropRow
  */
 TEST(DataframeLayoutRowMutation, DropRow)
 {
-    using Layout = lugizmo::DFRowMajor<int>;
+    using Layout = lgz::DFRowMajor<int>;
     auto* const memory = std::pmr::get_default_resource();
     size_t capacity = 12;
-    auto* data = lugizmo::internal::AllocateAligned<int>(*memory, capacity);
+    auto* data = lgz::internal::AllocateAligned<int>(*memory, capacity);
     auto const initial = std::array{0, 1, 2, 10, 11, 12, 20, 21, 22, 30, 31, 32};
     std::uninitialized_copy(initial.begin(), initial.end(), data);
     auto view = Layout::MDSpan{data, 4, 3};
@@ -651,14 +651,14 @@ TEST(DataframeLayoutRowMutation, DropRow)
 
 /**
  * @brief DropColumn compacts first, middle, last, and only-column removals across every row.
- * @see   lugizmo::DFRowMajor::DropColumn
+ * @see   lgz::DFRowMajor::DropColumn
  */
 TEST(DataframeLayoutRowMutation, DropColumn)
 {
-    using Layout = lugizmo::DFRowMajor<int>;
+    using Layout = lgz::DFRowMajor<int>;
     auto* const memory = std::pmr::get_default_resource();
     size_t capacity = 8;
-    auto* data = lugizmo::internal::AllocateAligned<int>(*memory, capacity);
+    auto* data = lgz::internal::AllocateAligned<int>(*memory, capacity);
     auto const initial = std::array{0, 1, 2, 3, 10, 11, 12, 13};
     std::uninitialized_copy(initial.begin(), initial.end(), data);
     auto view = Layout::MDSpan{data, 2, 4};
@@ -680,14 +680,14 @@ TEST(DataframeLayoutRowMutation, DropColumn)
 
 /**
  * @brief ReorderRows applies identity and multi-cycle new-to-old permutations.
- * @see   lugizmo::DFRowMajor::ReorderRows
+ * @see   lgz::DFRowMajor::ReorderRows
  */
 TEST(DataframeLayoutRowMutation, ReorderRows)
 {
-    using Layout = lugizmo::DFRowMajor<int>;
+    using Layout = lgz::DFRowMajor<int>;
     auto* const memory = std::pmr::get_default_resource();
     size_t capacity = 6;
-    auto* data = lugizmo::internal::AllocateAligned<int>(*memory, capacity);
+    auto* data = lgz::internal::AllocateAligned<int>(*memory, capacity);
     std::uninitialized_copy_n(std::array{0, 1, 10, 11, 20, 21}.begin(), capacity, data);
     auto view = Layout::MDSpan{data, 3, 2};
 
@@ -701,14 +701,14 @@ TEST(DataframeLayoutRowMutation, ReorderRows)
 
 /**
  * @brief ReorderColumns applies identity and multi-cycle new-to-old permutations to every row.
- * @see   lugizmo::DFRowMajor::ReorderColumns
+ * @see   lgz::DFRowMajor::ReorderColumns
  */
 TEST(DataframeLayoutRowMutation, ReorderColumns)
 {
-    using Layout = lugizmo::DFRowMajor<int>;
+    using Layout = lgz::DFRowMajor<int>;
     auto* const memory = std::pmr::get_default_resource();
     size_t capacity = 6;
-    auto* data = lugizmo::internal::AllocateAligned<int>(*memory, capacity);
+    auto* data = lgz::internal::AllocateAligned<int>(*memory, capacity);
     std::uninitialized_copy_n(std::array{0, 1, 2, 10, 11, 12}.begin(), capacity, data);
     auto view = Layout::MDSpan{data, 2, 3};
 
@@ -722,17 +722,17 @@ TEST(DataframeLayoutRowMutation, ReorderColumns)
 
 /**
  * @brief Large row reordering uses the in-place scratch path and preserves the backing allocation.
- * @see   lugizmo::DFRowMajor::ReorderRows
+ * @see   lgz::DFRowMajor::ReorderRows
  */
 TEST(DataframeLayoutRowMutation, ReorderRowsLargeBuffer)
 {
     using T = std::uint64_t;
-    using Layout = lugizmo::DFRowMajor<T>;
+    using Layout = lgz::DFRowMajor<T>;
     auto* const memory = std::pmr::get_default_resource();
     constexpr size_t rows = 2;
     constexpr size_t cols = (64UZ * 1024UZ * 1024UZ) / (rows * sizeof(T)) + 1;
     size_t capacity = rows * cols;
-    auto* data = lugizmo::internal::AllocateAligned<T>(*memory, capacity);
+    auto* data = lgz::internal::AllocateAligned<T>(*memory, capacity);
     std::uninitialized_fill_n(data, cols, 1);
     std::uninitialized_fill_n(data + cols, cols, 2);
     auto view = Layout::MDSpan{data, rows, cols};
@@ -750,17 +750,17 @@ TEST(DataframeLayoutRowMutation, ReorderRowsLargeBuffer)
 
 /**
  * @brief Large column reordering uses the per-row scratch path and preserves the backing allocation.
- * @see   lugizmo::DFRowMajor::ReorderColumns
+ * @see   lgz::DFRowMajor::ReorderColumns
  */
 TEST(DataframeLayoutRowMutation, ReorderColumnsLargeBuffer)
 {
     using T = std::uint64_t;
-    using Layout = lugizmo::DFRowMajor<T>;
+    using Layout = lgz::DFRowMajor<T>;
     auto* const memory = std::pmr::get_default_resource();
     constexpr size_t cols = 2;
     constexpr size_t rows = (64UZ * 1024UZ * 1024UZ) / (cols * sizeof(T)) + 1;
     size_t capacity = rows * cols;
-    auto* data = lugizmo::internal::AllocateAligned<T>(*memory, capacity);
+    auto* data = lgz::internal::AllocateAligned<T>(*memory, capacity);
     for(size_t row = 0; row < rows; ++row)
     {
         std::construct_at(data + row * cols, 1);
@@ -781,11 +781,11 @@ TEST(DataframeLayoutRowMutation, ReorderColumnsLargeBuffer)
 
 /**
  * @brief Non-trivial values remain balanced across resize, drop, reorder, and free operations.
- * @see   lugizmo::DFRowMajor
+ * @see   lgz::DFRowMajor
  */
 TEST(DataframeLayoutRowMutation, NonTrivialLifetimes)
 {
-    using Layout = lugizmo::DFRowMajor<LifetimeValue>;
+    using Layout = lgz::DFRowMajor<LifetimeValue>;
     auto* const memory = std::pmr::get_default_resource();
     LifetimeValue::Reset();
 

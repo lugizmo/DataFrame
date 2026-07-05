@@ -26,11 +26,11 @@
 
 #include "lugizmo/container/Concepts.h"
 
-using namespace lugizmo;
+using namespace lgz;
 
 /**
  *  @brief Iterable accepts ranges and rejects scalars / raw arrays.
- *  @see   lugizmo::Iterable<T>
+ *  @see   lgz::Iterable<T>
  */
 TEST(ContainerConcepts, Iterable)
 {
@@ -46,7 +46,7 @@ TEST(ContainerConcepts, Iterable)
 
 /**
  *  @brief IterableOfIterables accepts (recursively) nested ranges.
- *  @see   lugizmo::IterableOfIterables<T>
+ *  @see   lgz::IterableOfIterables<T>
  */
 TEST(ContainerConcepts, IterableOfIterables)
 {
@@ -64,7 +64,7 @@ TEST(ContainerConcepts, IterableOfIterables)
 
 /**
  *  @brief IterableOfIterable accepts a range whose elements are themselves ranges (not strings).
- *  @see   lugizmo::IterableOfIterable<T>
+ *  @see   lgz::IterableOfIterable<T>
  */
 TEST(ContainerConcepts, IterableOfIterable)
 {
@@ -78,7 +78,7 @@ TEST(ContainerConcepts, IterableOfIterable)
 
 /**
  *  @brief ComparableType holds for mutually comparable types.
- *  @see   lugizmo::ComparableType<T1, T2>
+ *  @see   lgz::ComparableType<T1, T2>
  */
 TEST(ContainerConcepts, ComparableType)
 {
@@ -92,7 +92,7 @@ TEST(ContainerConcepts, ComparableType)
 
 /**
  *  @brief OptionalType detects std::optional (including nested).
- *  @see   lugizmo::OptionalType<T>
+ *  @see   lgz::OptionalType<T>
  */
 TEST(ContainerConcepts, OptionalType)
 {
@@ -109,7 +109,7 @@ TEST(ContainerConcepts, OptionalType)
 
 /**
  *  @brief RemovedOptional strips one std::optional layer (and is identity for non-optionals).
- *  @see   lugizmo::RemovedOptional<T>
+ *  @see   lgz::RemovedOptional<T>
  */
 TEST(ContainerConcepts, RemovedOptional)
 {

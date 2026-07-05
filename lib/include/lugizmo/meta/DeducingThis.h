@@ -12,7 +12,7 @@
 #include <span>
 #include <type_traits>
 
-namespace lugizmo::meta {
+namespace lgz::meta {
 
     /**
      * @brief True when the deduced object parameter (`this auto& self`) is const.
@@ -60,6 +60,6 @@ namespace lugizmo::meta {
     template<typename Self, typename MutableT>
     using ThisRefWrapperOptT = std::optional<ThisRefWrapperT<Self, MutableT>>;
 
-} // namespace lugizmo::meta
+} // namespace lgz::meta
 
 #endif // LUGIZMO_DF_DEDUCING_THIS_H

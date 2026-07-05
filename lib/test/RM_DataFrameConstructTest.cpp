@@ -33,8 +33,8 @@
 
 #include "RM_HelperDFTestConfigs.h"
 
-using namespace lugizmo;
-using namespace lugizmo::test;
+using namespace lgz;
+using namespace lgz::test;
 
 // ======= Constructors (index-agnostic) ==========================================================
 
@@ -47,7 +47,7 @@ TYPED_TEST_SUITE(RM_DataFrameConstruct, IndexConfigs);
 
 /**
  *  @brief A default-constructed frame is empty and allocates nothing.
- *  @see   lugizmo::DataFrame::DataFrame(MemRsc res)
+ *  @see   lgz::DataFrame::DataFrame(MemRsc res)
  */
 TYPED_TEST(RM_DataFrameConstruct, DefaultConstructor)
 {
@@ -63,7 +63,7 @@ TYPED_TEST(RM_DataFrameConstruct, DefaultConstructor)
 
 /**
  *  @brief Reserving up front allocates the value buffer but leaves the frame empty.
- *  @see   lugizmo::DataFrame::DataFrame(size_t reservedValues, MemRsc res)
+ *  @see   lgz::DataFrame::DataFrame(size_t reservedValues, MemRsc res)
  */
 TYPED_TEST(RM_DataFrameConstruct, ReservedConstructor)
 {
@@ -89,7 +89,7 @@ TEST(RM_DataFrameConstructValue, DefaultLayout)
 
 /**
  *  @brief FromFields creates a frame with the given fields and no records.
- *  @see   lugizmo::DataFrame::FromFields(fields, reservedValues, res)
+ *  @see   lgz::DataFrame::FromFields(fields, reservedValues, res)
  */
 TEST(RM_DataFrameConstructValue, FromFields)
 {
@@ -119,7 +119,7 @@ TEST(RM_DataFrameConstructValue, FromFields)
 
 /**
  *  @brief FromFieldsAndRecord builds a populated frame; one value row is reused for every record.
- *  @see   lugizmo::DataFrame::FromFieldsAndRecord(fields, records, recValues)
+ *  @see   lgz::DataFrame::FromFieldsAndRecord(fields, records, recValues)
  */
 TEST(RM_DataFrameConstructValue, FromFieldsAndRecord)
 {
@@ -153,7 +153,7 @@ TEST(RM_DataFrameConstructValue, FromFieldsAndRecord)
 
 /**
  *  @brief FromFieldsAndRecords initializes every value explicitly (iterable or initializer-list).
- *  @see   lugizmo::DataFrame::FromFieldsAndRecords(fields, records, recValues)
+ *  @see   lgz::DataFrame::FromFieldsAndRecords(fields, records, recValues)
  */
 TEST(RM_DataFrameConstructValue, FromFieldsAndRecords)
 {

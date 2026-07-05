@@ -21,7 +21,7 @@
 #include "IndexRange.h"
 #include "View.h"
 
-namespace lugizmo {
+namespace lgz {
 
     namespace internal {
 
@@ -678,32 +678,32 @@ namespace lugizmo {
         return dataView.At(key);
     }
 
-} // namespace lugizmo
+} // namespace lgz
 
 template<typename T, typename I, typename V>
-inline constexpr bool std::ranges::enable_borrowed_range<lugizmo::DFViewIndexed<T, I, V>> = true; // NOLINT(readability-identifier-naming)
+inline constexpr bool std::ranges::enable_borrowed_range<lgz::DFViewIndexed<T, I, V>> = true; // NOLINT(readability-identifier-naming)
 
-static_assert(std::ranges::random_access_range<lugizmo::DFViewIndexed<int, lugizmo::DFUniqueIndex<int> const>>, "DFViewIndexed must model random_access_range.");
-static_assert(std::ranges::random_access_range<lugizmo::DFViewIndexed<int const, lugizmo::DFUniqueIndex<int> const>>, "Read-only DFViewIndexed must model random_access_range.");
-static_assert(std::ranges::sized_range<lugizmo::DFViewIndexed<int, lugizmo::DFUniqueIndex<int> const>>, "DFViewIndexed must model sized_range.");
-static_assert(std::ranges::common_range<lugizmo::DFViewIndexed<int, lugizmo::DFUniqueIndex<int> const>>, "DFViewIndexed must model common_range.");
-static_assert(std::ranges::view<lugizmo::DFViewIndexed<int, lugizmo::DFUniqueIndex<int> const>>, "DFViewIndexed must model view.");
-static_assert(std::ranges::borrowed_range<lugizmo::DFViewIndexed<int, lugizmo::DFUniqueIndex<int> const>>, "DFViewIndexed must model borrowed_range.");
-static_assert(std::ranges::viewable_range<lugizmo::DFViewIndexed<int, lugizmo::DFUniqueIndex<int> const>&>, "DFViewIndexed lvalues must model viewable_range.");
-static_assert(std::ranges::viewable_range<lugizmo::DFViewIndexed<int, lugizmo::DFUniqueIndex<int> const>>, "Temporary DFViewIndexed objects must model viewable_range.");
-static_assert(std::ranges::viewable_range<lugizmo::DFViewIndexed<int const, lugizmo::DFUniqueIndex<int> const>&>, "Read-only DFViewIndexed lvalues must model viewable_range.");
-static_assert(std::ranges::viewable_range<lugizmo::DFViewIndexed<int const, lugizmo::DFUniqueIndex<int> const>>, "Temporary read-only DFViewIndexed objects must model viewable_range.");
+static_assert(std::ranges::random_access_range<lgz::DFViewIndexed<int, lgz::DFUniqueIndex<int> const>>, "DFViewIndexed must model random_access_range.");
+static_assert(std::ranges::random_access_range<lgz::DFViewIndexed<int const, lgz::DFUniqueIndex<int> const>>, "Read-only DFViewIndexed must model random_access_range.");
+static_assert(std::ranges::sized_range<lgz::DFViewIndexed<int, lgz::DFUniqueIndex<int> const>>, "DFViewIndexed must model sized_range.");
+static_assert(std::ranges::common_range<lgz::DFViewIndexed<int, lgz::DFUniqueIndex<int> const>>, "DFViewIndexed must model common_range.");
+static_assert(std::ranges::view<lgz::DFViewIndexed<int, lgz::DFUniqueIndex<int> const>>, "DFViewIndexed must model view.");
+static_assert(std::ranges::borrowed_range<lgz::DFViewIndexed<int, lgz::DFUniqueIndex<int> const>>, "DFViewIndexed must model borrowed_range.");
+static_assert(std::ranges::viewable_range<lgz::DFViewIndexed<int, lgz::DFUniqueIndex<int> const>&>, "DFViewIndexed lvalues must model viewable_range.");
+static_assert(std::ranges::viewable_range<lgz::DFViewIndexed<int, lgz::DFUniqueIndex<int> const>>, "Temporary DFViewIndexed objects must model viewable_range.");
+static_assert(std::ranges::viewable_range<lgz::DFViewIndexed<int const, lgz::DFUniqueIndex<int> const>&>, "Read-only DFViewIndexed lvalues must model viewable_range.");
+static_assert(std::ranges::viewable_range<lgz::DFViewIndexed<int const, lgz::DFUniqueIndex<int> const>>, "Temporary read-only DFViewIndexed objects must model viewable_range.");
 
-static_assert(std::ranges::random_access_range<lugizmo::DFViewIndexed<int, lugizmo::DFRangeIndex<int> const>>, "DFViewIndexed must model random_access_range.");
-static_assert(std::ranges::random_access_range<lugizmo::DFViewIndexed<int const, lugizmo::DFRangeIndex<int> const>>, "Read-only DFViewIndexed must model random_access_range.");
-static_assert(std::ranges::sized_range<lugizmo::DFViewIndexed<int, lugizmo::DFRangeIndex<int> const>>, "DFViewIndexed must model sized_range.");
-static_assert(std::ranges::common_range<lugizmo::DFViewIndexed<int, lugizmo::DFRangeIndex<int> const>>, "DFViewIndexed must model common_range.");
-static_assert(std::ranges::view<lugizmo::DFViewIndexed<int, lugizmo::DFRangeIndex<int> const>>, "DFViewIndexed must model view.");
-static_assert(std::ranges::borrowed_range<lugizmo::DFViewIndexed<int, lugizmo::DFRangeIndex<int> const>>, "DFViewIndexed must model borrowed_range.");
-static_assert(std::ranges::viewable_range<lugizmo::DFViewIndexed<int, lugizmo::DFRangeIndex<int> const>&>, "DFViewIndexed lvalues must model viewable_range.");
-static_assert(std::ranges::viewable_range<lugizmo::DFViewIndexed<int, lugizmo::DFRangeIndex<int> const>>, "Temporary DFViewIndexed objects must model viewable_range.");
-static_assert(std::ranges::viewable_range<lugizmo::DFViewIndexed<int const, lugizmo::DFRangeIndex<int> const>&>, "Read-only DFViewIndexed lvalues must model viewable_range.");
-static_assert(std::ranges::viewable_range<lugizmo::DFViewIndexed<int const, lugizmo::DFRangeIndex<int> const>>, "Temporary read-only DFViewIndexed objects must model viewable_range.");
+static_assert(std::ranges::random_access_range<lgz::DFViewIndexed<int, lgz::DFRangeIndex<int> const>>, "DFViewIndexed must model random_access_range.");
+static_assert(std::ranges::random_access_range<lgz::DFViewIndexed<int const, lgz::DFRangeIndex<int> const>>, "Read-only DFViewIndexed must model random_access_range.");
+static_assert(std::ranges::sized_range<lgz::DFViewIndexed<int, lgz::DFRangeIndex<int> const>>, "DFViewIndexed must model sized_range.");
+static_assert(std::ranges::common_range<lgz::DFViewIndexed<int, lgz::DFRangeIndex<int> const>>, "DFViewIndexed must model common_range.");
+static_assert(std::ranges::view<lgz::DFViewIndexed<int, lgz::DFRangeIndex<int> const>>, "DFViewIndexed must model view.");
+static_assert(std::ranges::borrowed_range<lgz::DFViewIndexed<int, lgz::DFRangeIndex<int> const>>, "DFViewIndexed must model borrowed_range.");
+static_assert(std::ranges::viewable_range<lgz::DFViewIndexed<int, lgz::DFRangeIndex<int> const>&>, "DFViewIndexed lvalues must model viewable_range.");
+static_assert(std::ranges::viewable_range<lgz::DFViewIndexed<int, lgz::DFRangeIndex<int> const>>, "Temporary DFViewIndexed objects must model viewable_range.");
+static_assert(std::ranges::viewable_range<lgz::DFViewIndexed<int const, lgz::DFRangeIndex<int> const>&>, "Read-only DFViewIndexed lvalues must model viewable_range.");
+static_assert(std::ranges::viewable_range<lgz::DFViewIndexed<int const, lgz::DFRangeIndex<int> const>>, "Temporary read-only DFViewIndexed objects must model viewable_range.");
 
 
 #endif // LUGIZMO_DF_VIEW_INDEXED_H

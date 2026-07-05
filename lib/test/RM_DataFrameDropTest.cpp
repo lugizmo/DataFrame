@@ -27,11 +27,11 @@
 /**
  *  @brief Dropping a field removes its column, preserves the remaining order and data, and
  *         re-adding appends to the end.
- *  @see   lugizmo::DataFrame.DropField(F const& index) -> bool requires DFUnqIndex<FldI>
+ *  @see   lgz::DataFrame.DropField(F const& index) -> bool requires DFUnqIndex<FldI>
  */
 TEST(RM_DataframeDrop, DropField)
 {
-    using namespace lugizmo;
+    using namespace lgz;
 
     auto df = DataFrame<int, std::string, std::string>();
     ASSERT_EQ(df.AddFields(std::array<std::string, 4>{"f0", "f1", "f2", "f3"}), 4);
@@ -78,11 +78,11 @@ TEST(RM_DataframeDrop, DropField)
 /**
  *  @brief Dropping a record removes its row, preserves the remaining order and data, and
  *         re-adding appends to the end.
- *  @see   lugizmo::DataFrame.DropRecord(R const& index) -> bool requires DFUnqIndex<RecI>
+ *  @see   lgz::DataFrame.DropRecord(R const& index) -> bool requires DFUnqIndex<RecI>
  */
 TEST(RM_DataframeDrop, DropRecord)
 {
-    using namespace lugizmo;
+    using namespace lgz;
 
     auto df = DataFrame<int, std::string, std::string>();
     ASSERT_EQ(df.AddFields(std::array<std::string, 2>{"f0", "f1"}), 2);

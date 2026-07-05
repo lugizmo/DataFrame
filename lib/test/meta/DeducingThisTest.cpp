@@ -22,11 +22,11 @@
 
 #include "lugizmo/meta/DeducingThis.h"
 
-using namespace lugizmo::meta;
+using namespace lgz::meta;
 
 /**
  *  @brief IsConstThis reports constness of a deduced `this` type.
- *  @see   lugizmo::meta::IsConstThis<Self>
+ *  @see   lgz::meta::IsConstThis<Self>
  */
 TEST(MetaDeducingThis, IsConstThis)
 {
@@ -41,7 +41,7 @@ TEST(MetaDeducingThis, IsConstThis)
 
 /**
  *  @brief ThisValueT / ThisValueRefT carry constness from the deduced `this` to a value type.
- *  @see   lugizmo::meta::ThisValueT / ThisValueRefT
+ *  @see   lgz::meta::ThisValueT / ThisValueRefT
  */
 TEST(MetaDeducingThis, ValueAliases)
 {
@@ -55,7 +55,7 @@ TEST(MetaDeducingThis, ValueAliases)
 
 /**
  *  @brief ThisValueSpanT / ThisRefWrapperT / ThisRefWrapperOptT carry constness into span/wrappers.
- *  @see   lugizmo::meta::ThisValueSpanT / ThisRefWrapperT / ThisRefWrapperOptT
+ *  @see   lgz::meta::ThisValueSpanT / ThisRefWrapperT / ThisRefWrapperOptT
  */
 TEST(MetaDeducingThis, SpanAndWrapAliases)
 {

@@ -43,7 +43,7 @@
 #include "dataframe/View.h"
 #include "dataframe/ViewIndexed.h"
 
-namespace lugizmo {
+namespace lgz {
 
     using RowMajor = std::layout_right;
     using ColMajor = std::layout_left;
@@ -1874,6 +1874,6 @@ namespace lugizmo {
         }
     }
 
-} // namespace lugizmo
+} // namespace lgz
 
 #endif // LUGIZMO_DF_DATAFRAME_H

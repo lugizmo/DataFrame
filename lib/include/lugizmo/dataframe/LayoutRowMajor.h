@@ -22,7 +22,7 @@
 #include "lugizmo/memory/Memory.h"
 #include "lugizmo/container/Concepts.h"
 
-namespace lugizmo {
+namespace lgz {
 
     /**
      * @class DFRowMajor
@@ -1161,6 +1161,6 @@ namespace lugizmo {
         }
     };
 
-} // namespace lugizmo
+} // namespace lgz
 
 #endif // LUGIZMO_DF_LAYOUT_ROW_MAJOR_H

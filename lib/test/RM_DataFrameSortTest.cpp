@@ -26,11 +26,11 @@
 
 /**
  *  @brief SortFields reorders the field index and carries each column's values along.
- *  @see   lugizmo::DataFrame.SortFields(Compare comp = {})
+ *  @see   lgz::DataFrame.SortFields(Compare comp = {})
  */
 TEST(RM_DataframeSort, SortFields)
 {
-    using namespace lugizmo;
+    using namespace lgz;
 
     auto df = DataFrame<int, std::string, std::string>();
     ASSERT_EQ(df.AddFields(std::array<std::string, 3>{"field_b", "field_a", "field_c"}), 3);
@@ -77,11 +77,11 @@ TEST(RM_DataframeSort, SortFields)
 
 /**
  *  @brief SortRecords reorders the record index and carries each row's values along.
- *  @see   lugizmo::DataFrame.SortRecords(Compare comp = {})
+ *  @see   lgz::DataFrame.SortRecords(Compare comp = {})
  */
 TEST(RM_DataframeSort, SortRecords)
 {
-    using namespace lugizmo;
+    using namespace lgz;
 
     auto df = DataFrame<int, std::string, std::string>();
     ASSERT_EQ(df.AddFields(std::array<std::string, 2>{"field_1", "field_2"}), 2);

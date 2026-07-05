@@ -11,7 +11,7 @@
 #include <type_traits>
 #include <utility>
 
-namespace lugizmo {
+namespace lgz {
 
     namespace internal {
 
@@ -155,6 +155,6 @@ namespace lugizmo {
     template<typename R>
     SelectRecordIndexed(R&&) -> SelectRecordIndexed<std::remove_cvref_t<R>>;
 
-} // namespace lugizmo
+} // namespace lgz
 
 #endif // LUGIZMO_DF_SELECTOR_H

@@ -35,7 +35,7 @@
 
 #include "RM_HelperDFTestConfigs.h"
 
-using namespace lugizmo::test;
+using namespace lgz::test;
 
 template<typename>
 class RM_DataframeAccess: public testing::Test // NOLINT(readability-identifier-naming)
@@ -65,7 +65,7 @@ namespace {
 
 /**
  *  @brief GetValue returns a pointer to the stored value, or null for missing keys.
- *  @see   lugizmo::DataFrame.GetValue(...)
+ *  @see   lgz::DataFrame.GetValue(...)
  */
 TYPED_TEST(RM_DataframeAccess, GetValue)
 {
@@ -104,7 +104,7 @@ TYPED_TEST(RM_DataframeAccess, GetValue)
 
 /**
  *  @brief operator[] returns the stored value (unchecked), mutable overload writes through.
- *  @see   lugizmo::DataFrame.operator[](...)
+ *  @see   lgz::DataFrame.operator[](...)
  */
 TYPED_TEST(RM_DataframeAccess, IndexOperator)
 {
@@ -134,7 +134,7 @@ TYPED_TEST(RM_DataframeAccess, IndexOperator)
 
 /**
  *  @brief Data() exposes the dense row-major buffer in position order.
- *  @see   lugizmo::DataFrame.Data() const
+ *  @see   lgz::DataFrame.Data() const
  */
 TYPED_TEST(RM_DataframeAccess, Data)
 {
@@ -158,7 +158,7 @@ TYPED_TEST(RM_DataframeAccess, Data)
 
 /**
  *  @brief MDSpan() exposes the buffer as a (records x fields) mdspan.
- *  @see   lugizmo::DataFrame.MDSpan() const
+ *  @see   lgz::DataFrame.MDSpan() const
  */
 TYPED_TEST(RM_DataframeAccess, MDSpan)
 {
@@ -196,7 +196,7 @@ TYPED_TEST(RM_DataframeAccess, MDSpan)
 
 /**
  *  @brief Values() exposes the whole value buffer as a flat span (const + mutable).
- *  @see   lugizmo::DataFrame.Values(this auto& self)
+ *  @see   lgz::DataFrame.Values(this auto& self)
  */
 TYPED_TEST(RM_DataframeAccess, Values)
 {

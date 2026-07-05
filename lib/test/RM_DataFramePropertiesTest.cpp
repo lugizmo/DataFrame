@@ -33,7 +33,7 @@
 
 #include "RM_HelperDFTestConfigs.h"
 
-using namespace lugizmo::test;
+using namespace lgz::test;
 
 template<typename>
 class RM_DataframeProperties: public testing::Test // NOLINT(readability-identifier-naming)
@@ -44,7 +44,7 @@ TYPED_TEST_SUITE(RM_DataframeProperties, IndexConfigs);
 
 /**
  *  @brief HasField reports membership of a field key.
- *  @see   lugizmo::DataFrame.HasField<C>(C const& field) const -> bool
+ *  @see   lgz::DataFrame.HasField<C>(C const& field) const -> bool
  */
 TYPED_TEST(RM_DataframeProperties, HasField)
 {
@@ -71,7 +71,7 @@ TYPED_TEST(RM_DataframeProperties, HasField)
 
 /**
  *  @brief HasRecord reports membership of a record key.
- *  @see   lugizmo::DataFrame.HasRecord<C>(C const& record) const -> bool
+ *  @see   lgz::DataFrame.HasRecord<C>(C const& record) const -> bool
  */
 TYPED_TEST(RM_DataframeProperties, HasRecord)
 {
@@ -98,7 +98,7 @@ TYPED_TEST(RM_DataframeProperties, HasRecord)
 
 /**
  *  @brief Size reports the total number of values (fields * records).
- *  @see   lugizmo::DataFrame.Size() const -> size_t
+ *  @see   lgz::DataFrame.Size() const -> size_t
  */
 TYPED_TEST(RM_DataframeProperties, Size)
 {
@@ -119,7 +119,7 @@ TYPED_TEST(RM_DataframeProperties, Size)
 
 /**
  *  @brief FieldSize reports the number of fields.
- *  @see   lugizmo::DataFrame.FieldSize() const -> size_t
+ *  @see   lgz::DataFrame.FieldSize() const -> size_t
  */
 TYPED_TEST(RM_DataframeProperties, FieldSize)
 {
@@ -138,7 +138,7 @@ TYPED_TEST(RM_DataframeProperties, FieldSize)
 
 /**
  *  @brief RecordSize reports the number of records.
- *  @see   lugizmo::DataFrame.RecordSize() const -> size_t
+ *  @see   lgz::DataFrame.RecordSize() const -> size_t
  */
 TYPED_TEST(RM_DataframeProperties, RecordSize)
 {
@@ -157,7 +157,7 @@ TYPED_TEST(RM_DataframeProperties, RecordSize)
 
 /**
  *  @brief Empty reports whether the frame holds any values.
- *  @see   lugizmo::DataFrame.Empty() const -> bool
+ *  @see   lgz::DataFrame.Empty() const -> bool
  */
 TYPED_TEST(RM_DataframeProperties, Empty)
 {

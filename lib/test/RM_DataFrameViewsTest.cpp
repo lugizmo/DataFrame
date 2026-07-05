@@ -38,8 +38,8 @@
 
 #include "RM_HelperDFTestConfigs.h"
 
-using namespace lugizmo;
-using namespace lugizmo::test;
+using namespace lgz;
+using namespace lgz::test;
 
 namespace {
 
@@ -69,7 +69,7 @@ TYPED_TEST_SUITE(RM_DataframeViews, IndexConfigs);
 
 /**
  *  @brief ViewField spans a column over the records (const + mutable).
- *  @see   lugizmo::DataFrame.ViewField(field)
+ *  @see   lgz::DataFrame.ViewField(field)
  */
 TYPED_TEST(RM_DataframeViews, ViewField)
 {
@@ -114,7 +114,7 @@ TYPED_TEST(RM_DataframeViews, ViewField)
 
 /**
  *  @brief ViewRecord spans a row over the fields (const + mutable).
- *  @see   lugizmo::DataFrame.ViewRecord(record)
+ *  @see   lgz::DataFrame.ViewRecord(record)
  */
 TYPED_TEST(RM_DataframeViews, ViewRecord)
 {
@@ -159,7 +159,7 @@ TYPED_TEST(RM_DataframeViews, ViewRecord)
 
 /**
  *  @brief ViewFieldIndexed yields (record key, value) per entry (const + mutable).
- *  @see   lugizmo::DataFrame.ViewFieldIndexed(field)
+ *  @see   lgz::DataFrame.ViewFieldIndexed(field)
  */
 TYPED_TEST(RM_DataframeViews, ViewFieldIndexed)
 {
@@ -204,7 +204,7 @@ TYPED_TEST(RM_DataframeViews, ViewFieldIndexed)
 
 /**
  *  @brief ViewRecordIndexed yields (field key, value) per entry (const + mutable).
- *  @see   lugizmo::DataFrame.ViewRecordIndexed(record)
+ *  @see   lgz::DataFrame.ViewRecordIndexed(record)
  */
 TYPED_TEST(RM_DataframeViews, ViewRecordIndexed)
 {
@@ -249,7 +249,7 @@ TYPED_TEST(RM_DataframeViews, ViewRecordIndexed)
 
 /**
  * @brief Slice() exposes the complete dataframe as one contiguous storage-order range.
- * @see   lugizmo::DataFrame.Slice()
+ * @see   lgz::DataFrame.Slice()
  */
 TYPED_TEST(RM_DataframeViews, SliceAll)
 {
@@ -267,7 +267,7 @@ TYPED_TEST(RM_DataframeViews, SliceAll)
 
 /**
  * @brief SliceFields selects consecutive fields across every record without copying.
- * @see   lugizmo::DataFrame.SliceFields(firstField, fieldCount)
+ * @see   lgz::DataFrame.SliceFields(firstField, fieldCount)
  */
 TYPED_TEST(RM_DataframeViews, SliceFields)
 {
@@ -291,7 +291,7 @@ TYPED_TEST(RM_DataframeViews, SliceFields)
 
 /**
  * @brief SliceRecords selects records by key and recognizes adjacent physical storage at runtime.
- * @see   lugizmo::DataFrame.SliceRecords(records)
+ * @see   lgz::DataFrame.SliceRecords(records)
  */
 TYPED_TEST(RM_DataframeViews, SliceRecords)
 {
@@ -309,7 +309,7 @@ TYPED_TEST(RM_DataframeViews, SliceRecords)
 
 /**
  * @brief Slice(fields, records) selects a keyed Cartesian product in physical storage order.
- * @see   lugizmo::DataFrame.Slice(fields, records)
+ * @see   lgz::DataFrame.Slice(fields, records)
  */
 TYPED_TEST(RM_DataframeViews, SliceRectangle)
 {
@@ -333,7 +333,7 @@ TYPED_TEST(RM_DataframeViews, SliceRectangle)
 
 /**
  * @brief Range-index field bounds use a calculated position stride without materializing positions.
- * @see   lugizmo::DataFrame.SliceFields(DFRangeIndexBounds)
+ * @see   lgz::DataFrame.SliceFields(DFRangeIndexBounds)
  */
 TEST(RM_DataframeViewsRange, SliceFields)
 {
@@ -369,7 +369,7 @@ TEST(RM_DataframeViewsRange, SliceFields)
 
 /**
  * @brief Range-index record bounds recognize complete adjacent rows and preserve larger strides.
- * @see   lugizmo::DataFrame.SliceRecords(DFRangeIndexBounds)
+ * @see   lgz::DataFrame.SliceRecords(DFRangeIndexBounds)
  */
 TEST(RM_DataframeViewsRange, SliceRecords)
 {
@@ -393,7 +393,7 @@ TEST(RM_DataframeViewsRange, SliceRecords)
 
 /**
  * @brief Range bounds compose with key selections for both mixed-index orientations.
- * @see   lugizmo::DataFrame.Slice(fields, records)
+ * @see   lgz::DataFrame.Slice(fields, records)
  */
 TEST(RM_DataframeViewsRange, SliceMixed)
 {
@@ -441,7 +441,7 @@ TEST(RM_DataframeViewsRange, SliceMixed)
 
 /**
  *  @brief df | SelectField(field) yields the same view as ViewField.
- *  @see   lugizmo::DataFrame.operator|(SelectField<F>)
+ *  @see   lgz::DataFrame.operator|(SelectField<F>)
  */
 TYPED_TEST(RM_DataframeViews, SelectField)
 {
@@ -474,7 +474,7 @@ TYPED_TEST(RM_DataframeViews, SelectField)
 
 /**
  *  @brief df | SelectRecord(record) yields the same view as ViewRecord.
- *  @see   lugizmo::DataFrame.operator|(SelectRecord<R>)
+ *  @see   lgz::DataFrame.operator|(SelectRecord<R>)
  */
 TYPED_TEST(RM_DataframeViews, SelectRecord)
 {
@@ -506,7 +506,7 @@ TYPED_TEST(RM_DataframeViews, SelectRecord)
 
 /**
  *  @brief df | SelectFieldIndexed(field) yields the same view as ViewFieldIndexed.
- *  @see   lugizmo::DataFrame.operator|(SelectFieldIndexed<F>)
+ *  @see   lgz::DataFrame.operator|(SelectFieldIndexed<F>)
  */
 TYPED_TEST(RM_DataframeViews, SelectFieldIndexed)
 {
@@ -542,7 +542,7 @@ TYPED_TEST(RM_DataframeViews, SelectFieldIndexed)
 
 /**
  *  @brief df | SelectRecordIndexed(record) yields the same view as ViewRecordIndexed.
- *  @see   lugizmo::DataFrame.operator|(SelectRecordIndexed<R>)
+ *  @see   lgz::DataFrame.operator|(SelectRecordIndexed<R>)
  */
 TYPED_TEST(RM_DataframeViews, SelectRecordIndexed)
 {
@@ -579,7 +579,7 @@ TYPED_TEST(RM_DataframeViews, SelectRecordIndexed)
 
 /**
  *  @brief Fields() exposes the field keys in order.
- *  @see   lugizmo::DataFrame.Fields() const -> Flds
+ *  @see   lgz::DataFrame.Fields() const -> Flds
  */
 TYPED_TEST(RM_DataframeViews, Fields)
 {
@@ -596,7 +596,7 @@ TYPED_TEST(RM_DataframeViews, Fields)
 
 /**
  *  @brief Records() exposes the record keys in order.
- *  @see   lugizmo::DataFrame.Records() const -> Recs
+ *  @see   lgz::DataFrame.Records() const -> Recs
  */
 TYPED_TEST(RM_DataframeViews, Records)
 {

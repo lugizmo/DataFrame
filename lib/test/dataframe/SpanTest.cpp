@@ -27,9 +27,9 @@
 
 namespace {
 
-    using Index       = lugizmo::DFUniqueIndex<int>;
-    using Span        = lugizmo::DFSpan<int, Index>;
-    using ConstSpan   = lugizmo::DFSpan<int const, Index>;
+    using Index       = lgz::DFUniqueIndex<int>;
+    using Span        = lgz::DFSpan<int, Index>;
+    using ConstSpan   = lgz::DFSpan<int const, Index>;
     using Matrix      = std::mdspan<int, std::dextents<std::ptrdiff_t, 2>, std::layout_right>;
     using ConstMatrix = std::mdspan<int const, std::dextents<std::ptrdiff_t, 2>, std::layout_right>;
 
@@ -44,7 +44,7 @@ namespace {
 
 /**
  * @brief A default DFSpan is an empty contiguous range without an index.
- * @see   lugizmo::DFSpan::DFSpan
+ * @see   lgz::DFSpan::DFSpan
  */
 TEST(DataframeSpan, DefaultConstruction)
 {
@@ -58,7 +58,7 @@ TEST(DataframeSpan, DefaultConstruction)
 
 /**
  * @brief RecordView exposes one row as adjacent values and pointer iterators.
- * @see   lugizmo::DFSpan::RecordView
+ * @see   lgz::DFSpan::RecordView
  */
 TEST(DataframeSpan, RecordView)
 {
@@ -81,7 +81,7 @@ TEST(DataframeSpan, RecordView)
 
 /**
  * @brief operator() returns a value pointer only for positions inside the span.
- * @see   lugizmo::DFSpan::operator()
+ * @see   lgz::DFSpan::operator()
  */
 TEST(DataframeSpan, CheckedAccess)
 {
@@ -96,8 +96,8 @@ TEST(DataframeSpan, CheckedAccess)
 
 /**
  * @brief Contains and At resolve field keys without losing contiguous storage.
- * @see   lugizmo::DFSpan::Contains
- * @see   lugizmo::DFSpan::At
+ * @see   lgz::DFSpan::Contains
+ * @see   lgz::DFSpan::At
  */
 TEST(DataframeSpan, KeyAccess)
 {
@@ -114,7 +114,7 @@ TEST(DataframeSpan, KeyAccess)
 
 /**
  * @brief A record subrange stays contiguous while key lookup accounts for its field offset.
- * @see   lugizmo::DFSpan::RecordView
+ * @see   lgz::DFSpan::RecordView
  */
 TEST(DataframeSpan, RecordSubrange)
 {
@@ -134,7 +134,7 @@ TEST(DataframeSpan, RecordSubrange)
 
 /**
  * @brief Wrapper constness preserves mutable elements while const element types remain read-only.
- * @see   lugizmo::DFSpan
+ * @see   lgz::DFSpan
  */
 TEST(DataframeSpan, Constness)
 {
@@ -151,7 +151,7 @@ TEST(DataframeSpan, Constness)
 
 /**
  * @brief DFSpan composes directly with standard range adaptor closures.
- * @see   lugizmo::DFSpan
+ * @see   lgz::DFSpan
  */
 TEST(DataframeSpan, RangeAdaptor)
 {

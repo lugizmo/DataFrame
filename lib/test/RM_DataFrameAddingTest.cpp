@@ -45,11 +45,11 @@
 
 /**
  *  @brief Adding a single field appends it (when new) and grows the value buffer once records exist.
- *  @see   lugizmo::DataFrame.AddField(F index, T const& defaultValue) -> bool requires DFUnqIndex<FldI>
+ *  @see   lgz::DataFrame.AddField(F index, T const& defaultValue) -> bool requires DFUnqIndex<FldI>
  */
 TEST(RM_DataframeAdding, AddField)
 {
-    using namespace lugizmo;
+    using namespace lgz;
     auto df = DataFrame<int, std::string, std::string>();
 
     {
@@ -116,11 +116,11 @@ TEST(RM_DataframeAdding, AddField)
 
 /**
  *  @brief Adding multiple fields returns the number inserted and appends new ones in order.
- *  @see   lugizmo::DataFrame.AddFields(std::span<F const> indices, T const& defaultValue) -> std::size_t requires DFUnqIndex<FldI>
+ *  @see   lgz::DataFrame.AddFields(std::span<F const> indices, T const& defaultValue) -> std::size_t requires DFUnqIndex<FldI>
  */
 TEST(RM_DataframeAdding, AddFields)
 {
-    using namespace lugizmo;
+    using namespace lgz;
     auto df = DataFrame<int, std::string, std::string>();
 
     {
@@ -196,11 +196,11 @@ TEST(RM_DataframeAdding, AddFields)
 
 /**
  *  @brief Adding a single record appends it (when new) and grows the value buffer once fields exist.
- *  @see   lugizmo::DataFrame.AddRecord(R index, T const& defaultValue) -> bool requires DFUnqIndex<RecI>
+ *  @see   lgz::DataFrame.AddRecord(R index, T const& defaultValue) -> bool requires DFUnqIndex<RecI>
  */
 TEST(RM_DataframeAdding, AddRecord)
 {
-    using namespace lugizmo;
+    using namespace lgz;
     auto df = DataFrame<int, std::string, std::string>();
 
     {
@@ -268,11 +268,11 @@ TEST(RM_DataframeAdding, AddRecord)
 
 /**
  *  @brief Adding multiple records returns the number inserted and appends new ones in order.
- *  @see   lugizmo::DataFrame.AddRecords(std::span<R const> indices, T const& defaultValue) -> std::size_t requires DFUnqIndex<RecI>
+ *  @see   lgz::DataFrame.AddRecords(std::span<R const> indices, T const& defaultValue) -> std::size_t requires DFUnqIndex<RecI>
  */
 TEST(RM_DataframeAdding, AddRecords)
 {
-    using namespace lugizmo;
+    using namespace lgz;
     auto df = DataFrame<int, std::string, std::string>();
 
     {
@@ -355,11 +355,11 @@ TEST(RM_DataframeAdding, AddRecords)
 
 /**
  *  @brief Moving field bounds fills new columns and preserves retained columns.
- *  @see   lugizmo::DataFrame.SetFieldRange(...)
+ *  @see   lgz::DataFrame.SetFieldRange(...)
  */
 TEST(RM_DataframeAdding, SetFieldRange)
 {
-    using namespace lugizmo;
+    using namespace lgz;
     using DF = DataFrame<int, DFRangeIndex<int>, DFRangeIndex<int>>;
 
     {
@@ -404,11 +404,11 @@ TEST(RM_DataframeAdding, SetFieldRange)
 
 /**
  *  @brief Moving record bounds fills new rows and preserves retained rows.
- *  @see   lugizmo::DataFrame.SetRecordRange(...)
+ *  @see   lgz::DataFrame.SetRecordRange(...)
  */
 TEST(RM_DataframeAdding, SetRecordRange)
 {
-    using namespace lugizmo;
+    using namespace lgz;
     using DF = DataFrame<int, DFRangeIndex<int>, DFRangeIndex<int>>;
 
     {

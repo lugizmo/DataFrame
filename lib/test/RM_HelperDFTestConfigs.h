@@ -33,7 +33,7 @@
 
 #include "lugizmo/DataFrame.h"
 
-namespace lugizmo::test {
+namespace lgz::test {
 
     // All configs build a 3x3 frame and expose int field/record keys.
     inline constexpr std::size_t TEST_FLD_COUNT  = 3;
@@ -156,6 +156,6 @@ namespace lugizmo::test {
                                         RangeS1_IndexTest,
                                         RangeS2_IndexTest>;
 
-} // namespace lugizmo::test
+} // namespace lgz::test
 
 #endif // LUGIZMO_TEST_RM_DATAFRAME_TEST_CONFIGS_H

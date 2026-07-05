@@ -21,7 +21,7 @@
 
 #include "IndexBase.h"
 
-namespace lugizmo {
+namespace lgz {
 
     // ====== DF INDICES ===================================================================================================================
 
@@ -299,6 +299,6 @@ namespace lugizmo {
         KeyMap              keyToPos;  // key -> position (physical slot)
     };
 
-} // namespace lugizmo
+} // namespace lgz
 
 #endif // LUGIZMO_DF_INDEX_UNIQUE_H

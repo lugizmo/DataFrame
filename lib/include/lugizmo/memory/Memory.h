@@ -14,7 +14,7 @@
 
 #include "lugizmo/Assert.h"
 
-namespace lugizmo::internal {
+namespace lgz::internal {
 
     /**
      * @brief Converts an element count to bytes without unsigned multiplication overflow.

@@ -50,14 +50,14 @@ namespace {
         constexpr friend auto operator+(Tick t, std::ptrdiff_t n) noexcept -> Tick { return Tick{static_cast<int>(t.value + n)}; }
     };
 
-    static_assert(lugizmo::DFRngKey<Tick>, "Tick should satisfy DFRangeKey.");
-    static_assert(lugizmo::DFRngKey<std::chrono::hours>, "std::chrono::hours should satisfy DFRangeKey.");
+    static_assert(lgz::DFRngKey<Tick>, "Tick should satisfy DFRangeKey.");
+    static_assert(lgz::DFRngKey<std::chrono::hours>, "std::chrono::hours should satisfy DFRangeKey.");
 
 } // namespace
 
 TEST(DataframeIndexRange, DefaultIndex)
 {
-    constexpr auto index = lugizmo::DFRangeIndex<int>();
+    constexpr auto index = lgz::DFRangeIndex<int>();
 
     ASSERT_TRUE(index.Empty());
     ASSERT_TRUE(index.Size() == 0);
@@ -67,7 +67,7 @@ TEST(DataframeIndexRange, DefaultIndex)
 
 TEST(DataframeIndexRange, InvertedBounds)
 {
-    constexpr auto index = lugizmo::DFRangeIndex(10, 5);
+    constexpr auto index = lgz::DFRangeIndex(10, 5);
     ASSERT_TRUE(index.Empty());
     ASSERT_TRUE(index.Size() == 0);
     ASSERT_EQ(index.LowerBound(), 0);
@@ -76,7 +76,7 @@ TEST(DataframeIndexRange, InvertedBounds)
 
 TEST(DataframeIndexRange, Accessors)
 {
-    constexpr auto index = lugizmo::DFRangeIndex(0, 10);
+    constexpr auto index = lgz::DFRangeIndex(0, 10);
     ASSERT_FALSE(index.Empty());
     ASSERT_EQ(index.Size(), 10);
     ASSERT_EQ(index.LowerBound(), 0);
@@ -85,7 +85,7 @@ TEST(DataframeIndexRange, Accessors)
 
 TEST(DataframeIndexRange, InBound)
 {
-    constexpr auto index = lugizmo::DFRangeIndex(0, 10);
+    constexpr auto index = lgz::DFRangeIndex(0, 10);
 
     ASSERT_FALSE(index.InBound(-2));
     ASSERT_FALSE(index.InBound(-1));
@@ -107,12 +107,12 @@ TEST(DataframeIndexRange, SetBounds)
 {
     // Empty ranges may establish a new grid anchor through either one-bound setter.
     {
-        auto lower = lugizmo::DFRangeIndex<int>();
+        auto lower = lgz::DFRangeIndex<int>();
         ASSERT_TRUE(lower.SetStep(2));
         EXPECT_EQ(lower.SetLowerBound(-1), 1);
         EXPECT_EQ(lower.Key(0), -1);
 
-        auto upper = lugizmo::DFRangeIndex<int>();
+        auto upper = lgz::DFRangeIndex<int>();
         ASSERT_TRUE(upper.SetStep(2));
         EXPECT_EQ(upper.SetUpperBound(3), 2);
         EXPECT_EQ(upper.Key(0), 0);
@@ -121,7 +121,7 @@ TEST(DataframeIndexRange, SetBounds)
 
     // positive values index
     {
-        auto index = lugizmo::DFRangeIndex(0, 10);
+        auto index = lgz::DFRangeIndex(0, 10);
         ASSERT_FALSE(index.SetLowerBound(11).has_value());
         ASSERT_FALSE(index.SetUpperBound(-1).has_value());
 
@@ -144,7 +144,7 @@ TEST(DataframeIndexRange, SetBounds)
 
     // negative values index
     {
-        auto index = lugizmo::DFRangeIndex(-10, 0);
+        auto index = lgz::DFRangeIndex(-10, 0);
         ASSERT_FALSE(index.SetLowerBound(1).has_value());
         ASSERT_FALSE(index.SetUpperBound(-11).has_value());
 
@@ -167,7 +167,7 @@ TEST(DataframeIndexRange, SetBounds)
 
     // sign switch values index
     {
-        auto index = lugizmo::DFRangeIndex(-10, 10);
+        auto index = lgz::DFRangeIndex(-10, 10);
         ASSERT_FALSE(index.SetLowerBound(11).has_value());
         ASSERT_FALSE(index.SetUpperBound(-11).has_value());
 
@@ -208,7 +208,7 @@ TEST(DataframeIndexRange, SetBounds)
 
     // strided bounds only move in complete steps
     {
-        auto index = lugizmo::DFRangeIndex(0, 10, 2); // 0, 2, 4, 6, 8
+        auto index = lgz::DFRangeIndex(0, 10, 2); // 0, 2, 4, 6, 8
 
         EXPECT_EQ(index.SetLowerBound(1), std::nullopt);
         EXPECT_EQ(index.SetUpperBound(11), std::nullopt);
@@ -227,7 +227,7 @@ TEST(DataframeIndexRange, SetBounds)
 
 TEST(DataframeIndexRange, SetStep)
 {
-    auto index = lugizmo::DFRangeIndex<int>();
+    auto index = lgz::DFRangeIndex<int>();
 
     EXPECT_FALSE(index.SetStep(0));
     EXPECT_FALSE(index.SetStep(-1));
@@ -243,8 +243,8 @@ TEST(DataframeIndexRange, SetStep)
     EXPECT_FALSE(index.SetStep(3));
     EXPECT_EQ(index.Step(), 2);
 
-    constexpr auto zeroStep     = lugizmo::DFRangeIndex(0, 5, 0);
-    constexpr auto negativeStep = lugizmo::DFRangeIndex(0, 5, -2);
+    constexpr auto zeroStep     = lgz::DFRangeIndex(0, 5, 0);
+    constexpr auto negativeStep = lgz::DFRangeIndex(0, 5, -2);
     static_assert(zeroStep.Step() == 1);
     static_assert(negativeStep.Step() == 1);
 }
@@ -253,7 +253,7 @@ TEST(DataframeIndexRange, SetLowerUpperBound)
 {
     // An empty range can establish a new grid anchor regardless of its previous bounds.
     {
-        auto index = lugizmo::DFRangeIndex<int>();
+        auto index = lgz::DFRangeIndex<int>();
         ASSERT_TRUE(index.SetStep(2));
 
         auto const [lowerChange, upperChange] = index.SetLowerUpperBound(1, 7); // 1, 3, 5
@@ -287,7 +287,7 @@ TEST(DataframeIndexRange, SetLowerUpperBound)
     // Non-integral affine keys use the same alignment and element-delta contract.
     {
         using namespace std::chrono;
-        auto index = lugizmo::DFRangeIndex(hours{0}, hours{24}, hours{6});
+        auto index = lgz::DFRangeIndex(hours{0}, hours{24}, hours{6});
 
         auto const rejected = index.SetLowerUpperBound(hours{-5}, hours{30});
         EXPECT_FALSE(rejected.first.has_value());
@@ -304,8 +304,8 @@ TEST(DataframeIndexRange, SetLowerUpperBound)
 
 TEST(DataframeIndexRange, CopyConstructor)
 {
-    auto const index = lugizmo::DFRangeIndex(-5, 7);
-    auto const copy  = lugizmo::DFRangeIndex(index);
+    auto const index = lgz::DFRangeIndex(-5, 7);
+    auto const copy  = lgz::DFRangeIndex(index);
 
     ASSERT_EQ(copy.LowerBound(), -5);
     ASSERT_EQ(copy.UpperBound(), 7);
@@ -317,7 +317,7 @@ TEST(DataframeIndexRange, CopyConstructor)
 
 TEST(DataframeIndexRange, Strided)
 {
-    constexpr auto index = lugizmo::DFRangeIndex(0, 10, 2); // 0, 2, 4, 6, 8
+    constexpr auto index = lgz::DFRangeIndex(0, 10, 2); // 0, 2, 4, 6, 8
 
     ASSERT_EQ(index.Step(), 2);
     ASSERT_EQ(index.Size(), 5);
@@ -337,7 +337,7 @@ TEST(DataframeIndexRange, Strided)
     ASSERT_EQ(i, 5);
 
     // an unaligned upper still counts the last element (ceil)
-    constexpr auto odd = lugizmo::DFRangeIndex(0, 9, 3); // 0, 3, 6
+    constexpr auto odd = lgz::DFRangeIndex(0, 9, 3); // 0, 3, 6
     ASSERT_EQ(odd.Size(), 3);
     ASSERT_EQ(odd.Position(6), 2);
     ASSERT_EQ(odd.Position(9), std::nullopt);
@@ -345,7 +345,7 @@ TEST(DataframeIndexRange, Strided)
 
 TEST(DataframeIndexRange, HasStrided)
 {
-    constexpr auto index = lugizmo::DFRangeIndex(0, 10, 2); // 0, 2, 4, 6, 8
+    constexpr auto index = lgz::DFRangeIndex(0, 10, 2); // 0, 2, 4, 6, 8
 
     // on-grid keys are members; in-bounds but off-grid keys are not
     ASSERT_TRUE(index.Has(0));
@@ -362,7 +362,7 @@ TEST(DataframeIndexRange, HasStrided)
     ASSERT_EQ(members, index.Size());
 
     // contiguous range: every in-bounds key is a member
-    constexpr auto contiguous = lugizmo::DFRangeIndex(0, 5);
+    constexpr auto contiguous = lgz::DFRangeIndex(0, 5);
     ASSERT_TRUE(contiguous.Has(3));
     ASSERT_TRUE(contiguous.Has(3.0));
     ASSERT_FALSE(contiguous.Has(3.5));
@@ -374,7 +374,7 @@ TEST(DataframeIndexRange, HasStrided)
 
 TEST(DataframeIndexRange, Bijection)
 {
-    constexpr auto index = lugizmo::DFRangeIndex(-5, 7); // step 1
+    constexpr auto index = lgz::DFRangeIndex(-5, 7); // step 1
 
     // position -> key -> position round trips for every position
     for (size_t pos = 0; pos < index.Size(); ++pos)
@@ -389,7 +389,7 @@ TEST(DataframeIndexRange, Bijection)
     ASSERT_EQ(index.Key(12), std::nullopt); // out of range
 
     // inverse direction for a strided range
-    constexpr auto strided = lugizmo::DFRangeIndex(0, 10, 2);
+    constexpr auto strided = lgz::DFRangeIndex(0, 10, 2);
     ASSERT_EQ(strided.Key(0), 0);
     ASSERT_EQ(strided.Key(3), 6);
     ASSERT_EQ(strided.Key(5), std::nullopt);
@@ -397,7 +397,7 @@ TEST(DataframeIndexRange, Bijection)
 
 TEST(DataframeIndexRange, Iterators)
 {
-    using Bounds = lugizmo::DFRangeIndexBounds<int>;
+    using Bounds = lgz::DFRangeIndexBounds<int>;
 
     static_assert(std::random_access_iterator<Bounds::iterator>);
     static_assert(std::random_access_iterator<Bounds::reverse_iterator>);
@@ -450,7 +450,7 @@ TEST(DataframeIndexRange, ChronoHours)
 {
     using namespace std::chrono;
 
-    auto const index = lugizmo::DFRangeIndex(hours{0}, hours{24}, hours{6}); // 0h, 6h, 12h, 18h
+    auto const index = lgz::DFRangeIndex(hours{0}, hours{24}, hours{6}); // 0h, 6h, 12h, 18h
 
     ASSERT_EQ(index.Size(), 4);
     ASSERT_EQ(index.Step(), hours{6});
@@ -484,7 +484,7 @@ TEST(DataframeIndexRange, ChronoHours)
 
 TEST(DataframeIndexRange, CustomType)
 {
-    auto const index = lugizmo::DFRangeIndex(Tick{0}, Tick{10}, std::ptrdiff_t{2}); // 0, 2, 4, 6, 8
+    auto const index = lgz::DFRangeIndex(Tick{0}, Tick{10}, std::ptrdiff_t{2}); // 0, 2, 4, 6, 8
 
     ASSERT_EQ(index.Size(), 5);
     ASSERT_EQ(index.Step(), 2);

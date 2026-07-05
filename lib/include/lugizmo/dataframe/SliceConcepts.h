@@ -12,7 +12,7 @@
 
 #include "IndexRange.h"
 
-namespace lugizmo {
+namespace lgz {
 
     namespace internal {
 
@@ -56,6 +56,6 @@ namespace lugizmo {
     template<typename Selection, typename Index>
     concept DFSliceSelectionFor = DFSliceRangeSelectionFor<Selection, Index> || DFSliceKeySelectionFor<Selection, Index>;
 
-} // namespace lugizmo
+} // namespace lgz
 
 #endif // LUGIZMO_DF_SLICE_CONCEPTS_H

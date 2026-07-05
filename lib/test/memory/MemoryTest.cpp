@@ -31,7 +31,7 @@
 
 #include "lugizmo/memory/Memory.h"
 
-using namespace lugizmo::internal;
+using namespace lgz::internal;
 
 namespace {
 
@@ -43,7 +43,7 @@ namespace {
 
 /**
  *  @brief Alignment<T>() is never weaker than alignof(T).
- *  @see   lugizmo::internal::Alignment<T>()
+ *  @see   lgz::internal::Alignment<T>()
  */
 TEST(MemoryMemoryAlign, AlignmentAtLeastAlignof)
 {
@@ -54,7 +54,7 @@ TEST(MemoryMemoryAlign, AlignmentAtLeastAlignof)
 
 /**
  *  @brief Alignment<T>() is always a power of two.
- *  @see   lugizmo::internal::Alignment<T>()
+ *  @see   lgz::internal::Alignment<T>()
  */
 TEST(MemoryMemoryAlign, AlignmentIsPowerOfTwo)
 {
@@ -65,7 +65,7 @@ TEST(MemoryMemoryAlign, AlignmentIsPowerOfTwo)
 
 /**
  *  @brief Alignment<T>() lands on a typical cacheline / SIMD value.
- *  @see   lugizmo::internal::Alignment<T>()
+ *  @see   lgz::internal::Alignment<T>()
  */
 TEST(MemoryMemoryAlign, AlignmentTypicalValues)
 {
@@ -79,7 +79,7 @@ TEST(MemoryMemoryAlign, AlignmentTypicalValues)
 
 /**
  *  @brief Alignment<T>() works for non-arithmetic types.
- *  @see   lugizmo::internal::Alignment<T>()
+ *  @see   lgz::internal::Alignment<T>()
  */
 TEST(MemoryMemoryAlign, AlignmentNonArithmetic)
 {
@@ -92,7 +92,7 @@ TEST(MemoryMemoryAlign, AlignmentNonArithmetic)
 
 /**
  *  @brief AllocateAligned returns a pointer aligned to Alignment<T>().
- *  @see   lugizmo::internal::AllocateAligned<T> / DeallocateAligned
+ *  @see   lgz::internal::AllocateAligned<T> / DeallocateAligned
  */
 TEST(MemoryMemoryAlign, AllocateAlignedIsAligned)
 {
@@ -107,7 +107,7 @@ TEST(MemoryMemoryAlign, AllocateAlignedIsAligned)
 
 /**
  *  @brief A zero count allocates nothing and deallocating a null pointer is safe.
- *  @see   lugizmo::internal::AllocateAligned<T> / DeallocateAligned
+ *  @see   lgz::internal::AllocateAligned<T> / DeallocateAligned
  */
 TEST(MemoryMemoryAlign, AlignedHelpersHandleZeroCount)
 {
@@ -121,14 +121,14 @@ TEST(MemoryMemoryAlign, AlignedHelpersHandleZeroCount)
 
 /**
  *  @brief CheckedElementBytes converts valid counts and rejects byte-size overflow.
- *  @see   lugizmo::internal::CheckedElementBytes<T>()
+ *  @see   lgz::internal::CheckedElementBytes<T>()
  */
 TEST(MemoryMemoryAlign, CheckedElementBytes)
 {
     EXPECT_EQ(CheckedElementBytes<std::uint32_t>(3), 12);
 
     constexpr auto overflowingCount = std::numeric_limits<std::size_t>::max() / sizeof(std::uint32_t) + 1;
-    if constexpr(lugizmo::AssertTraceEnabled())
+    if constexpr(lgz::AssertTraceEnabled())
     {
         EXPECT_DEATH((void)CheckedElementBytes<std::uint32_t>(overflowingCount), "allocation size");
     }
@@ -140,7 +140,7 @@ TEST(MemoryMemoryAlign, CheckedElementBytes)
 
 /**
  *  @brief GrowthFactorDefault doubles for small inputs.
- *  @see   lugizmo::internal::GrowthFactorDefault(count)
+ *  @see   lgz::internal::GrowthFactorDefault(count)
  */
 TEST(MemoryMemoryGrowth, GrowthDefaultSmallValues)
 {
@@ -151,7 +151,7 @@ TEST(MemoryMemoryGrowth, GrowthDefaultSmallValues)
 
 /**
  *  @brief GrowthFactorDefault grows by a smaller factor in the mid range.
- *  @see   lugizmo::internal::GrowthFactorDefault(count)
+ *  @see   lgz::internal::GrowthFactorDefault(count)
  */
 TEST(MemoryMemoryGrowth, GrowthDefaultMidRange)
 {
@@ -160,7 +160,7 @@ TEST(MemoryMemoryGrowth, GrowthDefaultMidRange)
 
 /**
  *  @brief GrowthFactorDefault grows by a fixed slab for huge inputs.
- *  @see   lugizmo::internal::GrowthFactorDefault(count)
+ *  @see   lgz::internal::GrowthFactorDefault(count)
  */
 TEST(MemoryMemoryGrowth, GrowthDefaultHugeValues)
 {
@@ -170,7 +170,7 @@ TEST(MemoryMemoryGrowth, GrowthDefaultHugeValues)
 
 /**
  *  @brief GrowthFactorDefault saturates instead of overflowing.
- *  @see   lugizmo::internal::GrowthFactorDefault(count)
+ *  @see   lgz::internal::GrowthFactorDefault(count)
  */
 TEST(MemoryMemoryGrowth, GrowthDefaultPreventsOverflow)
 {

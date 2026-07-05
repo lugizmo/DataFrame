@@ -12,7 +12,7 @@
 #include <type_traits>
 #include <optional>
 
-namespace lugizmo {
+namespace lgz {
 
     /**
      *  @brief   Checks if a class is an iterable and therefor

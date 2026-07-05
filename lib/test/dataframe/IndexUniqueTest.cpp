@@ -29,9 +29,9 @@
 
 #include "lugizmo/dataframe/IndexUnique.h"
 
-inline auto CreateTestStringIndexUnique() -> lugizmo::DFUniqueIndex<std::string>
+inline auto CreateTestStringIndexUnique() -> lgz::DFUniqueIndex<std::string>
 {
-    lugizmo::DFUniqueIndex<std::string> index;
+    lgz::DFUniqueIndex<std::string> index;
 
     auto const positions = std::array<std::string, 3>{"first", "second", "third"};
     index.AddMultiple(positions);
@@ -41,12 +41,12 @@ inline auto CreateTestStringIndexUnique() -> lugizmo::DFUniqueIndex<std::string>
 
 /**
  *  @brief Constructing a unique index, default and with a memory resource.
- *  @see   lugizmo::DFUniqueIndex::DFUniqueIndex()
- *         lugizmo::DFUniqueIndex::DFUniqueIndex(std::pmr::memory_resource*, size_t)
+ *  @see   lgz::DFUniqueIndex::DFUniqueIndex()
+ *         lgz::DFUniqueIndex::DFUniqueIndex(std::pmr::memory_resource*, size_t)
  */
 TEST(DataframeIndexUnique, Construct)
 {
-    using namespace lugizmo;
+    using namespace lgz;
 
     {
         // default constructed: empty and reports no positions
@@ -78,11 +78,11 @@ TEST(DataframeIndexUnique, Construct)
 
 /**
  *  @brief Adding keys assigns increasing positions; duplicates are rejected.
- *  @see   lugizmo::DFUniqueIndex::Add(T&&)
+ *  @see   lgz::DFUniqueIndex::Add(T&&)
  */
 TEST(DataframeIndexUnique, Add)
 {
-    using namespace lugizmo;
+    using namespace lgz;
 
     DFUniqueIndex<std::string> index;
 
@@ -103,11 +103,11 @@ TEST(DataframeIndexUnique, Add)
 
 /**
  *  @brief AddMultiple returns the number of newly inserted keys and skips duplicates.
- *  @see   lugizmo::DFUniqueIndex::AddMultiple(std::span<KeyType const>)
+ *  @see   lgz::DFUniqueIndex::AddMultiple(std::span<KeyType const>)
  */
 TEST(DataframeIndexUnique, AddMultiple)
 {
-    using namespace lugizmo;
+    using namespace lgz;
 
     DFUniqueIndex<std::string> index;
     auto const first = std::array<std::string, 3>{"first", "second", "third"};
@@ -139,7 +139,7 @@ TEST(DataframeIndexUnique, AddMultiple)
 
 /**
  *  @brief Has reports membership for stored keys and transparent string literals.
- *  @see   lugizmo::DFUniqueIndex::Has(C const&)
+ *  @see   lgz::DFUniqueIndex::Has(C const&)
  */
 TEST(DataframeIndexUnique, Has)
 {
@@ -159,11 +159,11 @@ TEST(DataframeIndexUnique, Has)
 
 /**
  *  @brief Key resolves a position back to its key and stays consistent after mutation.
- *  @see   lugizmo::DFUniqueIndex::Key(size_t)
+ *  @see   lgz::DFUniqueIndex::Key(size_t)
  */
 TEST(DataframeIndexUnique, Key)
 {
-    using namespace lugizmo;
+    using namespace lgz;
 
     {
         // valid positions map to their key
@@ -204,7 +204,7 @@ TEST(DataframeIndexUnique, Key)
 
 /**
  *  @brief Position resolves a key to its position, or nullopt when absent.
- *  @see   lugizmo::DFUniqueIndex::Position(C const&)
+ *  @see   lgz::DFUniqueIndex::Position(C const&)
  */
 TEST(DataframeIndexUnique, Position)
 {
@@ -225,11 +225,11 @@ TEST(DataframeIndexUnique, Position)
 
 /**
  *  @brief Keys/Position/Size/Empty/MaxPosition expose the stored mapping and counts.
- *  @see   lugizmo::DFUniqueIndex::Keys, Position, Size, Empty, MaxPosition
+ *  @see   lgz::DFUniqueIndex::Keys, Position, Size, Empty, MaxPosition
  */
 TEST(DataframeIndexUnique, Access)
 {
-    using namespace lugizmo;
+    using namespace lgz;
 
     auto const index = CreateTestStringIndexUnique();
 
@@ -270,7 +270,7 @@ TEST(DataframeIndexUnique, Access)
 
 /**
  *  @brief Drop removes a key, returns its old position, and compacts the remaining ones.
- *  @see   lugizmo::DFUniqueIndex::Drop(T const&)
+ *  @see   lgz::DFUniqueIndex::Drop(T const&)
  */
 TEST(DataframeIndexUnique, Drop)
 {
@@ -318,11 +318,11 @@ TEST(DataframeIndexUnique, Drop)
 
 /**
  *  @brief Sort orders keys, rebuilds positions, and returns the new-to-old permutation.
- *  @see   lugizmo::DFUniqueIndex::Sort(Compare comp = {})
+ *  @see   lgz::DFUniqueIndex::Sort(Compare comp = {})
  */
 TEST(DataframeIndexUnique, Sort)
 {
-    using namespace lugizmo;
+    using namespace lgz;
 
     {
         // default comparator sorts ascending; old layout [banana(0), apple(1), cherry(2)]
@@ -367,12 +367,12 @@ TEST(DataframeIndexUnique, Sort)
 
 /**
  *  @brief Resource-aware copy construction, copy assignment, and moves preserve the mapping independently.
- *  @see   lugizmo::DFUniqueIndex copy/move constructors and assignment operators
- *         lugizmo::DFUniqueIndex::DFUniqueIndex(DFUniqueIndex const&, std::pmr::memory_resource*)
+ *  @see   lgz::DFUniqueIndex copy/move constructors and assignment operators
+ *         lgz::DFUniqueIndex::DFUniqueIndex(DFUniqueIndex const&, std::pmr::memory_resource*)
  */
 TEST(DataframeIndexUnique, Tors)
 {
-    using namespace lugizmo;
+    using namespace lgz;
 
     static_assert(!std::is_copy_constructible_v<DFUniqueIndex<std::string>>);
 

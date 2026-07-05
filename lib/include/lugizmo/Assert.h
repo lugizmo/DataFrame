@@ -11,7 +11,7 @@
 #include <cstdlib>
 #include <source_location>
 
-namespace lugizmo {
+namespace lgz {
 
     namespace internal {
 
@@ -61,7 +61,7 @@ namespace lugizmo {
 #endif
     }
 
-} // namespace lugizmo
+} // namespace lgz
 
 #if defined(LUGIZMO_DF_ENABLE_ASSERT) && LUGIZMO_DF_ENABLE_ASSERT
 #define LUGIZMO_ASSERT(condition, message)                                                                     \
@@ -69,7 +69,7 @@ namespace lugizmo {
     {                                                                                                          \
         if(!(condition))                                                                                       \
         {                                                                                                      \
-            ::lugizmo::internal::PrintAndAbortAssertFailure((message), std::source_location::current());       \
+            ::lgz::internal::PrintAndAbortAssertFailure((message), std::source_location::current());       \
         }                                                                                                      \
     }()
 #else
@@ -85,7 +85,7 @@ namespace lugizmo {
     {                                                                                                          \
         if(!(condition))                                                                                       \
         {                                                                                                      \
-            ::lugizmo::internal::PrintAndAbortAssertFailure((message), std::source_location::current());       \
+            ::lgz::internal::PrintAndAbortAssertFailure((message), std::source_location::current());       \
         }                                                                                                      \
     }()
 #else

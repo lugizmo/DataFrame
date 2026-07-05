@@ -52,9 +52,9 @@
 
 namespace {
 
-    using Index      = lugizmo::DFUniqueIndex<int>;
-    using View       = lugizmo::DFViewIndexed<int, Index>;
-    using ConstView  = lugizmo::DFViewIndexed<int const, Index>;
+    using Index      = lgz::DFUniqueIndex<int>;
+    using View       = lgz::DFViewIndexed<int, Index>;
+    using ConstView  = lgz::DFViewIndexed<int const, Index>;
     using Matrix     = std::mdspan<int, std::dextents<std::ptrdiff_t, 2>, std::layout_right>;
     using ConstMatrix = std::mdspan<int const, std::dextents<std::ptrdiff_t, 2>, std::layout_right>;
 
@@ -96,7 +96,7 @@ namespace {
 
 /**
  * @brief Default construction produces a valid indexed-view wrapper.
- * @see   lugizmo::DFViewIndexed::DFViewIndexed
+ * @see   lgz::DFViewIndexed::DFViewIndexed
  */
 TEST_F(ViewIndexedTest, Construct)
 {
@@ -108,7 +108,7 @@ TEST_F(ViewIndexedTest, Construct)
 
 /**
  * @brief FieldView pairs one field's values with the record index.
- * @see   lugizmo::DFViewIndexed::FieldView
+ * @see   lgz::DFViewIndexed::FieldView
  */
 TEST_F(ViewIndexedTest, FieldView)
 {
@@ -128,7 +128,7 @@ TEST_F(ViewIndexedTest, FieldView)
 
 /**
  * @brief RecordView pairs one record's values with the field index.
- * @see   lugizmo::DFViewIndexed::RecordView
+ * @see   lgz::DFViewIndexed::RecordView
  */
 TEST_F(ViewIndexedTest, RecordView)
 {
@@ -144,7 +144,7 @@ TEST_F(ViewIndexedTest, RecordView)
 
 /**
  * @brief Size reports the number of paired value/index entries.
- * @see   lugizmo::DFViewIndexed::Size
+ * @see   lgz::DFViewIndexed::Size
  */
 TEST_F(ViewIndexedTest, Size)
 {
@@ -154,7 +154,7 @@ TEST_F(ViewIndexedTest, Size)
 
 /**
  * @brief Empty distinguishes default-constructed and populated indexed views.
- * @see   lugizmo::DFViewIndexed::Empty
+ * @see   lgz::DFViewIndexed::Empty
  */
 TEST_F(ViewIndexedTest, Empty)
 {
@@ -164,7 +164,7 @@ TEST_F(ViewIndexedTest, Empty)
 
 /**
  * @brief Values exposes the writable dataframe-value component.
- * @see   lugizmo::DFViewIndexed::Values
+ * @see   lgz::DFViewIndexed::Values
  */
 TEST_F(ViewIndexedTest, Values)
 {
@@ -179,7 +179,7 @@ TEST_F(ViewIndexedTest, Values)
 
 /**
  * @brief Indices exposes the read-only index component in entry order.
- * @see   lugizmo::DFViewIndexed::Indices
+ * @see   lgz::DFViewIndexed::Indices
  */
 TEST_F(ViewIndexedTest, Indices)
 {
@@ -190,7 +190,7 @@ TEST_F(ViewIndexedTest, Indices)
 
 /**
  * @brief Positional indexing returns the paired value and index entry.
- * @see   lugizmo::DFViewIndexed::operator[]
+ * @see   lgz::DFViewIndexed::operator[]
  */
 TEST_F(ViewIndexedTest, IndexOperator)
 {
@@ -206,7 +206,7 @@ TEST_F(ViewIndexedTest, IndexOperator)
 
 /**
  * @brief Checked positional access returns an optional entry and reports misses.
- * @see   lugizmo::DFViewIndexed::operator()
+ * @see   lgz::DFViewIndexed::operator()
  */
 TEST_F(ViewIndexedTest, CheckedIndexOperator)
 {
@@ -253,7 +253,7 @@ TEST_F(ViewIndexedTest, StandardBack)
 
 /**
  * @brief Front returns the first entry or an empty optional for an empty view.
- * @see   lugizmo::DFViewIndexed::Front
+ * @see   lgz::DFViewIndexed::Front
  */
 TEST_F(ViewIndexedTest, Front)
 {
@@ -269,7 +269,7 @@ TEST_F(ViewIndexedTest, Front)
 
 /**
  * @brief Back returns the final entry or an empty optional for an empty view.
- * @see   lugizmo::DFViewIndexed::Back
+ * @see   lgz::DFViewIndexed::Back
  */
 TEST_F(ViewIndexedTest, Back)
 {
@@ -285,7 +285,7 @@ TEST_F(ViewIndexedTest, Back)
 
 /**
  * @brief Begin points to the first paired entry and preserves value mutability.
- * @see   lugizmo::DFViewIndexed::begin
+ * @see   lgz::DFViewIndexed::begin
  */
 TEST_F(ViewIndexedTest, Begin)
 {
@@ -300,7 +300,7 @@ TEST_F(ViewIndexedTest, Begin)
 
 /**
  * @brief End terminates traversal after every paired entry.
- * @see   lugizmo::DFViewIndexed::end
+ * @see   lgz::DFViewIndexed::end
  */
 TEST_F(ViewIndexedTest, End)
 {
@@ -312,7 +312,7 @@ TEST_F(ViewIndexedTest, End)
 
 /**
  * @brief CBegin starts traversal of a const-element indexed view.
- * @see   lugizmo::DFViewIndexed::cbegin
+ * @see   lgz::DFViewIndexed::cbegin
  */
 TEST_F(ViewIndexedTest, CBegin)
 {
@@ -326,7 +326,7 @@ TEST_F(ViewIndexedTest, CBegin)
 
 /**
  * @brief CEnd terminates traversal of a const-element indexed view.
- * @see   lugizmo::DFViewIndexed::cend
+ * @see   lgz::DFViewIndexed::cend
  */
 TEST_F(ViewIndexedTest, CEnd)
 {
@@ -338,7 +338,7 @@ TEST_F(ViewIndexedTest, CEnd)
 
 /**
  * @brief RBegin starts mutable reverse traversal at the final paired entry.
- * @see   lugizmo::DFViewIndexed::rbegin
+ * @see   lgz::DFViewIndexed::rbegin
  */
 TEST_F(ViewIndexedTest, RBegin)
 {
@@ -354,7 +354,7 @@ TEST_F(ViewIndexedTest, RBegin)
 
 /**
  * @brief REnd terminates reverse traversal before the first paired entry.
- * @see   lugizmo::DFViewIndexed::rend
+ * @see   lgz::DFViewIndexed::rend
  */
 TEST_F(ViewIndexedTest, REnd)
 {
@@ -369,7 +369,7 @@ TEST_F(ViewIndexedTest, REnd)
 
 /**
  * @brief CRBegin starts const reverse traversal at the final paired entry.
- * @see   lugizmo::DFViewIndexed::crbegin
+ * @see   lgz::DFViewIndexed::crbegin
  */
 TEST_F(ViewIndexedTest, CRBegin)
 {
@@ -384,7 +384,7 @@ TEST_F(ViewIndexedTest, CRBegin)
 
 /**
  * @brief CREnd terminates const reverse traversal before the first paired entry.
- * @see   lugizmo::DFViewIndexed::crend
+ * @see   lgz::DFViewIndexed::crend
  */
 TEST_F(ViewIndexedTest, CREnd)
 {
@@ -396,7 +396,7 @@ TEST_F(ViewIndexedTest, CREnd)
 
 /**
  * @brief Contains performs read-only keyed lookup on a const view object.
- * @see   lugizmo::DFViewIndexed::Contains
+ * @see   lgz::DFViewIndexed::Contains
  */
 TEST_F(ViewIndexedTest, Contains)
 {
@@ -410,7 +410,7 @@ TEST_F(ViewIndexedTest, Contains)
 
 /**
  * @brief At returns a pointer whose constness follows the element type.
- * @see   lugizmo::DFViewIndexed::At
+ * @see   lgz::DFViewIndexed::At
  */
 TEST_F(ViewIndexedTest, At)
 {
@@ -430,7 +430,7 @@ TEST_F(ViewIndexedTest, At)
 
 /**
  * @brief Indexed iterators keep values and indices synchronized during random access.
- * @see   lugizmo::DFViewIndexed::Iterator
+ * @see   lgz::DFViewIndexed::Iterator
  */
 TEST_F(ViewIndexedTest, IteratorRandomAccess)
 {
@@ -466,8 +466,8 @@ TEST_F(ViewIndexedTest, IteratorRandomAccess)
 
 /**
  * @brief Iterators of an empty indexed view form a valid empty range.
- * @see   lugizmo::DFViewIndexed::begin
- * @see   lugizmo::DFViewIndexed::end
+ * @see   lgz::DFViewIndexed::begin
+ * @see   lgz::DFViewIndexed::end
  */
 TEST_F(ViewIndexedTest, EmptyIterator)
 {
@@ -479,12 +479,12 @@ TEST_F(ViewIndexedTest, EmptyIterator)
 
 /**
  * @brief Entries from a generated range index retain independent index values.
- * @see   lugizmo::DFViewIndexed::Entry
+ * @see   lgz::DFViewIndexed::Entry
  */
 TEST(ViewIndexed, RangeIndexEntry)
 {
-    using RangeIndex = lugizmo::DFRangeIndex<int>;
-    using RangeView  = lugizmo::DFViewIndexed<int, RangeIndex>;
+    using RangeIndex = lgz::DFRangeIndex<int>;
+    using RangeView  = lgz::DFViewIndexed<int, RangeIndex>;
 
     auto values = std::array{0, 1,
                              2, 3,

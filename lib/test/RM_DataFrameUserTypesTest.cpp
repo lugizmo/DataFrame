@@ -120,11 +120,11 @@ namespace {
 
 /**
  *  @brief The dataframe copies/moves/destroys a rule-of-five value type without leaking.
- *  @see   lugizmo::DataFrame element lifetime (Add*, UpsertValue, destructor)
+ *  @see   lgz::DataFrame element lifetime (Add*, UpsertValue, destructor)
  */
 TEST(RM_DataframeUserTypes, MoveCopyAndDestroy)
 {
-    using DF = lugizmo::DataFrame<MoveCopyType, int, int>;
+    using DF = lgz::DataFrame<MoveCopyType, int, int>;
     MoveCopyType::ResetCounters();
 
     {
@@ -182,11 +182,11 @@ TEST(RM_DataframeUserTypes, MoveCopyAndDestroy)
 /**
  *  @brief std::string keys support transparent lookup (std::string / string_view / const char*),
  *         so heterogeneous keys resolve without constructing a temporary std::string.
- *  @see   lugizmo::TransparentHash / TransparentEqual
+ *  @see   lgz::TransparentHash / TransparentEqual
  */
 TEST(RM_DataframeUserTypes, StringKeys)
 {
-    using namespace lugizmo;
+    using namespace lgz;
     using namespace std::string_view_literals;
 
     auto df = DataFrame<int, std::string, std::string>();

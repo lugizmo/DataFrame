@@ -13,7 +13,7 @@
 #include <optional>
 #include <utility>
 
-namespace lugizmo {
+namespace lgz {
 
     /**
      * @brief   CRTP interface for value (label) indices that map unique keys to dense positions.
@@ -295,6 +295,6 @@ namespace lugizmo {
     template<typename T>
     concept DFIdxType = DFUnqIndex<T> || DFRngIndex<T>;
 
-} // namespace lugizmo
+} // namespace lgz
 
 #endif // LUGIZMO_DF_INDEX_BASE_H

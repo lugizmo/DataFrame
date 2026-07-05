@@ -70,6 +70,6 @@ class DataFrameSyntheticProvider:
         return True
 
 def __lldb_init_module(debugger, internal_dict):
-    debugger.HandleCommand('type synthetic add -x "^lugizmo::DataFrame<.*>$" --python-class DataFrameFormatter.DataFrameSyntheticProvider -w cplusplus')
-    debugger.HandleCommand('type summary add -x "^lugizmo::DataFrame<.*>$" -F DataFrameFormatter.DataFrameSyntheticProvider.get_summary -w cplusplus')
+    debugger.HandleCommand('type synthetic add -x "^lgz::DataFrame<.*>$" --python-class DataFrameFormatter.DataFrameSyntheticProvider -w cplusplus')
+    debugger.HandleCommand('type summary add -x "^lgz::DataFrame<.*>$" -F DataFrameFormatter.DataFrameSyntheticProvider.get_summary -w cplusplus')
     debugger.HandleCommand('type category enable cplusplus')

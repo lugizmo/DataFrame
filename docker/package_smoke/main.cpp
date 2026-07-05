@@ -8,6 +8,6 @@
 
 auto main() -> int
 {
-    static_cast<void>(sizeof(lugizmo::RowMajor));
+    static_cast<void>(sizeof(lgz::RowMajor));
     return 0;
 }

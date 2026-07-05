@@ -23,7 +23,7 @@
 
 #include "lugizmo/DataFrame.h"
 
-using namespace lugizmo;
+using namespace lgz;
 
 namespace {
 
@@ -46,7 +46,7 @@ namespace {
 
 /**
  *  @brief ForEachOnField applies a function over a field's column and returns the (mutable) view.
- *  @see   lugizmo::DataFrame.ForEachOnField<Func>(field, func)
+ *  @see   lgz::DataFrame.ForEachOnField<Func>(field, func)
  */
 TEST(RM_DataFrameFunctional, ForEachOnField)
 {
@@ -74,7 +74,7 @@ TEST(RM_DataFrameFunctional, ForEachOnField)
 
 /**
  *  @brief ForEachOnRecord applies a function over a record's row and returns the view.
- *  @see   lugizmo::DataFrame.ForEachOnRecord<Func>(record, func)
+ *  @see   lgz::DataFrame.ForEachOnRecord<Func>(record, func)
  */
 TEST(RM_DataFrameFunctional, ForEachOnRecord)
 {
@@ -96,7 +96,7 @@ TEST(RM_DataFrameFunctional, ForEachOnRecord)
 
 /**
  *  @brief Views and selectors compose with std::ranges view adaptors (filter / transform).
- *  @see   lugizmo::DataFrame view/selector pipelines
+ *  @see   lgz::DataFrame view/selector pipelines
  */
 TEST(RM_DataFrameFunctional, RangesComposition)
 {

@@ -21,7 +21,7 @@
 
 TEST(DataframeIndexBase, Concepts)
 {
-    using namespace lugizmo;
+    using namespace lgz;
 
     // unique index
     constexpr auto valInt    = DFUnqIndex<DFUniqueIndex<int>>;

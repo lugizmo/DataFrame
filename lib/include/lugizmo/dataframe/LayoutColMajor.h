@@ -7,7 +7,7 @@
 #ifndef LUGIZMO_DF_LAYOUT_COL_MAJOR_H
 #define LUGIZMO_DF_LAYOUT_COL_MAJOR_H
 
-namespace lugizmo {
+namespace lgz {
 
     struct DFColMajor final
     {

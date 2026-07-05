@@ -19,7 +19,7 @@
 #include "lugizmo/Assert.h"
 #include "lugizmo/container/Concepts.h"
 
-namespace lugizmo {
+namespace lgz {
 
     /**
      * @brief   A key type usable as a strided range index.
@@ -572,6 +572,6 @@ namespace lugizmo {
         DFRangeIndexBounds<T> bounds;
     };
 
-} // namespace lugizmo
+} // namespace lgz
 
 #endif // LUGIZMO_DF_INDEX_RANGE_H

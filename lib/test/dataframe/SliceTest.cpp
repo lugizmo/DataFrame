@@ -39,13 +39,13 @@
 
 namespace {
 
-    using Index = lugizmo::DFUniqueIndex<int>;
+    using Index = lgz::DFUniqueIndex<int>;
 
     template<typename Layout, bool Contiguous = false>
-    using Slice = lugizmo::DFSlice<int, Index, Index, Layout, Contiguous>;
+    using Slice = lgz::DFSlice<int, Index, Index, Layout, Contiguous>;
 
     template<typename Layout, bool Contiguous = false>
-    using ConstSlice = lugizmo::DFSlice<int const, Index, Index, Layout, Contiguous>;
+    using ConstSlice = lgz::DFSlice<int const, Index, Index, Layout, Contiguous>;
 
     template<typename Layout>
     using Matrix = std::mdspan<int, std::dextents<std::ptrdiff_t, 2>, Layout>;
@@ -93,7 +93,7 @@ namespace {
 
 /**
  * @brief A default DFSlice is an empty random-access range.
- * @see   lugizmo::DFSlice::DFSlice
+ * @see   lgz::DFSlice::DFSlice
  */
 TEST(DataframeSlice, DefaultConstruction)
 {
@@ -105,10 +105,10 @@ TEST(DataframeSlice, DefaultConstruction)
 
 /**
  * @brief Shape and stride queries preserve the selected rectangle and source mapping.
- * @see   lugizmo::DFSlice::FieldSize
- * @see   lugizmo::DFSlice::RecordSize
- * @see   lugizmo::DFSlice::FieldStride
- * @see   lugizmo::DFSlice::RecordStride
+ * @see   lgz::DFSlice::FieldSize
+ * @see   lgz::DFSlice::RecordSize
+ * @see   lgz::DFSlice::FieldStride
+ * @see   lgz::DFSlice::RecordStride
  */
 TEST(DataframeSlice, ShapeAndStride)
 {
@@ -127,7 +127,7 @@ TEST(DataframeSlice, ShapeAndStride)
 
 /**
  * @brief IsFieldConsecutive reports whether the selected field positions contain no gaps.
- * @see   lugizmo::DFSlice::IsFieldConsecutive
+ * @see   lgz::DFSlice::IsFieldConsecutive
  */
 TEST(DataframeSlice, FieldConsecutive)
 {
@@ -147,7 +147,7 @@ TEST(DataframeSlice, FieldConsecutive)
 
 /**
  * @brief IsRecordConsecutive reports whether the selected record positions contain no gaps.
- * @see   lugizmo::DFSlice::IsRecordConsecutive
+ * @see   lgz::DFSlice::IsRecordConsecutive
  */
 TEST(DataframeSlice, RecordConsecutive)
 {
@@ -167,7 +167,7 @@ TEST(DataframeSlice, RecordConsecutive)
 
 /**
  * @brief IsConsecutive requires both field and record selections to contain no gaps.
- * @see   lugizmo::DFSlice::IsConsecutive
+ * @see   lgz::DFSlice::IsConsecutive
  */
 TEST(DataframeSlice, Consecutive)
 {
@@ -187,8 +187,8 @@ TEST(DataframeSlice, Consecutive)
 
 /**
  * @brief Contiguous is a type guarantee while IsContiguous also describes a particular instance.
- * @see   lugizmo::DFSlice::Contiguous
- * @see   lugizmo::DFSlice::IsContiguous
+ * @see   lgz::DFSlice::Contiguous
+ * @see   lgz::DFSlice::IsContiguous
  */
 TEST(DataframeSlice, Contiguity)
 {
@@ -213,8 +213,8 @@ TEST(DataframeSlice, Contiguity)
 
 /**
  * @brief Flat access follows storage order while operator() uses (record, field) positions.
- * @see   lugizmo::DFSlice::operator[]
- * @see   lugizmo::DFSlice::operator()
+ * @see   lgz::DFSlice::operator[]
+ * @see   lgz::DFSlice::operator()
  */
 TEST(DataframeSlice, PositionalAccess)
 {
@@ -233,7 +233,7 @@ TEST(DataframeSlice, PositionalAccess)
 
 /**
  * @brief The C++23 two-argument subscript accesses an asserted `(record, field)` position.
- * @see   lugizmo::DFSlice::operator[]
+ * @see   lgz::DFSlice::operator[]
  */
 TEST(DataframeSlice, Subscript2D)
 {
@@ -250,7 +250,7 @@ TEST(DataframeSlice, Subscript2D)
 
 /**
  * @brief Slice composes key selections with both gathered and regular parent mappings.
- * @see   lugizmo::DFSlice::Slice
+ * @see   lgz::DFSlice::Slice
  */
 TEST(DataframeSlice, SliceComposition)
 {
@@ -270,19 +270,19 @@ TEST(DataframeSlice, SliceComposition)
     EXPECT_TRUE(std::ranges::equal(nestedRegular, std::array{6, 10}));
     EXPECT_TRUE(nestedRegular.Contains(30, 200));
 
-    using RangeIndex = lugizmo::DFRangeIndex<int>;
-    using RangeSlice = lugizmo::DFSlice<int, RangeIndex, RangeIndex, std::layout_right>;
+    using RangeIndex = lgz::DFRangeIndex<int>;
+    using RangeSlice = lgz::DFSlice<int, RangeIndex, RangeIndex, std::layout_right>;
     auto rangeFields  = RangeIndex(0, 4);
     auto rangeRecords = RangeIndex(0, 3);
     auto rangeParent  = RangeSlice::View(matrix, &rangeFields, &rangeRecords, 0, 4, 0, 3);
-    auto rangeNested  = rangeParent.Slice(lugizmo::DFRangeIndexBounds{.lower = 1, .upper = 4, .step = 2},
-                                          lugizmo::DFRangeIndexBounds{.lower = 0, .upper = 3, .step = 2});
+    auto rangeNested  = rangeParent.Slice(lgz::DFRangeIndexBounds{.lower = 1, .upper = 4, .step = 2},
+                                          lgz::DFRangeIndexBounds{.lower = 0, .upper = 3, .step = 2});
     EXPECT_TRUE(std::ranges::equal(rangeNested, std::array{1, 3, 9, 11}));
 }
 
 /**
  * @brief SliceFields composes a field selection while preserving the parent records.
- * @see   lugizmo::DFSlice::SliceFields
+ * @see   lgz::DFSlice::SliceFields
  */
 TEST(DataframeSlice, SliceFields)
 {
@@ -302,7 +302,7 @@ TEST(DataframeSlice, SliceFields)
 
 /**
  * @brief SliceRecords composes a record selection while preserving the parent fields.
- * @see   lugizmo::DFSlice::SliceRecords
+ * @see   lgz::DFSlice::SliceRecords
  */
 TEST(DataframeSlice, SliceRecords)
 {
@@ -322,7 +322,7 @@ TEST(DataframeSlice, SliceRecords)
 
 /**
  * @brief SliceField preserves the parent record selection and selects one field key.
- * @see   lugizmo::DFSlice::SliceField
+ * @see   lgz::DFSlice::SliceField
  */
 TEST(DataframeSlice, SliceField)
 {
@@ -341,7 +341,7 @@ TEST(DataframeSlice, SliceField)
 
 /**
  * @brief SliceRecord preserves the parent field selection and selects one record key.
- * @see   lugizmo::DFSlice::SliceRecord
+ * @see   lgz::DFSlice::SliceRecord
  */
 TEST(DataframeSlice, SliceRecord)
 {
@@ -360,8 +360,8 @@ TEST(DataframeSlice, SliceRecord)
 
 /**
  * @brief Contains and At translate dataframe keys through both slice offsets.
- * @see   lugizmo::DFSlice::Contains
- * @see   lugizmo::DFSlice::At
+ * @see   lgz::DFSlice::Contains
+ * @see   lgz::DFSlice::At
  */
 TEST(DataframeSlice, KeyAccess)
 {
@@ -380,8 +380,8 @@ TEST(DataframeSlice, KeyAccess)
 
 /**
  * @brief Flattened iteration follows the source layout's contiguous axis.
- * @see   lugizmo::DFSlice::begin
- * @see   lugizmo::DFSlice::end
+ * @see   lgz::DFSlice::begin
+ * @see   lgz::DFSlice::end
  */
 TEST(DataframeSlice, LayoutOrder)
 {
@@ -399,7 +399,7 @@ TEST(DataframeSlice, LayoutOrder)
 
 /**
  * @brief Element mutability comes from T rather than wrapper constness.
- * @see   lugizmo::DFSlice
+ * @see   lgz::DFSlice
  */
 TEST(DataframeSlice, Constness)
 {
@@ -417,7 +417,7 @@ TEST(DataframeSlice, Constness)
 
 /**
  * @brief DFSlice composes directly with standard range adaptor closures.
- * @see   lugizmo::DFSlice
+ * @see   lgz::DFSlice
  */
 TEST(DataframeSlice, RangeAdaptor)
 {
@@ -432,7 +432,7 @@ TEST(DataframeSlice, RangeAdaptor)
 
 /**
  * @brief Gathered mappings and their copies retain the caller-provided memory resource.
- * @see   lugizmo::DFSlice::SelectedFields
+ * @see   lgz::DFSlice::SelectedFields
  */
 TEST(DataframeSlice, Allocator)
 {

@@ -29,8 +29,8 @@
 
 #include "RM_HelperDFTestConfigs.h"
 
-using namespace lugizmo;
-using namespace lugizmo::test;
+using namespace lgz;
+using namespace lgz::test;
 
 namespace {
 
@@ -56,7 +56,7 @@ TYPED_TEST_SUITE(RM_DataframeMutating, IndexConfigs);
 
 /**
  *  @brief AssignValue writes through at a present cell and fails (without adding indices) otherwise.
- *  @see   lugizmo::DataFrame.AssignValue(FldT const& field, RecT const& record, U&& value) -> bool
+ *  @see   lgz::DataFrame.AssignValue(FldT const& field, RecT const& record, U&& value) -> bool
  */
 TYPED_TEST(RM_DataframeMutating, AssignValue)
 {
@@ -89,7 +89,7 @@ TYPED_TEST(RM_DataframeMutating, AssignValue)
 
 /**
  *  @brief UpsertValue inserts a missing field and/or record then assigns; replaces when both exist.
- *  @see   lugizmo::DataFrame.UpsertValue(FldT const& field, RecT const& record, U&& value) requires DFUnqIndices<FldI, RecI>
+ *  @see   lgz::DataFrame.UpsertValue(FldT const& field, RecT const& record, U&& value) requires DFUnqIndices<FldI, RecI>
  */
 TEST(RM_DataframeMutatingValue, UpsertValue)
 {
@@ -130,7 +130,7 @@ TEST(RM_DataframeMutatingValue, UpsertValue)
 
 /**
  *  @brief AssignFieldValues replaces a whole column when the size matches; rejects otherwise.
- *  @see   lugizmo::DataFrame.AssignFieldValues(FldT const& field, std::span<U const> values) -> bool
+ *  @see   lgz::DataFrame.AssignFieldValues(FldT const& field, std::span<U const> values) -> bool
  */
 TEST(RM_DataframeMutatingValue, AssignFieldValues)
 {
@@ -174,7 +174,7 @@ TEST(RM_DataframeMutatingValue, AssignFieldValues)
 
 /**
  *  @brief AssignRecordValues replaces a whole row when the size matches; rejects otherwise.
- *  @see   lugizmo::DataFrame.AssignRecordValues(RecT const& record, std::span<U const> values) -> bool
+ *  @see   lgz::DataFrame.AssignRecordValues(RecT const& record, std::span<U const> values) -> bool
  */
 TEST(RM_DataframeMutatingValue, AssignRecordValues)
 {

@@ -11,7 +11,7 @@
 #include <string>
 #include <string_view>
 
-namespace lugizmo {
+namespace lgz {
 
     /**
      * @brief   Hash functor usable as the `Hash` of an unordered associative container.
@@ -78,6 +78,6 @@ namespace lugizmo {
         }
     };
 
-} // namespace lugizmo
+} // namespace lgz
 
 #endif // LUGIZMO_CONTAINER_HASHING_H
