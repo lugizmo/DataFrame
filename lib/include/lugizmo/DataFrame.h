@@ -7,6 +7,7 @@
 #ifndef LUGIZMO_DF_DATAFRAME_H
 #define LUGIZMO_DF_DATAFRAME_H
 
+#include <algorithm>
 #include <cstddef>
 #include <concepts>
 #include <format>
@@ -35,6 +36,8 @@
 #include "dataframe/IndexUnique.h"
 #include "dataframe/IndexRange.h"
 #include "dataframe/Selector.h"
+#include "dataframe/SliceConcepts.h"
+#include "dataframe/Slice.h"
 #include "dataframe/Span.h"
 #include "dataframe/LayoutRowMajor.h"
 #include "dataframe/View.h"
@@ -84,6 +87,83 @@ namespace lugizmo {
         using FldI = std::conditional_t<IS_FLD_RNG, F, DFUniqueIndex<F>>;   // index for field values
         using RecI = std::conditional_t<IS_REC_RNG, R, DFUniqueIndex<R>>;   // index for record values
 
+        template<typename Index, std::ranges::input_range Keys>
+        [[nodiscard]] static auto SelectionPositions(Index const& index, Keys&& keys, std::pmr::memory_resource* const resource) noexcept
+                -> std::optional<std::pmr::vector<std::size_t>>
+        {
+            static_assert(requires(Index const& selectedIndex, std::ranges::range_reference_t<Keys> key) { selectedIndex.Position(key); },
+                          "DataFrame slice keys must be accepted by the selected index.");
+
+            auto positions = std::pmr::vector<std::size_t>(resource);
+            if constexpr(std::ranges::sized_range<Keys>) positions.reserve(std::ranges::size(keys));
+            for(auto&& key : keys)
+            {
+                auto const position = index.Position(key);
+                if(!position.has_value()) return std::nullopt;
+                positions.push_back(*position);
+            }
+
+            std::ranges::sort(positions);
+            auto const duplicate = std::ranges::adjacent_find(positions);
+            LUGIZMO_ASSERT(duplicate == positions.end(), "DataFrame slice selections must not contain duplicate keys.");
+            if(duplicate != positions.end()) return std::nullopt;
+            return positions;
+        }
+
+        struct SliceAxisMapping
+        {
+            std::size_t first;
+            std::size_t count;
+            std::size_t step;
+            std::pmr::vector<std::size_t> positions;
+        };
+
+        template<DFRngIndex Index>
+        [[nodiscard]] static auto SelectionRange(Index const& index, DFRangeIndexBounds<typename Index::KeyType> const& selection,
+                                                 std::pmr::memory_resource* const resource) noexcept
+                -> std::optional<SliceAxisMapping>
+        {
+            using Difference = typename Index::DiffType;
+            if(selection.lower > selection.upper || selection.step <= Difference{0}) return std::nullopt;
+            if(selection.lower == selection.upper)
+                return SliceAxisMapping{.first = 0, .count = 0, .step = 1, .positions = std::pmr::vector<std::size_t>(resource)};
+            if(selection.step % index.Step() != Difference{0}) return std::nullopt;
+
+            auto const first = index.Position(selection.lower);
+            if(!first.has_value()) return std::nullopt;
+
+            auto const count = selection.Size();
+            auto const positionStep = static_cast<std::size_t>(selection.step / index.Step());
+            auto const lastKey = static_cast<typename Index::KeyType>(selection.lower +
+                    static_cast<std::ptrdiff_t>(count - 1) * selection.step);
+            auto const last = index.Position(lastKey);
+            if(!last.has_value() || *last < *first || *last - *first != (count - 1) * positionStep) return std::nullopt;
+
+            return SliceAxisMapping{.first = *first, .count = count, .step = positionStep,
+                                    .positions = std::pmr::vector<std::size_t>(resource)};
+        }
+
+        template<typename Index, typename Selection>
+        requires DFSliceSelectionFor<Selection, Index>
+        [[nodiscard]] static auto SelectionMapping(Index const& index, Selection&& selection,
+                                                   std::pmr::memory_resource* const resource) noexcept -> std::optional<SliceAxisMapping>
+        {
+            if constexpr(DFSliceRangeSelectionFor<Selection, Index>)
+            {
+                return SelectionRange(index, selection, resource);
+            }
+            else
+            {
+                auto positions = SelectionPositions(index, std::forward<Selection>(selection), resource);
+                if(!positions.has_value()) return std::nullopt;
+                if(positions->empty()) return SliceAxisMapping{.first = 0, .count = 0, .step = 1, .positions = std::move(*positions)};
+
+                auto const first = positions->front();
+                for(auto& position : *positions) position -= first;
+                return SliceAxisMapping{.first = first, .count = positions->size(), .step = 1, .positions = std::move(*positions)};
+            }
+        }
+
     public:
 
         // ======== TYPES ==========================================================================================================================================================
@@ -109,6 +189,10 @@ namespace lugizmo {
         /// @brief Contiguous view over one record in a row-major storage.
         template<typename Self, typename Index>
         using RecordValueView = DFSpan<Value<Self>, Index>;
+
+        /// @brief Regular two-dimensional view whose flattened iteration follows storage order.
+        template<typename Self, bool Contiguous>
+        using ValueSlice = DFSlice<Value<Self>, FldI, RecI, L, Contiguous>;
 
         /// @brief View over values with their index value either on record or a field.
         ///        If viewing a field, you get record indices and vise versa.
@@ -480,6 +564,61 @@ namespace lugizmo {
         template<typename RecordLookup>
         [[nodiscard]]
         auto ViewRecordIndexed(this auto& self, RecordLookup const& index) noexcept -> IndexedRecordValueView<decltype(self), FldI>;
+
+        /**
+         * @brief Returns a slice over the complete dataframe.
+         * @return A type-guaranteed contiguous slice in the dataframe's storage order.
+         */
+        [[nodiscard]]
+        auto Slice(this auto& self) noexcept -> ValueSlice<decltype(self), true>;
+
+        /**
+         * @brief Returns all records for a selected range of field keys.
+         * @details The selection is traversed in physical storage order, independent of key order.
+         * @return Empty slice when the selection is empty or contains a missing key.
+         */
+        template<typename FieldSelection>
+        requires DFSliceSelectionFor<FieldSelection, FldI>
+        [[nodiscard]]
+        auto SliceFields(this auto& self, FieldSelection&& fields) noexcept -> ValueSlice<decltype(self), false>;
+
+        [[nodiscard]]
+        auto SliceFields(this auto& self, std::initializer_list<FldT> fields) noexcept -> ValueSlice<decltype(self), false>
+        {
+            return self.SliceFields(std::span<FldT const>(fields.begin(), fields.size()));
+        }
+
+        /**
+         * @brief Returns all fields for a selected range of record keys.
+         * @details The selection is traversed in physical storage order, independent of key order.
+         * @return Empty slice when the selection is empty or contains a missing key.
+         */
+        template<typename RecordSelection>
+        requires DFSliceSelectionFor<RecordSelection, RecI>
+        [[nodiscard]]
+        auto SliceRecords(this auto& self, RecordSelection&& records) noexcept -> ValueSlice<decltype(self), false>;
+
+        [[nodiscard]]
+        auto SliceRecords(this auto& self, std::initializer_list<RecT> records) noexcept -> ValueSlice<decltype(self), false>
+        {
+            return self.SliceRecords(std::span<RecT const>(records.begin(), records.size()));
+        }
+
+        /**
+         * @brief Returns the Cartesian product of selected field and record keys.
+         * @details Both axes are traversed in physical storage order, independent of key order.
+         * @return Empty slice when either selection is empty or contains a missing key.
+         */
+        template<typename FieldSelection, typename RecordSelection>
+        requires DFSliceSelectionFor<FieldSelection, FldI> && DFSliceSelectionFor<RecordSelection, RecI>
+        [[nodiscard]]
+        auto Slice(this auto& self, FieldSelection&& fields, RecordSelection&& records) noexcept -> ValueSlice<decltype(self), false>;
+
+        [[nodiscard]]
+        auto Slice(this auto& self, std::initializer_list<FldT> fields, std::initializer_list<RecT> records) noexcept -> ValueSlice<decltype(self), false>
+        {
+            return self.Slice(std::span<FldT const>(fields.begin(), fields.size()), std::span<RecT const>(records.begin(), records.size()));
+        }
 
         /**
          *  @brief   Alternative syntax for ViewField().
@@ -1545,6 +1684,95 @@ namespace lugizmo {
             {
                 return IndexedRecordValueView<decltype(self), FldI>::RecordView(self.recsData, &self.fldIndex, *pos, self.fldIndex.Bounds());
             }
+        }
+    }
+
+    template<typename T, typename F, typename R, typename L>
+    auto DataFrame<T, F, R, L>::Slice(this auto& self) noexcept -> ValueSlice<decltype(self), true>
+    {
+        using SliceView = ValueSlice<decltype(self), true>;
+        if constexpr(meta::IsConstThis<decltype(self)>())
+        {
+            return SliceView::View(static_cast<ConstDataMatrix>(self.recsData), &self.fldIndex, &self.recIndex,
+                                   0, self.fldIndex.Size(), 0, self.recIndex.Size());
+        }
+        else
+        {
+            return SliceView::View(self.recsData, &self.fldIndex, &self.recIndex,
+                                   0, self.fldIndex.Size(), 0, self.recIndex.Size());
+        }
+    }
+
+    template<typename T, typename F, typename R, typename L>
+    template<typename FieldSelection>
+    requires DFSliceSelectionFor<FieldSelection, typename DataFrame<T, F, R, L>::FldI>
+    auto DataFrame<T, F, R, L>::SliceFields(this auto& self, FieldSelection&& fields) noexcept -> ValueSlice<decltype(self), false>
+    {
+        using SliceView = ValueSlice<decltype(self), false>;
+        auto mapping = SelectionMapping(self.fldIndex, std::forward<FieldSelection>(fields), self.backingRes.get());
+        if(!mapping.has_value() || mapping->count == 0) return SliceView{};
+
+        if constexpr(meta::IsConstThis<decltype(self)>())
+        {
+            return SliceView::Mapped(static_cast<ConstDataMatrix>(self.recsData), &self.fldIndex, &self.recIndex,
+                                     mapping->first, mapping->count, mapping->step, 0, self.recIndex.Size(), 1,
+                                     std::move(mapping->positions));
+        }
+        else
+        {
+            return SliceView::Mapped(self.recsData, &self.fldIndex, &self.recIndex,
+                                     mapping->first, mapping->count, mapping->step, 0, self.recIndex.Size(), 1,
+                                     std::move(mapping->positions));
+        }
+    }
+
+    template<typename T, typename F, typename R, typename L>
+    template<typename RecordSelection>
+    requires DFSliceSelectionFor<RecordSelection, typename DataFrame<T, F, R, L>::RecI>
+    auto DataFrame<T, F, R, L>::SliceRecords(this auto& self, RecordSelection&& records) noexcept -> ValueSlice<decltype(self), false>
+    {
+        using SliceView = ValueSlice<decltype(self), false>;
+        auto mapping = SelectionMapping(self.recIndex, std::forward<RecordSelection>(records), self.backingRes.get());
+        if(!mapping.has_value() || mapping->count == 0) return SliceView{};
+
+        if constexpr(meta::IsConstThis<decltype(self)>())
+        {
+            return SliceView::Mapped(static_cast<ConstDataMatrix>(self.recsData), &self.fldIndex, &self.recIndex,
+                                     0, self.fldIndex.Size(), 1, mapping->first, mapping->count, mapping->step,
+                                     {}, std::move(mapping->positions));
+        }
+        else
+        {
+            return SliceView::Mapped(self.recsData, &self.fldIndex, &self.recIndex,
+                                     0, self.fldIndex.Size(), 1, mapping->first, mapping->count, mapping->step,
+                                     {}, std::move(mapping->positions));
+        }
+    }
+
+    template<typename T, typename F, typename R, typename L>
+    template<typename FieldSelection, typename RecordSelection>
+    requires DFSliceSelectionFor<FieldSelection, typename DataFrame<T, F, R, L>::FldI> &&
+             DFSliceSelectionFor<RecordSelection, typename DataFrame<T, F, R, L>::RecI>
+    auto DataFrame<T, F, R, L>::Slice(this auto& self, FieldSelection&& fields, RecordSelection&& records) noexcept -> ValueSlice<decltype(self), false>
+    {
+        using SliceView = ValueSlice<decltype(self), false>;
+        auto fieldMapping  = SelectionMapping(self.fldIndex, std::forward<FieldSelection>(fields), self.backingRes.get());
+        auto recordMapping = SelectionMapping(self.recIndex, std::forward<RecordSelection>(records), self.backingRes.get());
+        if(!fieldMapping.has_value() || !recordMapping.has_value() || fieldMapping->count == 0 || recordMapping->count == 0) return SliceView{};
+
+        if constexpr(meta::IsConstThis<decltype(self)>())
+        {
+            return SliceView::Mapped(static_cast<ConstDataMatrix>(self.recsData), &self.fldIndex, &self.recIndex,
+                                     fieldMapping->first, fieldMapping->count, fieldMapping->step,
+                                     recordMapping->first, recordMapping->count, recordMapping->step,
+                                     std::move(fieldMapping->positions), std::move(recordMapping->positions));
+        }
+        else
+        {
+            return SliceView::Mapped(self.recsData, &self.fldIndex, &self.recIndex,
+                                     fieldMapping->first, fieldMapping->count, fieldMapping->step,
+                                     recordMapping->first, recordMapping->count, recordMapping->step,
+                                     std::move(fieldMapping->positions), std::move(recordMapping->positions));
         }
     }
 

@@ -14,6 +14,12 @@
 // ✅ ViewRecord          - ViewRecord(record) [const]            -> DFSpan<T[ const], FldI>
 // ✅ ViewFieldIndexed    - ViewFieldIndexed(field) [const]       -> DFViewIndexed<T[ const], RecI const>
 // ✅ ViewRecordIndexed   - ViewRecordIndexed(record) [const]     -> DFViewIndexed<T[ const], FldI const>
+// ✅ Slice               - Slice() / Slice(fields, records)
+// ✅ SliceFields         - SliceFields(fields)
+// ✅ SliceRecords        - SliceRecords(records)
+// ✅ SliceRangeFields    - SliceFields(DFRangeIndexBounds)
+// ✅ SliceRangeRecords   - SliceRecords(DFRangeIndexBounds)
+// ✅ SliceRangeMixed     - Slice(bounds, keys) / Slice(keys, bounds)
 // ✅ SelectField         - operator|(SelectField<F>) [const]     -> DFView<T[ const], RecI>
 // ✅ SelectRecord        - operator|(SelectRecord<R>) [const]    -> DFSpan<T[ const], FldI>
 // ✅ SelectFieldIndexed  - operator|(SelectFieldIndexed<F>) [const]  -> DFViewIndexed<...>
@@ -24,7 +30,9 @@
 
 #include "gtest/gtest.h"
 
+#include <array>
 #include <cstddef>
+#include <ranges>
 #include <type_traits>
 #include <utility>
 
@@ -236,6 +244,198 @@ TYPED_TEST(RM_DataframeViews, ViewRecordIndexed)
         {
             EXPECT_EQ(*std::as_const(df).GetValue(Cfg::FieldKey(f), Cfg::RecordKey(0)), 7);
         }
+    }
+}
+
+/**
+ * @brief Slice() exposes the complete dataframe as one contiguous storage-order range.
+ * @see   lugizmo::DataFrame.Slice()
+ */
+TYPED_TEST(RM_DataframeViews, SliceAll)
+{
+    using Cfg = TypeParam;
+    auto df   = BuildFilled<Cfg>();
+
+    auto const slice = std::as_const(df).Slice();
+    static_assert(decltype(slice)::Contiguous);
+    static_assert(std::ranges::contiguous_range<decltype(slice)>);
+    EXPECT_TRUE(slice.IsContiguous());
+    EXPECT_EQ(slice.FieldSize(), Cfg::FLD_COUNT);
+    EXPECT_EQ(slice.RecordSize(), Cfg::REC_COUNT);
+    EXPECT_TRUE(std::ranges::equal(slice, std::array{0, 1, 2, 3, 4, 5, 6, 7, 8}));
+}
+
+/**
+ * @brief SliceFields selects consecutive fields across every record without copying.
+ * @see   lugizmo::DataFrame.SliceFields(firstField, fieldCount)
+ */
+TYPED_TEST(RM_DataframeViews, SliceFields)
+{
+    using Cfg = TypeParam;
+    auto df   = BuildFilled<Cfg>();
+
+    auto const selectedFields = std::array{Cfg::FieldKey(2), Cfg::FieldKey(0)};
+    auto slice = df.SliceFields(selectedFields);
+    static_assert(!decltype(slice)::Contiguous);
+    static_assert(!std::ranges::contiguous_range<decltype(slice)>);
+    EXPECT_FALSE(slice.IsContiguous());
+    EXPECT_TRUE(std::ranges::equal(slice, std::array{0, 2, 3, 5, 6, 8}));
+
+    slice[0] = 91;
+    EXPECT_EQ(*std::as_const(df).GetValue(Cfg::FieldKey(0), Cfg::RecordKey(0)), 91);
+    EXPECT_TRUE(df.SliceFields(std::array{Cfg::MissingField()}).Empty());
+
+    auto const initializerSlice = std::as_const(df).SliceFields({Cfg::FieldKey(2), Cfg::FieldKey(0)});
+    EXPECT_EQ(initializerSlice.Size(), 2 * Cfg::REC_COUNT);
+}
+
+/**
+ * @brief SliceRecords selects records by key and recognizes adjacent physical storage at runtime.
+ * @see   lugizmo::DataFrame.SliceRecords(records)
+ */
+TYPED_TEST(RM_DataframeViews, SliceRecords)
+{
+    using Cfg = TypeParam;
+    auto df   = BuildFilled<Cfg>();
+
+    auto const selectedRecords = std::array{Cfg::RecordKey(2), Cfg::RecordKey(1)};
+    auto const slice = std::as_const(df).SliceRecords(selectedRecords);
+    static_assert(!decltype(slice)::Contiguous);
+    static_assert(!std::ranges::contiguous_range<decltype(slice)>);
+    EXPECT_TRUE(slice.IsContiguous());
+    EXPECT_TRUE(std::ranges::equal(slice, std::array{3, 4, 5, 6, 7, 8}));
+    EXPECT_TRUE(std::as_const(df).SliceRecords(std::array{Cfg::MissingRecord()}).Empty());
+}
+
+/**
+ * @brief Slice(fields, records) selects a keyed Cartesian product in physical storage order.
+ * @see   lugizmo::DataFrame.Slice(fields, records)
+ */
+TYPED_TEST(RM_DataframeViews, SliceRectangle)
+{
+    using Cfg = TypeParam;
+    auto df   = BuildFilled<Cfg>();
+
+    auto const selectedFields  = std::array{Cfg::FieldKey(2), Cfg::FieldKey(0)};
+    auto const selectedRecords = std::array{Cfg::RecordKey(2), Cfg::RecordKey(0)};
+    auto slice = df.Slice(selectedFields, selectedRecords);
+    static_assert(!decltype(slice)::Contiguous);
+    EXPECT_FALSE(slice.IsContiguous());
+    EXPECT_TRUE(std::ranges::equal(slice, std::array{0, 2, 6, 8}));
+    EXPECT_TRUE(slice.Contains(Cfg::FieldKey(2), Cfg::RecordKey(2)));
+    EXPECT_FALSE(slice.Contains(Cfg::FieldKey(1), Cfg::RecordKey(2)));
+    ASSERT_NE(slice.At(Cfg::FieldKey(2), Cfg::RecordKey(2)), nullptr);
+    EXPECT_EQ(*slice.At(Cfg::FieldKey(2), Cfg::RecordKey(2)), 8);
+
+    EXPECT_TRUE(df.Slice(std::array{Cfg::MissingField()}, std::array{Cfg::RecordKey(0)}).Empty());
+    EXPECT_TRUE(df.Slice(std::array{Cfg::FieldKey(0)}, std::array{Cfg::MissingRecord()}).Empty());
+}
+
+/**
+ * @brief Range-index field bounds use a calculated position stride without materializing positions.
+ * @see   lugizmo::DataFrame.SliceFields(DFRangeIndexBounds)
+ */
+TEST(RM_DataframeViewsRange, SliceFields)
+{
+    using DF = DataFrame<int, DFRangeIndex<int>, DFRangeIndex<int>>;
+
+    auto df = DF();
+    df.SetFieldRange(DFRangeIndexBounds{.lower = 0, .upper = 4});
+    df.SetRecordRange(DFRangeIndexBounds{.lower = 0, .upper = 4});
+
+    for(int record = 0; record < 4; ++record)
+        for(int field = 0; field < 4; ++field) df.AssignValue(field, record, record * 4 + field);
+
+    auto unit = df.SliceFields(DFRangeIndexBounds{.lower = 1, .upper = 4});
+    EXPECT_EQ(unit.FieldStride(), 1);
+    EXPECT_FALSE(unit.IsContiguous());
+    EXPECT_TRUE(std::ranges::equal(unit, std::array{1, 2, 3, 5, 6, 7, 9, 10, 11, 13, 14, 15}));
+
+    auto strided = df.SliceFields(DFRangeIndexBounds{.lower = 0, .upper = 4, .step = 2});
+    EXPECT_EQ(strided.FieldStride(), 2);
+    EXPECT_TRUE(std::ranges::equal(strided, std::array{0, 2, 4, 6, 8, 10, 12, 14}));
+    EXPECT_FALSE(strided.Contains(1, 0));
+
+    auto steppedIndex = DF();
+    steppedIndex.SetFieldRange(DFRangeIndexBounds{.lower = 0, .upper = 8, .step = 2});
+    steppedIndex.SetRecordRange(DFRangeIndexBounds{.lower = 0, .upper = 2});
+    for(int record = 0; record < 2; ++record)
+        for(int field = 0; field < 4; ++field) steppedIndex.AssignValue(field * 2, record, record * 4 + field);
+
+    auto consecutivePositions = steppedIndex.SliceFields(DFRangeIndexBounds{.lower = 2, .upper = 8, .step = 2});
+    EXPECT_EQ(consecutivePositions.FieldStride(), 1);
+    EXPECT_TRUE(std::ranges::equal(consecutivePositions, std::array{1, 2, 3, 5, 6, 7}));
+}
+
+/**
+ * @brief Range-index record bounds recognize complete adjacent rows and preserve larger strides.
+ * @see   lugizmo::DataFrame.SliceRecords(DFRangeIndexBounds)
+ */
+TEST(RM_DataframeViewsRange, SliceRecords)
+{
+    using DF = DataFrame<int, DFRangeIndex<int>, DFRangeIndex<int>>;
+    auto df = DF();
+    df.SetFieldRange(DFRangeIndexBounds{.lower = 0, .upper = 4});
+    df.SetRecordRange(DFRangeIndexBounds{.lower = 0, .upper = 4});
+    for(int record = 0; record < 4; ++record)
+        for(int field = 0; field < 4; ++field) df.AssignValue(field, record, record * 4 + field);
+
+    auto unit = df.SliceRecords(DFRangeIndexBounds{.lower = 1, .upper = 3});
+    EXPECT_EQ(unit.RecordStride(), 4);
+    EXPECT_TRUE(unit.IsContiguous());
+    EXPECT_TRUE(std::ranges::equal(unit, std::array{4, 5, 6, 7, 8, 9, 10, 11}));
+
+    auto strided = df.SliceRecords(DFRangeIndexBounds{.lower = 0, .upper = 4, .step = 2});
+    EXPECT_EQ(strided.RecordStride(), 8);
+    EXPECT_FALSE(strided.IsContiguous());
+    EXPECT_TRUE(std::ranges::equal(strided, std::array{0, 1, 2, 3, 8, 9, 10, 11}));
+}
+
+/**
+ * @brief Range bounds compose with key selections for both mixed-index orientations.
+ * @see   lugizmo::DataFrame.Slice(fields, records)
+ */
+TEST(RM_DataframeViewsRange, SliceMixed)
+{
+    {
+        using DF = DataFrame<int, DFRangeIndex<int>, DFRangeIndex<int>>;
+        auto df = DF();
+        df.SetFieldRange(DFRangeIndexBounds{.lower = 0, .upper = 4});
+        df.SetRecordRange(DFRangeIndexBounds{.lower = 0, .upper = 4});
+        for(int record = 0; record < 4; ++record)
+            for(int field = 0; field < 4; ++field) df.AssignValue(field, record, record * 4 + field);
+
+        auto slice = df.Slice(DFRangeIndexBounds{.lower = 0, .upper = 4, .step = 2},
+                              DFRangeIndexBounds{.lower = 0, .upper = 4, .step = 2});
+        EXPECT_EQ(slice.FieldStride(), 2);
+        EXPECT_EQ(slice.RecordStride(), 8);
+        EXPECT_TRUE(std::ranges::equal(slice, std::array{0, 2, 8, 10}));
+    }
+
+    {
+        using DF = DataFrame<int, int, DFRangeIndex<int>>;
+        auto df = DF();
+        df.AddFields(std::array{10, 20, 30});
+        df.SetRecordRange(DFRangeIndexBounds{.lower = 0, .upper = 4});
+        for(int record = 0; record < 4; ++record)
+            for(int field = 0; field < 3; ++field) df.AssignValue((field + 1) * 10, record, record * 3 + field);
+
+        auto slice = df.Slice(std::array{30, 10}, DFRangeIndexBounds{.lower = 1, .upper = 4, .step = 2});
+        EXPECT_EQ(slice.RecordStride(), 6);
+        EXPECT_TRUE(std::ranges::equal(slice, std::array{3, 5, 9, 11}));
+    }
+
+    {
+        using DF = DataFrame<int, DFRangeIndex<int>, int>;
+        auto df = DF();
+        df.SetFieldRange(DFRangeIndexBounds{.lower = 0, .upper = 4});
+        df.AddRecords(std::array{10, 20, 30, 40});
+        for(int record = 0; record < 4; ++record)
+            for(int field = 0; field < 4; ++field) df.AssignValue(field, (record + 1) * 10, record * 4 + field);
+
+        auto slice = df.Slice(DFRangeIndexBounds{.lower = 0, .upper = 4, .step = 2}, std::array{40, 20});
+        EXPECT_EQ(slice.FieldStride(), 2);
+        EXPECT_TRUE(std::ranges::equal(slice, std::array{4, 6, 12, 14}));
     }
 }
 
