@@ -19,6 +19,9 @@ if(LUGIZMO_DF_BUILD_TESTING)
             view/SpanTest.cpp
             view/ViewTest.cpp
             view/ViewIndexedTest.cpp
+            view/RangeCompositionTest.cpp
+
+            algorithm/ForEachTest.cpp
 
             core/DataFrameConstructTest.cpp
             core/DataFrameTorsTest.cpp
@@ -30,7 +33,6 @@ if(LUGIZMO_DF_BUILD_TESTING)
             core/DataFrameUserTypesTest.cpp
             core/DataFrameDropTest.cpp
             core/DataFrameSortTest.cpp
-            core/DataFrameFunctionalTest.cpp
             core/DataFrameIOTest.cpp
 
             # examples (usability, still asserting)

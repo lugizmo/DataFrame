@@ -11,5 +11,6 @@
 #include "Storage.h"        // IWYU pragma: export
 #include "Views.h"          // IWYU pragma: export
 #include "core/DataFrame.h" // IWYU pragma: export
+#include "Algorithms.h"     // IWYU pragma: export
 
 #endif // LUGIZMO_DATAFRAME_H

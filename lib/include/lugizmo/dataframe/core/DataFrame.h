@@ -658,30 +658,6 @@ namespace lgz {
             return self.ViewRecordIndexed(index.Value());
         }
 
-        // ======== FUNCTIONAL =====================================================================================================================================================
-
-        /**
-         * @brief       Apply a function on each value in a field.
-         * @tparam Func Type of the function to apply on each value in a field.
-         *
-         * @param index Field index to look for. If not found function returns empty view.
-         * @param func  Function to apply on each value in a field.
-         * @return For chaining the view the function was applied on.
-         */
-        template<typename Func>
-        auto ForEachOnField(this auto& self, FldT const& index, Func&& func) -> ValueView<decltype(self), RecI> requires DFUnqIndex<FldI>;
-
-        /**
-         * @brief       Apply a function on each value in a record.
-         * @tparam Func Type of the function to apply on each value in a record.
-         *
-         * @param index Record index to look for. If not found function returns empty view.
-         * @param func  Function to apply on each value in a record.
-         * @return For chaining the view the function was applied on.
-         */
-        template<typename Func>
-        auto ForEachOnRecord(this auto& self, RecT const& index, Func&& func) -> RecordValueView<decltype(self), FldI> requires DFUnqIndex<RecI>;
-
         // ======== PRINT ==========================================================================================================================================================
 
         /**
@@ -1772,28 +1748,6 @@ namespace lgz {
                                      recordMapping->first, recordMapping->count, recordMapping->step,
                                      std::move(fieldMapping->positions), std::move(recordMapping->positions));
         }
-    }
-
-    // ======== FUNCTIONAL =========================================================================================================================================================
-
-    template <typename T, typename F, typename R, typename L>
-    template <typename Func>
-    auto DataFrame<T, F, R, L>::ForEachOnField(this auto& self, FldT const& index, Func&& func) -> ValueView<decltype(self), RecI> requires DFUnqIndex<FldI>
-    {
-        auto view = self.ViewField(index);
-        std::ranges::for_each(view, std::forward<Func>(func));
-
-        return view;
-    }
-
-    template <typename T, typename F, typename R, typename L>
-    template <typename Func>
-    auto DataFrame<T, F, R, L>::ForEachOnRecord(this auto& self, RecT const& index, Func&& func) -> RecordValueView<decltype(self), FldI> requires DFUnqIndex<RecI>
-    {
-        auto view = self.ViewRecord(index);
-        std::ranges::for_each(view, std::forward<Func>(func));
-
-        return view;
     }
 
     // ======== PRINT ==============================================================================================================================================================

@@ -8,10 +8,12 @@
 
 set(LUGIZMO_DF_HEADERS
         include/lugizmo/dataframe/DataFrame.h
+        include/lugizmo/dataframe/Algorithms.h
         include/lugizmo/dataframe/Indices.h
         include/lugizmo/dataframe/Storage.h
         include/lugizmo/dataframe/Views.h
         include/lugizmo/dataframe/core/DataFrame.h
+        include/lugizmo/dataframe/algorithm/ForEach.h
         include/lugizmo/dataframe/index/IndexBase.h
         include/lugizmo/dataframe/index/IndexRange.h
         include/lugizmo/dataframe/index/IndexUnique.h
