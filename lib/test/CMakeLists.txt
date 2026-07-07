@@ -7,34 +7,31 @@
 if(LUGIZMO_DF_BUILD_TESTING)
 
     add_executable(LuDataFrameTest
-            container/ConceptsTest.cpp
-            dataframe/IndexBaseTest.cpp
-            dataframe/IndexRangeTest.cpp
-            dataframe/IndexUniqueTest.cpp
-            dataframe/LayoutRowMajorTest.cpp
-            dataframe/SelectorTest.cpp
-            dataframe/SliceTest.cpp
-            dataframe/SpanTest.cpp
-            dataframe/ViewTest.cpp
-            dataframe/ViewIndexedTest.cpp
-            meta/DeducingThisTest.cpp
+            internal/ConceptsTest.cpp
+            internal/DeducingThisTest.cpp
+            internal/MemoryTest.cpp
+            index/IndexBaseTest.cpp
+            index/IndexRangeTest.cpp
+            index/IndexUniqueTest.cpp
+            storage/LayoutRowMajorTest.cpp
+            view/SelectorTest.cpp
+            view/SliceTest.cpp
+            view/SpanTest.cpp
+            view/ViewTest.cpp
+            view/ViewIndexedTest.cpp
 
-            # memory
-            memory/MemoryTest.cpp
-
-            # row major
-            RM_DataFrameConstructTest.cpp
-            RM_DataFrameTorsTest.cpp
-            RM_DataFrameAddingTest.cpp
-            RM_DataFrameAccessTest.cpp
-            RM_DataFrameMutatingTest.cpp
-            RM_DataFrameViewsTest.cpp
-            RM_DataFramePropertiesTest.cpp
-            RM_DataFrameUserTypesTest.cpp
-            RM_DataFrameDropTest.cpp
-            RM_DataFrameSortTest.cpp
-            RM_DataFrameFunctionalTest.cpp
-            RM_DataFrameIOTest.cpp
+            core/DataFrameConstructTest.cpp
+            core/DataFrameTorsTest.cpp
+            core/DataFrameAddingTest.cpp
+            core/DataFrameAccessTest.cpp
+            core/DataFrameMutatingTest.cpp
+            core/DataFrameViewsTest.cpp
+            core/DataFramePropertiesTest.cpp
+            core/DataFrameUserTypesTest.cpp
+            core/DataFrameDropTest.cpp
+            core/DataFrameSortTest.cpp
+            core/DataFrameFunctionalTest.cpp
+            core/DataFrameIOTest.cpp
 
             # examples (usability, still asserting)
             examples/RM_DFExamples_RangeIndices.cpp
@@ -43,7 +40,7 @@ if(LUGIZMO_DF_BUILD_TESTING)
     )
 
     target_sources(LuDataFrameTest PUBLIC
-            RM_HelperDFTestConfigs.h
+            core/HelperDFTestConfigs.h
     )
 
     target_link_libraries(LuDataFrameTest PUBLIC Lugizmo::DataFrame GTest::gtest)

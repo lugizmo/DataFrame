@@ -12,7 +12,7 @@
 
 #include "gtest/gtest.h"
 
-#include "lugizmo/DataFrame.h"
+#include "lugizmo/dataframe/DataFrame.h"
 
 TEST(RM_DFExamples_RangeIndices, LayoutDefaultIsRowMajor)
 {

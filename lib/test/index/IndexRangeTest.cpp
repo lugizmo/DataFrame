@@ -1,0 +1,504 @@
+// Filename: IndexRangeTest.cpp
+// Copyright 2024 Lukas Guz
+// Licensed under the Apache License, Version 2.0.
+// See the LICENSE file in the project root or at
+// http://www.apache.org/licenses/LICENSE-2.0 for full license information.
+
+//
+// Test the DFRangeIndex computed (strided) range index.
+// The following functions are tested here (with names of tests):
+//
+// ✅ DefaultIndex       - DFRangeIndex() / Empty / Size / LowerBound / UpperBound
+// ✅ InvertedBounds     - DFRangeIndex(lower > upper) (normalizes to empty)
+// ✅ Accessors          - Size / LowerBound / UpperBound
+// ✅ InBound            - InBound(key)
+// ✅ SetBounds          - SetLowerBound / SetUpperBound (element-count deltas)
+// ✅ SetStep            - SetStep validation and populated-range re-spacing
+// ✅ SetLowerUpperBound - atomic bound changes, grid alignment, and element deltas
+// ✅ CopyConstructor    - DFRangeIndex(DFRangeIndex const&)
+// ✅ Strided            - Step / Size / Position / Keys (step != 1)
+// ✅ HasStrided         - Has(key) on a strided grid
+// ✅ Bijection          - Key(pos) <-> Position(key) round trip
+// ✅ Iterators          - forward/reverse random-access iterator contract
+// ✅ ChronoHours        - DFRangeIndex<std::chrono::hours>
+// ✅ CustomType         - DFRangeIndex over a custom affine key (DFRngKey)
+//
+
+#include "gtest/gtest.h"
+
+#include <array>
+#include <chrono>
+#include <compare>
+#include <cstddef>
+#include <iterator>
+#include <optional>
+#include <ranges>
+#include <string>
+
+#include "lugizmo/dataframe/index/IndexRange.h"
+
+namespace {
+
+    /// @brief A minimal custom key type, affine over std::ptrdiff_t, satisfying DFRangeKey.
+    struct Tick
+    {
+        int value = 0;
+
+        constexpr auto operator<=>(Tick const&) const = default;
+
+        constexpr friend auto operator-(Tick a, Tick b) noexcept -> std::ptrdiff_t { return a.value - b.value; }
+        constexpr friend auto operator+(Tick t, std::ptrdiff_t n) noexcept -> Tick { return Tick{static_cast<int>(t.value + n)}; }
+    };
+
+    static_assert(lgz::DFRngKey<Tick>, "Tick should satisfy DFRangeKey.");
+    static_assert(lgz::DFRngKey<std::chrono::hours>, "std::chrono::hours should satisfy DFRangeKey.");
+
+} // namespace
+
+TEST(DataframeIndexRange, DefaultIndex)
+{
+    constexpr auto index = lgz::DFRangeIndex<int>();
+
+    ASSERT_TRUE(index.Empty());
+    ASSERT_TRUE(index.Size() == 0);
+    ASSERT_EQ(index.LowerBound(), 0);
+    ASSERT_EQ(index.UpperBound(), 0);
+}
+
+TEST(DataframeIndexRange, InvertedBounds)
+{
+    constexpr auto index = lgz::DFRangeIndex(10, 5);
+    ASSERT_TRUE(index.Empty());
+    ASSERT_TRUE(index.Size() == 0);
+    ASSERT_EQ(index.LowerBound(), 0);
+    ASSERT_EQ(index.UpperBound(), 0);
+}
+
+TEST(DataframeIndexRange, Accessors)
+{
+    constexpr auto index = lgz::DFRangeIndex(0, 10);
+    ASSERT_FALSE(index.Empty());
+    ASSERT_EQ(index.Size(), 10);
+    ASSERT_EQ(index.LowerBound(), 0);
+    ASSERT_EQ(index.UpperBound(), 10);
+}
+
+TEST(DataframeIndexRange, InBound)
+{
+    constexpr auto index = lgz::DFRangeIndex(0, 10);
+
+    ASSERT_FALSE(index.InBound(-2));
+    ASSERT_FALSE(index.InBound(-1));
+    ASSERT_TRUE(index.InBound(0));
+    ASSERT_TRUE(index.InBound(1));
+    ASSERT_TRUE(index.InBound(2));
+    ASSERT_TRUE(index.InBound(3));
+    ASSERT_TRUE(index.InBound(4));
+    ASSERT_TRUE(index.InBound(5));
+    ASSERT_TRUE(index.InBound(6));
+    ASSERT_TRUE(index.InBound(7));
+    ASSERT_TRUE(index.InBound(8));
+    ASSERT_TRUE(index.InBound(9));
+    ASSERT_FALSE(index.InBound(10));
+    ASSERT_FALSE(index.InBound(11));
+}
+
+TEST(DataframeIndexRange, SetBounds)
+{
+    // Empty ranges may establish a new grid anchor through either one-bound setter.
+    {
+        auto lower = lgz::DFRangeIndex<int>();
+        ASSERT_TRUE(lower.SetStep(2));
+        EXPECT_EQ(lower.SetLowerBound(-1), 1);
+        EXPECT_EQ(lower.Key(0), -1);
+
+        auto upper = lgz::DFRangeIndex<int>();
+        ASSERT_TRUE(upper.SetStep(2));
+        EXPECT_EQ(upper.SetUpperBound(3), 2);
+        EXPECT_EQ(upper.Key(0), 0);
+        EXPECT_EQ(upper.Key(1), 2);
+    }
+
+    // positive values index
+    {
+        auto index = lgz::DFRangeIndex(0, 10);
+        ASSERT_FALSE(index.SetLowerBound(11).has_value());
+        ASSERT_FALSE(index.SetUpperBound(-1).has_value());
+
+        auto const removeLower = index.SetLowerBound(2);
+        ASSERT_TRUE(removeLower.has_value() && removeLower.value() == -2);
+        ASSERT_TRUE(index.Size() == 8);
+
+        auto const removeUpper = index.SetUpperBound(8);
+        ASSERT_TRUE(removeUpper.has_value() && removeUpper.value() == -2);
+        ASSERT_TRUE(index.Size() == 6);
+
+        auto const addLower = index.SetLowerBound(1);
+        ASSERT_TRUE(addLower.has_value() && addLower.value() == 1);
+        ASSERT_TRUE(index.Size() == 7);
+
+        auto const addUpper = index.SetUpperBound(11);
+        ASSERT_TRUE(addUpper.has_value() && addUpper.value() == 3);
+        ASSERT_TRUE(index.Size() == 10);
+    }
+
+    // negative values index
+    {
+        auto index = lgz::DFRangeIndex(-10, 0);
+        ASSERT_FALSE(index.SetLowerBound(1).has_value());
+        ASSERT_FALSE(index.SetUpperBound(-11).has_value());
+
+        auto const removeLower = index.SetLowerBound(-8);
+        ASSERT_TRUE(removeLower.has_value() && removeLower.value() == -2);
+        ASSERT_TRUE(index.Size() == 8);
+
+        auto const removeUpper = index.SetUpperBound(-2);
+        ASSERT_TRUE(removeUpper.has_value() && removeUpper.value() == -2);
+        ASSERT_TRUE(index.Size() == 6);
+
+        auto const addLower = index.SetLowerBound(-12);
+        ASSERT_TRUE(addLower.has_value() && addLower.value() == 4);
+        ASSERT_TRUE(index.Size() == 10);
+
+        auto const addUpper = index.SetUpperBound(-1);
+        ASSERT_TRUE(addUpper.has_value() && addUpper.value() == 1);
+        ASSERT_TRUE(index.Size() == 11);
+    }
+
+    // sign switch values index
+    {
+        auto index = lgz::DFRangeIndex(-10, 10);
+        ASSERT_FALSE(index.SetLowerBound(11).has_value());
+        ASSERT_FALSE(index.SetUpperBound(-11).has_value());
+
+        // without sign changes
+        auto const removeLower = index.SetLowerBound(-8);
+        ASSERT_TRUE(removeLower.has_value() && removeLower.value() == -2);
+        ASSERT_TRUE(index.Size() == 18);
+
+        auto const removeUpper = index.SetUpperBound(8);
+        ASSERT_TRUE(removeUpper.has_value() && removeUpper.value() == -2);
+        ASSERT_TRUE(index.Size() == 16);
+
+        auto const addLower = index.SetLowerBound(-15);
+        ASSERT_TRUE(addLower.has_value() && addLower.value() == 7);
+        ASSERT_TRUE(index.Size() == 23);
+
+        auto const addUpper = index.SetUpperBound(15);
+        ASSERT_TRUE(addUpper.has_value() && addUpper.value() == 7);
+        ASSERT_TRUE(index.Size() == 30);
+
+        // with sign changes
+        auto const removeLowerSig = index.SetLowerBound(1);
+        ASSERT_TRUE(removeLowerSig.has_value() && removeLowerSig.value() == -16);
+        ASSERT_TRUE(index.Size() == 14);
+
+        auto const addLowerBack = index.SetLowerBound(-5);
+        ASSERT_TRUE(addLowerBack.has_value() && addLowerBack.value() == 6);
+        ASSERT_TRUE(index.Size() == 20);
+
+        auto const removeUpperSig = index.SetUpperBound(-2);
+        ASSERT_TRUE(removeUpperSig.has_value() && removeUpperSig.value() == -17);
+        ASSERT_TRUE(index.Size() == 3);
+
+        auto const addUpperBack = index.SetUpperBound(5);
+        ASSERT_TRUE(addUpperBack.has_value() && addUpperBack.value() == 7);
+        ASSERT_TRUE(index.Size() == 10);
+    }
+
+    // strided bounds only move in complete steps
+    {
+        auto index = lgz::DFRangeIndex(0, 10, 2); // 0, 2, 4, 6, 8
+
+        EXPECT_EQ(index.SetLowerBound(1), std::nullopt);
+        EXPECT_EQ(index.SetUpperBound(11), std::nullopt);
+        EXPECT_EQ(index.LowerBound(), 0);
+        EXPECT_EQ(index.UpperBound(), 10);
+
+        EXPECT_EQ(index.SetLowerBound(2), -1);
+        EXPECT_EQ(index.SetUpperBound(12), 1);
+        EXPECT_EQ(index.SetLowerBound(-2), 2);
+        EXPECT_EQ(index.SetUpperBound(8), -2);
+        EXPECT_EQ(index.Size(), 5);
+        EXPECT_EQ(index.Key(0), -2);
+        EXPECT_EQ(index.Key(4), 6);
+    }
+}
+
+TEST(DataframeIndexRange, SetStep)
+{
+    auto index = lgz::DFRangeIndex<int>();
+
+    EXPECT_FALSE(index.SetStep(0));
+    EXPECT_FALSE(index.SetStep(-1));
+    EXPECT_EQ(index.Step(), 1);
+
+    EXPECT_TRUE(index.SetStep(2));
+    EXPECT_TRUE(index.SetStep(2));
+    EXPECT_EQ(index.Step(), 2);
+
+    auto const changes = index.SetLowerUpperBound(1, 7); // 1, 3, 5
+    ASSERT_TRUE(changes.second.has_value());
+    EXPECT_EQ(*changes.second, 3);
+    EXPECT_FALSE(index.SetStep(3));
+    EXPECT_EQ(index.Step(), 2);
+
+    constexpr auto zeroStep     = lgz::DFRangeIndex(0, 5, 0);
+    constexpr auto negativeStep = lgz::DFRangeIndex(0, 5, -2);
+    static_assert(zeroStep.Step() == 1);
+    static_assert(negativeStep.Step() == 1);
+}
+
+TEST(DataframeIndexRange, SetLowerUpperBound)
+{
+    // An empty range can establish a new grid anchor regardless of its previous bounds.
+    {
+        auto index = lgz::DFRangeIndex<int>();
+        ASSERT_TRUE(index.SetStep(2));
+
+        auto const [lowerChange, upperChange] = index.SetLowerUpperBound(1, 7); // 1, 3, 5
+        ASSERT_TRUE(lowerChange.has_value());
+        ASSERT_TRUE(upperChange.has_value());
+        EXPECT_EQ(*lowerChange, 0);
+        EXPECT_EQ(*upperChange, 3);
+        EXPECT_EQ(index.LowerBound(), 1);
+        EXPECT_EQ(index.UpperBound(), 7);
+
+        auto const rejected = index.SetLowerUpperBound(2, 8); // off the established step grid
+        EXPECT_FALSE(rejected.first.has_value());
+        EXPECT_FALSE(rejected.second.has_value());
+        EXPECT_EQ(index.LowerBound(), 1);
+        EXPECT_EQ(index.UpperBound(), 7);
+
+        auto const [addLower, addUpper] = index.SetLowerUpperBound(-1, 9);
+        ASSERT_TRUE(addLower.has_value());
+        ASSERT_TRUE(addUpper.has_value());
+        EXPECT_EQ(*addLower, 1);
+        EXPECT_EQ(*addUpper, 1);
+        EXPECT_EQ(index.Size(), 5);
+
+        auto const inverted = index.SetLowerUpperBound(10, 0);
+        EXPECT_FALSE(inverted.first.has_value());
+        EXPECT_FALSE(inverted.second.has_value());
+        EXPECT_EQ(index.LowerBound(), -1);
+        EXPECT_EQ(index.UpperBound(), 9);
+    }
+
+    // Non-integral affine keys use the same alignment and element-delta contract.
+    {
+        using namespace std::chrono;
+        auto index = lgz::DFRangeIndex(hours{0}, hours{24}, hours{6});
+
+        auto const rejected = index.SetLowerUpperBound(hours{-5}, hours{30});
+        EXPECT_FALSE(rejected.first.has_value());
+        EXPECT_FALSE(rejected.second.has_value());
+
+        auto const [addLower, addUpper] = index.SetLowerUpperBound(hours{-6}, hours{30});
+        ASSERT_TRUE(addLower.has_value());
+        ASSERT_TRUE(addUpper.has_value());
+        EXPECT_EQ(*addLower, 1);
+        EXPECT_EQ(*addUpper, 1);
+        EXPECT_EQ(index.Size(), 6);
+    }
+}
+
+TEST(DataframeIndexRange, CopyConstructor)
+{
+    auto const index = lgz::DFRangeIndex(-5, 7);
+    auto const copy  = lgz::DFRangeIndex(index);
+
+    ASSERT_EQ(copy.LowerBound(), -5);
+    ASSERT_EQ(copy.UpperBound(), 7);
+    ASSERT_EQ(copy.Size(), 12);
+    ASSERT_TRUE(copy.InBound(-5));
+    ASSERT_TRUE(copy.InBound(6));
+    ASSERT_FALSE(copy.InBound(7));
+}
+
+TEST(DataframeIndexRange, Strided)
+{
+    constexpr auto index = lgz::DFRangeIndex(0, 10, 2); // 0, 2, 4, 6, 8
+
+    ASSERT_EQ(index.Step(), 2);
+    ASSERT_EQ(index.Size(), 5);
+    ASSERT_EQ(index.UpperBoundPosition(), 5);
+
+    // on-grid keys resolve to a position; off-grid and out-of-range keys do not
+    ASSERT_EQ(index.Position(0), 0);
+    ASSERT_EQ(index.Position(4), 2);
+    ASSERT_EQ(index.Position(8), 4);
+    ASSERT_EQ(index.Position(3), std::nullopt);  // not on the step grid
+    ASSERT_EQ(index.Position(10), std::nullopt); // out of range
+
+    // iteration yields the strided keys
+    constexpr auto expected = std::array{0, 2, 4, 6, 8};
+    size_t i = 0;
+    for (auto const key : index.Keys()) { ASSERT_EQ(key, expected.at(i++)); }
+    ASSERT_EQ(i, 5);
+
+    // an unaligned upper still counts the last element (ceil)
+    constexpr auto odd = lgz::DFRangeIndex(0, 9, 3); // 0, 3, 6
+    ASSERT_EQ(odd.Size(), 3);
+    ASSERT_EQ(odd.Position(6), 2);
+    ASSERT_EQ(odd.Position(9), std::nullopt);
+}
+
+TEST(DataframeIndexRange, HasStrided)
+{
+    constexpr auto index = lgz::DFRangeIndex(0, 10, 2); // 0, 2, 4, 6, 8
+
+    // on-grid keys are members; in-bounds but off-grid keys are not
+    ASSERT_TRUE(index.Has(0));
+    ASSERT_TRUE(index.Has(8));
+    ASSERT_FALSE(index.Has(3));   // in [0,10) but off the step grid
+    ASSERT_FALSE(index.Has(10));  // out of range
+
+    // exactly Size() keys in [lower, upper) are members
+    size_t members = 0;
+    for (int key = index.LowerBound(); key < index.UpperBound(); ++key)
+    {
+        if (index.Has(key)) ++members;
+    }
+    ASSERT_EQ(members, index.Size());
+
+    // contiguous range: every in-bounds key is a member
+    constexpr auto contiguous = lgz::DFRangeIndex(0, 5);
+    ASSERT_TRUE(contiguous.Has(3));
+    ASSERT_TRUE(contiguous.Has(3.0));
+    ASSERT_FALSE(contiguous.Has(3.5));
+    ASSERT_FALSE(contiguous.Has(5));
+
+    ASSERT_TRUE(index.Has(4.0));
+    ASSERT_FALSE(index.Has(4.5));
+}
+
+TEST(DataframeIndexRange, Bijection)
+{
+    constexpr auto index = lgz::DFRangeIndex(-5, 7); // step 1
+
+    // position -> key -> position round trips for every position
+    for (size_t pos = 0; pos < index.Size(); ++pos)
+    {
+        auto const key = index.Key(pos);
+        ASSERT_TRUE(key.has_value());
+        ASSERT_EQ(index.Position(*key), pos);
+    }
+
+    ASSERT_EQ(index.Key(0), -5);
+    ASSERT_EQ(index.Key(11), 6);
+    ASSERT_EQ(index.Key(12), std::nullopt); // out of range
+
+    // inverse direction for a strided range
+    constexpr auto strided = lgz::DFRangeIndex(0, 10, 2);
+    ASSERT_EQ(strided.Key(0), 0);
+    ASSERT_EQ(strided.Key(3), 6);
+    ASSERT_EQ(strided.Key(5), std::nullopt);
+}
+
+TEST(DataframeIndexRange, Iterators)
+{
+    using Bounds = lgz::DFRangeIndexBounds<int>;
+
+    static_assert(std::random_access_iterator<Bounds::iterator>);
+    static_assert(std::random_access_iterator<Bounds::reverse_iterator>);
+    static_assert(std::ranges::random_access_range<Bounds>);
+
+    // An unaligned upper bound exercises the computed one-past-end position: 2, 5, 8.
+    constexpr auto bounds = Bounds{.lower = 2, .upper = 9, .step = 3};
+    auto begin            = bounds.begin();
+    auto const end        = bounds.end();
+
+    EXPECT_EQ(*begin, 2);
+    EXPECT_EQ(*begin.operator->(), 2);
+    EXPECT_EQ(end - begin, 3);
+    EXPECT_EQ(std::ranges::distance(bounds), 3);
+    EXPECT_EQ(begin[2], 8);
+    EXPECT_EQ(*(begin + 2), 8);
+    EXPECT_EQ(*(2 + begin), 8);
+
+    auto const beforeIncrement = begin++;
+    EXPECT_EQ(*beforeIncrement, 2);
+    EXPECT_EQ(*begin, 5);
+    EXPECT_EQ(*++begin, 8);
+    EXPECT_EQ(*begin--, 8);
+    EXPECT_EQ(*begin, 5);
+    EXPECT_EQ(*--begin, 2);
+
+    begin += 2;
+    EXPECT_EQ(*begin, 8);
+    begin -= 1;
+    EXPECT_EQ(*begin, 5);
+    EXPECT_LT(begin, end);
+    EXPECT_LE(begin, end);
+    EXPECT_GT(end, begin);
+    EXPECT_GE(end, begin);
+
+    auto reverse = bounds.rbegin();
+    EXPECT_EQ(*reverse, 8);
+    EXPECT_EQ(bounds.rend() - reverse, 3);
+    EXPECT_EQ(reverse[1], 5);
+    EXPECT_EQ(*(reverse + 2), 2);
+    EXPECT_EQ(*bounds.crbegin(), 8);
+    EXPECT_EQ(bounds.crend(), bounds.rend());
+
+    constexpr auto empty = Bounds{.lower = 4, .upper = 4, .step = 2};
+    EXPECT_EQ(empty.begin(), empty.end());
+    EXPECT_EQ(empty.rbegin(), empty.rend());
+}
+
+TEST(DataframeIndexRange, ChronoHours)
+{
+    using namespace std::chrono;
+
+    auto const index = lgz::DFRangeIndex(hours{0}, hours{24}, hours{6}); // 0h, 6h, 12h, 18h
+
+    ASSERT_EQ(index.Size(), 4);
+    ASSERT_EQ(index.Step(), hours{6});
+    ASSERT_EQ(index.LowerBound(), hours{0});
+    ASSERT_EQ(index.UpperBound(), hours{24});
+
+    // forward: key -> position
+    ASSERT_EQ(index.Position(hours{0}), 0);
+    ASSERT_EQ(index.Position(hours{12}), 2);
+    ASSERT_EQ(index.Position(hours{18}), 3);
+    ASSERT_EQ(index.Position(hours{5}), std::nullopt);  // off the 6h grid
+    ASSERT_EQ(index.Position(hours{24}), std::nullopt); // out of range
+
+    // inverse: position -> key
+    ASSERT_EQ(index.Key(0), hours{0});
+    ASSERT_EQ(index.Key(3), hours{18});
+    ASSERT_EQ(index.Key(4), std::nullopt);
+
+    // membership respects the grid
+    ASSERT_TRUE(index.Has(hours{6}));
+    ASSERT_FALSE(index.Has(hours{7}));
+    ASSERT_FALSE(index.Has(hours{24}));
+
+    // iteration yields the strided time spans
+    constexpr auto expected = std::array{hours{0}, hours{6}, hours{12}, hours{18}};
+    size_t i = 0;
+
+    for(auto const span : index.Keys()) { ASSERT_EQ(span, expected.at(i++)); }
+    ASSERT_EQ(i, 4);
+}
+
+TEST(DataframeIndexRange, CustomType)
+{
+    auto const index = lgz::DFRangeIndex(Tick{0}, Tick{10}, std::ptrdiff_t{2}); // 0, 2, 4, 6, 8
+
+    ASSERT_EQ(index.Size(), 5);
+    ASSERT_EQ(index.Step(), 2);
+    ASSERT_EQ(index.LowerBound(), Tick{0});
+    ASSERT_EQ(index.UpperBound(), Tick{10});
+
+    ASSERT_EQ(index.Position(Tick{4}), 2);
+    ASSERT_EQ(index.Position(Tick{3}), std::nullopt);  // off grid
+    ASSERT_EQ(index.Position(Tick{10}), std::nullopt); // out of range
+
+    ASSERT_EQ(index.Key(0), Tick{0});
+    ASSERT_EQ(index.Key(4), Tick{8});
+    ASSERT_EQ(index.Key(5), std::nullopt);
+
+    ASSERT_TRUE(index.Has(Tick{6}));
+    ASSERT_FALSE(index.Has(Tick{7}));
+}

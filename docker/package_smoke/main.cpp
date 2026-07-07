@@ -4,7 +4,7 @@
 // See the LICENSE file in the project root or at
 // http://www.apache.org/licenses/LICENSE-2.0 for full license information.
 
-#include "lugizmo/DataFrame.h"
+#include "lugizmo/dataframe/DataFrame.h"
 
 auto main() -> int
 {

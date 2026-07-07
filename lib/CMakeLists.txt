@@ -6,24 +6,29 @@
 
 # ====== SOURCES =======================================================================================================
 
-set(LUGIZMO_DF_PUBLIC_HEADERS
-        include/lugizmo/Assert.h
-        include/lugizmo/DataFrame.h
-        include/lugizmo/container/Concepts.h
-        include/lugizmo/container/DataFrameMap.h
-        include/lugizmo/container/DataFrameMapSupport.h
-        include/lugizmo/dataframe/IndexBase.h
-        include/lugizmo/dataframe/IndexRange.h
-        include/lugizmo/dataframe/IndexUnique.h
-        include/lugizmo/dataframe/LayoutColMajor.h
-        include/lugizmo/dataframe/LayoutRowMajor.h
-        include/lugizmo/dataframe/Selector.h
-        include/lugizmo/dataframe/Span.h
-        include/lugizmo/dataframe/View.h
-        include/lugizmo/dataframe/ViewIndexed.h
-        include/lugizmo/memory/Memory.h
-        include/lugizmo/support/Compiler.h
-        include/lugizmo/meta/DeducingThis.h
+set(LUGIZMO_DF_HEADERS
+        include/lugizmo/dataframe/DataFrame.h
+        include/lugizmo/dataframe/Indices.h
+        include/lugizmo/dataframe/Storage.h
+        include/lugizmo/dataframe/Views.h
+        include/lugizmo/dataframe/core/DataFrame.h
+        include/lugizmo/dataframe/index/IndexBase.h
+        include/lugizmo/dataframe/index/IndexRange.h
+        include/lugizmo/dataframe/index/IndexUnique.h
+        include/lugizmo/dataframe/view/Selector.h
+        include/lugizmo/dataframe/view/Slice.h
+        include/lugizmo/dataframe/view/SliceConcepts.h
+        include/lugizmo/dataframe/view/Span.h
+        include/lugizmo/dataframe/view/View.h
+        include/lugizmo/dataframe/view/ViewIndexed.h
+        include/lugizmo/dataframe/storage/LayoutColMajor.h
+        include/lugizmo/dataframe/storage/LayoutRowMajor.h
+        include/lugizmo/dataframe/internal/Assert.h
+        include/lugizmo/dataframe/internal/Compiler.h
+        include/lugizmo/dataframe/internal/Concepts.h
+        include/lugizmo/dataframe/internal/DeducingThis.h
+        include/lugizmo/dataframe/internal/Hashing.h
+        include/lugizmo/dataframe/internal/Memory.h
 )
 
 # ====== TARGET ========================================================================================================
@@ -35,7 +40,7 @@ target_sources(${LUGIZMO_DF_TARGET_NAME}
         INTERFACE
         FILE_SET HEADERS
         BASE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/include"
-        FILES ${LUGIZMO_DF_PUBLIC_HEADERS}
+        FILES ${LUGIZMO_DF_HEADERS}
 )
 
 target_include_directories(${LUGIZMO_DF_TARGET_NAME}

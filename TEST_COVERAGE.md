@@ -7,7 +7,7 @@
 Correctness tests live in `lib/test/` and follow:
 
 ```
-RM_Dataframe<Area>Test.cpp
+core/DataFrame<Area>Test.cpp
 ```
 
 - `RM_` = row-major layout. Drop the prefix for tests that are not layout-specific
@@ -29,7 +29,7 @@ API compose naturally) rather than exhaustively probing correctness.
 
 - **One `TEST` per function.** Different cases for the same function are separate
   scoped blocks `{ ... }`, each opened with a short `// comment`.
-- See `RM_DataframeAccessTest.cpp` for the reference style.
+- See `DataFrameAccessTest.cpp` for the reference style.
 
 ### Index coverage
 
@@ -52,7 +52,7 @@ single index family and are tracked without a matrix.
 The index type is a compile-time `DataFrame` template parameter, so cross-index coverage
 is driven by **GoogleTest typed tests** (`TYPED_TEST_SUITE` + `TYPED_TEST`):
 
-- A shared `lib/test/RM_HelperDFTestConfigs.h` defines config-traits types —
+- A shared `lib/test/core/HelperDFTestConfigs.h` defines config-traits types —
   `Unique_IndexTest` (UU), `RangeS1_IndexTest` (R1), `RangeS2_IndexTest` (Rs),
   `UniqueRange_IndexTest`, and `RangeUnique_IndexTest` — each exposing its `DataFrame`
   type plus helpers to **build a
@@ -60,7 +60,7 @@ is driven by **GoogleTest typed tests** (`TYPED_TEST_SUITE` + `TYPED_TEST`):
   between `AddFields(...)` for unique and `SetFieldRange(...)` for range; `step != 1` is a
   runtime bound carried by `RangeS2_IndexTest`, whose `MissingRecord()` returns an off-grid
   key.)
-- See `RM_DataframeAccessTest.cpp` for the reference typed-test.
+- See `DataFrameAccessTest.cpp` for the reference typed-test.
 - Each index-agnostic behaviour is written **once** as a `TYPED_TEST` and runs against
   every config in the type list automatically.
 
@@ -70,7 +70,7 @@ is driven by **GoogleTest typed tests** (`TYPED_TEST_SUITE` + `TYPED_TEST`):
 
 ### Tor's
 
-Test file: [RM_DataframeTorsTest.cpp](/lib/test/RM_DataframeTorsTest.cpp)
+Test file: [DataFrameTorsTest.cpp](/lib/test/core/DataFrameTorsTest.cpp)
 
 | Done | Function Name                | Returns    | UU | R1 | Rs | Mix |
 |------|------------------------------|------------|----|----|----|-----|
@@ -85,7 +85,7 @@ Test file: [RM_DataframeTorsTest.cpp](/lib/test/RM_DataframeTorsTest.cpp)
 
 ### Construction
 
-Test file: [RM_DataFrameConstructTest.cpp](/lib/test/RM_DataFrameConstructTest.cpp)
+Test file: [DataFrameConstructTest.cpp](/lib/test/core/DataFrameConstructTest.cpp)
 
 Constructors (index-agnostic):
 
@@ -109,7 +109,7 @@ the RangeIndices examples:
 
 ### Adding Fields and Records
 
-Test file: [RM_DataframeAddingTest.cpp](/lib/test/RM_DataframeAddingTest.cpp)
+Test file: [DataFrameAddingTest.cpp](/lib/test/core/DataFrameAddingTest.cpp)
 
 | Done | Function Name                                        | Returns     | UU | R1 | Rs |
 |------|------------------------------------------------------|-------------|----|----|----|
@@ -138,7 +138,7 @@ Range-family (sequence-index) only:
 
 ### Removing Fields and Records
 
-Test file: [RM_DataframeDropTest.cpp](/lib/test/RM_DataframeDropTest.cpp)
+Test file: [DataFrameDropTest.cpp](/lib/test/core/DataFrameDropTest.cpp)
 
 | Done | Function Name              | Returns | UU | R1 | Rs |
 |------|----------------------------|---------|----|----|----|
@@ -147,7 +147,7 @@ Test file: [RM_DataframeDropTest.cpp](/lib/test/RM_DataframeDropTest.cpp)
 
 ### Properties
 
-Test file: [RM_DataframePropertiesTest.cpp](/lib/test/RM_DataframePropertiesTest.cpp)
+Test file: [DataFramePropertiesTest.cpp](/lib/test/core/DataFramePropertiesTest.cpp)
 
 | Done | Function Name                          | Returns | UU | R1 | Rs | Mix |
 |------|----------------------------------------|---------|----|----|----|-----|
@@ -160,7 +160,7 @@ Test file: [RM_DataframePropertiesTest.cpp](/lib/test/RM_DataframePropertiesTest
 
 ### Accessing Values
 
-Test file: [RM_DataframeAccessTest.cpp](/lib/test/RM_DataframeAccessTest.cpp)
+Test file: [DataFrameAccessTest.cpp](/lib/test/core/DataFrameAccessTest.cpp)
 
 | Done | Function Name                                           | Returns                | UU | R1 | Rs | Mix |
 |------|---------------------------------------------------------|------------------------|----|----|----|-----|
@@ -174,7 +174,7 @@ Test file: [RM_DataframeAccessTest.cpp](/lib/test/RM_DataframeAccessTest.cpp)
 
 ### Mutating Values
 
-Test file: [RM_DataframeMutatingTest.cpp](/lib/test/RM_DataframeMutatingTest.cpp)
+Test file: [DataFrameMutatingTest.cpp](/lib/test/core/DataFrameMutatingTest.cpp)
 
 | Done | Function Name                                                 | Returns | UU | R1 | Rs | Mix |
 |------|---------------------------------------------------------------|---------|----|----|----|-----|
@@ -187,7 +187,7 @@ Test file: [RM_DataframeMutatingTest.cpp](/lib/test/RM_DataframeMutatingTest.cpp
 
 ### Views
 
-Test file: [RM_DataframeViewsTest.cpp](/lib/test/RM_DataframeViewsTest.cpp)
+Test file: [DataFrameViewsTest.cpp](/lib/test/core/DataFrameViewsTest.cpp)
 
 | Done | Function Name                              | Returns                       | UU | R1 | Rs | Mix |
 |------|--------------------------------------------|-------------------------------|----|----|----|-----|
@@ -204,7 +204,7 @@ Test file: [RM_DataframeViewsTest.cpp](/lib/test/RM_DataframeViewsTest.cpp)
 
 ### Sort
 
-Test file: [RM_DataframeSortTest.cpp](/lib/test/RM_DataframeSortTest.cpp)
+Test file: [DataFrameSortTest.cpp](/lib/test/core/DataFrameSortTest.cpp)
 
 Value-index only (`requires DFUnqIndex`; an arithmetic range is already ordered); `—` = n/a.
 
@@ -215,7 +215,7 @@ Value-index only (`requires DFUnqIndex`; an arithmetic range is already ordered)
 
 ### Functional
 
-Test file: [RM_DataFrameFunctionalTest.cpp](/lib/test/RM_DataFrameFunctionalTest.cpp)
+Test file: [DataFrameFunctionalTest.cpp](/lib/test/core/DataFrameFunctionalTest.cpp)
 
 Value-index only (`requires DFValIndex`); `—` = n/a.
 
@@ -231,7 +231,7 @@ Value-index only (`requires DFValIndex`); `—` = n/a.
 
 ### IO
 
-Test file: [RM_DataFrameIOTest.cpp](/lib/test/RM_DataFrameIOTest.cpp)
+Test file: [DataFrameIOTest.cpp](/lib/test/core/DataFrameIOTest.cpp)
 
 - [ ] ```Print() const -> void```
 - [ ] ```PrintTo(std::ostream& stream) const -> void```
@@ -239,7 +239,7 @@ Test file: [RM_DataFrameIOTest.cpp](/lib/test/RM_DataFrameIOTest.cpp)
 
 ### User-Types
 
-Test file: [RM_DataframeUserTypesTest.cpp](/lib/test/RM_DataframeUserTypesTest.cpp)
+Test file: [DataFrameUserTypesTest.cpp](/lib/test/core/DataFrameUserTypesTest.cpp)
 
 Behavior with user-provided value/key types (not a per-function area).
 
